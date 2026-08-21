@@ -5,9 +5,9 @@
 <h1 align="center">Escriba</h1>
 
 <p align="center">
-  <b>Meeting minutes on your Mac.</b><br>
-  Records both sides, transcribes locally, and knows who said what —
-  without a diarization model.
+  <b>The meeting assistant that tells you what was <i>never</i> said.</b><br>
+  Records both sides, transcribes on your Mac, and checks the conversation
+  against the client's open items — not just what happened, but what didn't.
 </p>
 
 <p align="center">
@@ -24,9 +24,27 @@
 
 ---
 
-## Two things it does that others don't
+## What was never said
 
-### 1. Speaker attribution without a diarization model
+Every notetaker summarizes what happened. Escriba also reports **what should
+have happened and didn't** — checked against the client's own file:
+
+> **The budget was never mentioned.** Fifty minutes discussing scope and nobody
+> asked the price. Most urgent open item.
+>
+> **The email addresses are still pending from the previous meeting.** Two weeks,
+> and the daily summary is still off for want of three addresses.
+
+That section is marked *internal* and is stripped from the PDF you send. As far
+as I can tell, no other tool — commercial or open source — does this. Several
+read prior context; none flag the absences.
+
+If you already keep a folder with one Markdown file per client, Escriba loads
+the relevant one before writing. That is the whole setup.
+
+## And a couple of engineering notes
+
+### Speaker attribution without a diarization model
 
 Escriba records **two separate tracks** — your microphone and the Mac's system
 audio. To label a line, it compares the RMS energy of both tracks over that
@@ -44,20 +62,7 @@ trade-off, stated up front.
 [00:09] Client: Right. I'll send you the addresses on Monday.
 ```
 
-### 2. It reads the client's file before writing
-
-Point Escriba at a folder with one Markdown file per client and it loads the
-relevant one into the prompt. The minute then knows what was left pending last
-time — and produces a second section, **never included in the PDF**, listing
-what was *not* said:
-
-> **The budget was never mentioned.** Fifty minutes discussing scope and nobody
-> asked the price. Most urgent open item.
->
-> **The email addresses are still pending from the previous meeting.** Two weeks,
-> and the daily summary is still off for want of three addresses.
-
-## How it captures system audio
+### Capturing system audio without a driver
 
 A 98 KB Swift helper built on ScreenCaptureKit, compiled with `swiftc` — **no
 Xcode needed**, the Command Line Tools SDK is enough. It writes the microphone
@@ -75,13 +80,17 @@ helper exists.
 | Audio leaves your Mac | never | yes | never |
 | Works on video calls | yes | yes | needs a virtual driver |
 | Knows who said what | yes, from two tracks | yes, cloud diarization | no |
-| Uses your client history | **yes** | no | no |
-| Tells you what was *not* said | **yes** | no | no |
+| Uses your client history | yes | partly | no |
+| **Flags what was _not_ said** | **yes** | **no** | **no** |
 | Spanish | first-class | translated | transcription only |
 | Price | free, MIT | $10–29 / user / month | one-off purchase |
 
 What they do better: polished onboarding, calendar integrations, mobile apps,
 teams and sharing. Escriba has none of that.
+
+**Who it is for:** independent consultants and small firms — lawyers,
+accountants, agencies — who already keep a folder per client, work in Spanish,
+and would rather their audio never reached a server in another country.
 
 ## Install
 

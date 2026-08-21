@@ -11,79 +11,114 @@
 <meta property="og:url" content="https://escriba.kapitec.pro">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="icono-512.png">
+<link rel="canonical" href="https://escriba.kapitec.pro/">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
 <style>
-:root{--ink:#0A1428;--soft:#4A5670;--muted:#8A93A6;--rule:rgba(10,20,40,.10);
- --paper:#fff;--tint:#F7F9FC;--gold:#B58A3E;--gold-soft:#F6EFE2;--azul:#2367FB;--verde:#2DD2A1}
+:root{
+  --ink:#0A1428; --soft:#4A5670; --muted:#8A93A6;
+  --rule:rgba(10,20,40,.10); --paper:#fff; --tint:#F7F9FC; --tint2:#EEF3F9;
+  --gold:#B58A3E; --gold-cl:#D9AE62; --gold-soft:#F6EFE2;
+  --azul:#2367FB; --verde:#2DD2A1;
+}
 *{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
 body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(--ink);
  background:var(--paper);line-height:1.65;-webkit-font-smoothing:antialiased}
+img{max-width:100%;display:block}
 .barra{height:5px;background:linear-gradient(90deg,var(--azul),var(--verde))}
-.env{max-width:960px;margin:0 auto;padding:0 24px}
-h1,h2,h3{font-family:'Plus Jakarta Sans',Inter,sans-serif;font-weight:800;letter-spacing:-.02em;word-spacing:.04em}
-header{padding:76px 0 40px;text-align:center}
-.logo{width:96px;height:96px;margin:0 auto 26px;display:block;border-radius:22px}
-h1{font-size:clamp(40px,7vw,62px);line-height:1.06;margin-bottom:16px}
-.claim{font-size:clamp(17px,2.4vw,21px);color:var(--soft);max-width:640px;margin:0 auto 34px}
-.botones{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-.btn{display:inline-block;padding:13px 24px;border-radius:10px;font-weight:600;text-decoration:none;
- border:1px solid var(--rule);color:var(--ink);transition:.14s}
-.btn:hover{border-color:var(--ink)}
+.env{max-width:1000px;margin:0 auto;padding:0 24px}
+.env-e{max-width:760px;margin:0 auto;padding:0 24px}
+h1,h2,h3,h4{font-family:'Plus Jakarta Sans',Inter,sans-serif;font-weight:800;letter-spacing:-.022em;word-spacing:.04em;line-height:1.14}
+
+/* hero */
+header{padding:72px 0 44px;text-align:center}
+.logo{width:88px;height:88px;margin:0 auto 30px;border-radius:21px}
+h1{font-size:clamp(38px,6.4vw,60px);margin-bottom:20px;text-wrap:balance}
+h1 em{font-style:italic;color:var(--gold)}
+.claim{font-size:clamp(16.5px,2.2vw,20px);color:var(--soft);max-width:540px;margin:0 auto 32px;text-wrap:balance}
+.botones{display:flex;gap:11px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-block;padding:13px 25px;border-radius:10px;font-weight:600;text-decoration:none;
+ border:1px solid var(--rule);color:var(--ink);transition:.14s;font-size:15px}
+.btn:hover{border-color:var(--ink);transform:translateY(-1px)}
 .btn.p{background:var(--ink);color:#fff;border-color:var(--ink)}
-.btn.p:hover{opacity:.88}
-.nota{font-size:13px;color:var(--muted);margin-top:14px}
-section{padding:56px 0;border-top:1px solid var(--rule)}
-h2{font-size:clamp(24px,3.4vw,31px);margin-bottom:14px}
-.sub-t{font-family:'Plus Jakarta Sans',Inter,sans-serif;font-size:18px;font-weight:800;margin:30px 0 10px;letter-spacing:-.015em;word-spacing:.04em}
-.sub{color:var(--soft);max-width:680px;margin-bottom:30px}
-.rejilla{display:grid;grid-template-columns:repeat(auto-fit,minmax(266px,1fr));gap:20px}
+.btn.p:hover{opacity:.9}
+.btn.claro{background:#fff;color:var(--ink);border-color:#fff}
+.nota{font-size:13px;color:var(--muted);margin-top:15px}
+.captura{border-radius:14px;border:1px solid var(--rule);box-shadow:0 20px 64px rgba(10,20,40,.14);margin-top:34px}
+
+/* secciones */
+section{padding:64px 0}
+section.linea{border-top:1px solid var(--rule)}
+h2{font-size:clamp(25px,3.6vw,34px);margin-bottom:15px}
+.sub{color:var(--soft);max-width:640px;margin-bottom:34px;font-size:16.5px}
+h3{font-size:19px;margin:32px 0 10px}
+h3:first-of-type{margin-top:0}
+p{margin-bottom:13px;color:var(--soft)}
+
+/* bloque oscuro: el diferenciador */
+.oscuro{background:var(--ink);color:#fff;padding:74px 0}
+.oscuro h2{color:#fff}
+.oscuro .sub{color:#A7B2C7;margin-bottom:30px}
+.oscuro .et{font-size:11px;text-transform:uppercase;letter-spacing:.14em;font-weight:700;color:var(--gold-cl);margin-bottom:16px}
+.cita{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);
+ border-left:3px solid var(--gold-cl);border-radius:0 12px 12px 0;padding:24px 28px;margin-bottom:14px}
+.cita p{color:#D6DEEA;margin:0;font-size:16px;line-height:1.66}
+.cita p b{color:#fff}
+.oscuro .pie{color:#7D8AA3;font-size:14px;margin-top:26px;max-width:640px}
+
+/* tarjetas */
+.rejilla{display:grid;grid-template-columns:repeat(auto-fit,minmax(258px,1fr));gap:18px}
 .tarjeta{background:var(--tint);border:1px solid var(--rule);border-radius:13px;padding:24px}
-.tarjeta h3{font-size:16.5px;margin-bottom:7px}
-.tarjeta p{font-size:14.5px;color:var(--soft)}
-.tarjeta .et{width:24px;height:2px;background:var(--gold);border-radius:1px;margin-bottom:13px}
-.destacado{background:var(--gold-soft);border:1px solid #EADFC7;border-radius:13px;padding:28px 30px;margin:8px 0 26px}
-.destacado h3{font-size:18px;margin-bottom:9px}
-.destacado p{color:#5A4A2E;font-size:15px}
-table{width:100%;border-collapse:collapse;margin-top:18px;font-size:14.5px}
-th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);
- padding:0 12px 8px;border-bottom:1.5px solid var(--ink)}
+.tarjeta h4{font-size:16px;margin-bottom:8px}
+.tarjeta p{font-size:14.5px;margin:0}
+.tarjeta .et{width:22px;height:2px;background:var(--gold);border-radius:1px;margin-bottom:14px}
+
+/* tabla */
+table{width:100%;border-collapse:collapse;margin-top:22px;font-size:14.5px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);
+ padding:0 12px 9px;border-bottom:1.5px solid var(--ink);font-weight:700}
 td{padding:11px 12px;border-bottom:1px solid var(--rule);color:var(--soft)}
-td:first-child{color:var(--ink);font-weight:600;white-space:nowrap}
-ol{margin:16px 0 0 0;list-style:none;counter-reset:p}
-ol li{counter-increment:p;position:relative;padding-left:38px;margin-bottom:16px;color:var(--soft)}
-ol li::before{content:counter(p);position:absolute;left:0;top:-1px;width:25px;height:25px;border-radius:50%;
- background:var(--gold-soft);border:1px solid #EADFC7;color:var(--gold);font-weight:700;font-size:12.5px;
- display:flex;align-items:center;justify-content:center}
-ol li b{color:var(--ink)}
-.captura{width:100%;border-radius:13px;border:1px solid var(--rule);box-shadow:0 12px 40px rgba(10,20,40,.10);margin-top:26px}
-.vitrina{padding-bottom:8px}
-.captura{width:100%;border-radius:14px;border:1px solid var(--rule);
- box-shadow:0 18px 60px rgba(10,20,40,.13);display:block;margin-top:8px}
-.notas-demo{background:#FFFBF2;border:1px solid #EADFC7;border-left:3px solid var(--gold);
- border-radius:12px;padding:26px 30px}
-.notas-demo .et{font-size:11px;text-transform:uppercase;letter-spacing:.12em;font-weight:700;
- color:var(--gold);margin-bottom:16px}
-.notas-demo h4{font-family:'Plus Jakarta Sans',Inter,sans-serif;font-size:15.5px;font-weight:800;
- margin:16px 0 8px;color:var(--ink)}
-.notas-demo h4:first-of-type{margin-top:0}
-.lista-notas{list-style:none;margin:0}
-.lista-notas li{position:relative;padding-left:19px;margin-bottom:9px;color:#5A4A2E;font-size:14.5px;line-height:1.6}
-.lista-notas li::before{content:"";position:absolute;left:3px;top:.7em;width:5px;height:5px;border-radius:50%;background:var(--gold)}
-.lista-notas b{color:var(--ink)}
-footer{padding:44px 0 60px;border-top:1px solid var(--rule);color:var(--muted);font-size:14px;text-align:center}
+td:first-child{color:var(--ink);font-weight:600}
+tr.destaca td{background:var(--gold-soft)}
+tr.destaca td:first-child{color:var(--ink)}
+.tabla-env{overflow-x:auto}
+
+/* pasos */
+ol.pasos{margin:8px 0 0;list-style:none;counter-reset:p}
+ol.pasos li{counter-increment:p;position:relative;padding-left:42px;margin-bottom:18px;color:var(--soft)}
+ol.pasos li::before{content:counter(p);position:absolute;left:0;top:-2px;width:27px;height:27px;border-radius:50%;
+ background:var(--gold-soft);border:1px solid #EADFC7;color:var(--gold);font-weight:700;font-size:13px;
+ display:flex;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif}
+ol.pasos li b{color:var(--ink)}
+code{background:var(--tint2);border:1px solid var(--rule);border-radius:4px;padding:1px 6px;font-size:13.5px;
+ font-family:ui-monospace,Menlo,monospace}
+
+.aviso{background:var(--tint);border-left:3px solid var(--gold);border-radius:0 10px 10px 0;
+ padding:17px 21px;margin-top:26px;font-size:14.5px;color:var(--soft)}
+.aviso b{color:var(--ink)}
+
+/* cierre */
+.cierre{background:var(--tint);border-top:1px solid var(--rule);padding:70px 0;text-align:center}
+.cierre h2{margin-bottom:12px}
+.cierre .sub{margin:0 auto 28px}
+footer{padding:38px 0 56px;border-top:1px solid var(--rule);color:var(--muted);font-size:14px;text-align:center}
 footer a{color:var(--soft)}
-.aviso{background:var(--tint);border-left:3px solid var(--gold);border-radius:0 9px 9px 0;padding:17px 20px;margin-top:24px;font-size:14.5px;color:var(--soft)}
+@media (max-width:620px){
+  header{padding:52px 0 32px}
+  section{padding:48px 0}
+  .oscuro{padding:56px 0}
+  .cita{padding:20px 22px}
+}
 </style>
 </head>
 <body>
 <div class="barra"></div>
 
-<header class="env">
+<header class="env-e">
   <img src="icono-512.png" class="logo" alt="Escriba">
   <h1>Te dice lo que<br><em>no</em> se dijo.</h1>
-  <p class="claim">Todas las herramientas resumen lo que pasó en la junta. Escriba además
-  revisa la conversación contra los pendientes del cliente y te señala lo que faltó tratar.
-  Todo en tu propia Mac.</p>
+  <p class="claim">Todas las herramientas resumen la junta. Escriba además la compara con
+  los pendientes del cliente y te señala lo que faltó tratar.</p>
   <div class="botones">
     <a class="btn p" href="https://github.com/kapitecsoluciones/escriba/releases/latest">Descargar para Mac</a>
     <a class="btn" href="manual.html">Manual</a>
@@ -92,110 +127,93 @@ footer a{color:var(--soft)}
   <p class="nota">Gratis y de código abierto · macOS 13 o superior, Apple Silicon</p>
 </header>
 
-<div class="env vitrina">
-  <img src="captura-minuta.png" alt="Escriba con una minuta lista" class="captura">
+<div class="env">
+  <img src="captura-minuta.png" class="captura" alt="Escriba con una minuta terminada">
 </div>
 
-<section class="env">
-  <h2>Lo que ninguna otra hace</h2>
-  <p class="sub">Resumir la junta lo hacen todas. Detectar lo que faltó, ninguna.</p>
+<!-- EL DIFERENCIADOR, con máximo contraste -->
+<section class="oscuro">
+  <div class="env-e">
+    <p class="et">Notas internas · nunca salen en el PDF</p>
+    <h2>Lo que ninguna otra hace</h2>
+    <p class="sub">Al terminar, Escriba añade una sección que solo ves tú. No resume lo que pasó:
+    señala lo que faltó.</p>
 
-  <div class="destacado">
-    <h3>Detecta las ausencias, no solo lo que se dijo</h3>
-    <p>Escriba lee el expediente del cliente antes de escribir y compara la conversación contra
-    lo que quedó abierto la vez pasada. El resultado va en una sección marcada como interna que
-    <b>nunca sale en el PDF</b>: lo que <em>no</em> se mencionó, lo que se volvió a posponer y las
-    oportunidades que aparecieron.</p>
-    <p style="margin-top:10px;font-size:14.5px">Hasta donde pudimos comprobar, ninguna otra
-    herramienta —de pago o libre— hace esto. Varias leen el contexto previo; ninguna señala
-    lo que falta.</p>
+    <div class="cita"><p><b>El presupuesto no se mencionó.</b> Se habló del alcance durante 50 minutos
+    y nadie preguntó el costo. Es el pendiente más urgente.</p></div>
+    <div class="cita"><p><b>Los correos siguen pendientes desde la reunión anterior.</b> Dos semanas,
+    y el resumen diario sigue apagado por falta de tres direcciones.</p></div>
+    <div class="cita"><p><b>Mencionaron que no miden nada del sitio.</b> Es la entrada natural para
+    proponer analítica.</p></div>
+
+    <p class="pie">Sale de comparar la conversación contra el expediente del cliente: una carpeta
+    con un archivo por cliente, que Escriba lee antes de escribir. Hasta donde pudimos comprobar,
+    ninguna otra herramienta —de pago o libre— señala las ausencias. Varias leen el contexto previo;
+    ninguna te dice lo que falta.</p>
   </div>
+</section>
 
+<section class="env">
+  <h2>Lo demás, también resuelto</h2>
   <div class="rejilla">
-    <div class="tarjeta"><div class="et"></div>
-      <h3>Presencial y videollamada</h3>
+    <div class="tarjeta"><div class="et"></div><h4>Presencial y videollamada</h4>
       <p>Graba tu micrófono y el audio del Mac a la vez. Zoom, Meet o una junta en la sala: da igual.</p></div>
-    <div class="tarjeta"><div class="et"></div>
-      <h3>Sabe quién dijo qué</h3>
-      <p>Las dos pistas se graban por separado, así que distingue tus compromisos de los del cliente. Sin modelos de diarización.</p></div>
-    <div class="tarjeta"><div class="et"></div>
-      <h3>El audio no sale de tu Mac</h3>
+    <div class="tarjeta"><div class="et"></div><h4>Sabe quién dijo qué</h4>
+      <p>Las dos pistas se graban por separado, así que distingue tus compromisos de los del cliente.</p></div>
+    <div class="tarjeta"><div class="et"></div><h4>El audio no sale de tu Mac</h4>
       <p>La transcripción corre en tu equipo con whisper.cpp. Nunca se sube una grabación a ningún lado.</p></div>
-    <div class="tarjeta"><div class="et"></div>
-      <h3>Tú eliges quién redacta</h3>
+    <div class="tarjeta"><div class="et"></div><h4>Tú eliges quién redacta</h4>
       <p>Claude Code, tu propia llave de API, o un modelo local con Ollama y sin internet.</p></div>
-    <div class="tarjeta"><div class="et"></div>
-      <h3>PDF con tu marca</h3>
+    <div class="tarjeta"><div class="et"></div><h4>PDF con tu marca</h4>
       <p>La minuta sale lista para mandar por WhatsApp o correo, con tu logo y tus datos.</p></div>
-    <div class="tarjeta"><div class="et"></div>
-      <h3>Expediente por cliente</h3>
-      <p>Un PDF con todas las reuniones y la tabla de compromisos de toda la relación. Para juntas de revisión.</p></div>
+    <div class="tarjeta"><div class="et"></div><h4>Expediente por cliente</h4>
+      <p>Un PDF con todas las reuniones y los compromisos de toda la relación. Para juntas de revisión.</p></div>
   </div>
 </section>
 
-<section class="env">
-  <h2>Lo que nadie más te dice</h2>
-  <p class="sub">Al final de cada minuta, Escriba añade una sección que <b>nunca sale en el PDF</b>.
-  Es lo que un buen asistente te diría al salir de la junta.</p>
-
-  <div class="notas-demo">
-    <div class="et">Notas internas · no se envían al cliente</div>
-    <h4>Lo que NO se dijo</h4>
-    <ul class="lista-notas">
-      <li><b>El presupuesto no se mencionó.</b> Se habló del alcance durante 50 minutos y nadie preguntó el costo. Es el pendiente más urgente.</li>
-      <li><b>Los correos siguen pendientes desde la reunión anterior.</b> Dos semanas y el resumen diario sigue apagado por falta de tres direcciones.</li>
-    </ul>
-    <h4>Oportunidades</h4>
-    <ul class="lista-notas">
-      <li>Mencionaron que no miden nada del sitio. Es la entrada natural para proponer analítica.</li>
-    </ul>
-  </div>
-  <p class="nota" style="margin-top:14px">Ejemplo real de salida, con datos de una empresa ficticia.</p>
-</section>
-
-<section class="env">
-  <h2>Sabe quién dijo qué</h2>
-  <p class="sub">Tu micrófono y el audio de la llamada se graban en pistas separadas. Por eso la minuta
-  distingue tus compromisos de los del cliente, sin necesidad de un modelo de diarización.</p>
-  <img src="captura-dialogo.png" alt="Vista de quién dijo qué" class="captura">
-</section>
-
-<section class="env">
+<section class="env linea">
   <h2>Cómo lo hace</h2>
   <p class="sub">Dos decisiones técnicas que lo separan del resto.</p>
 
-  <h3 class="sub-t">Distingue las voces sin modelo de diarización</h3>
+  <h3>Distingue las voces sin modelo de diarización</h3>
   <p>Escriba graba <b>dos pistas separadas</b>: tu micrófono y el audio del Mac. Para etiquetar cada
   frase compara la energía de ambas en ese tramo y se queda con la más fuerte, con un margen de 2 dB
   para que las voces encimadas hereden al hablante anterior.</p>
   <p>Ese es todo el truco: unas 80 líneas, sin pyannote, sin servicio en la nube y sin modelo extra.
-  Funciona porque los dos lados nunca se mezclaron. Por lo mismo, es exacto en videollamada
-  e inútil en una sala con un solo micrófono. El trato es ese, y lo decimos de frente.</p>
+  Funciona porque los dos lados nunca se mezclaron. Por lo mismo es exacto en videollamada e inútil
+  en una sala con un solo micrófono. El trato es ese, y lo decimos de frente.</p>
+  <img src="captura-dialogo.png" class="captura" alt="Vista de quién dijo qué" style="margin-top:24px">
 
-  <h3 class="sub-t">Captura el audio del sistema sin instalar drivers</h3>
+  <h3>Captura el audio del sistema sin instalar drivers</h3>
   <p>Un binario de 98 KB en Swift sobre ScreenCaptureKit, compilado <b>sin Xcode</b>. Escribe el
   micrófono y la salida del Mac en dos archivos a la vez, ya sincronizados. La alternativa habitual
   es pedirte que instales un driver de audio virtual.</p>
+</section>
 
-  <table style="margin-top:30px">
+<section class="env linea">
+  <h2>Frente a las alternativas</h2>
+  <p class="sub">Lo que hace y lo que no. Sin adornos.</p>
+  <div class="tabla-env">
+  <table>
     <thead><tr><th></th><th>Escriba</th><th>Granola · Fireflies</th><th>MacWhisper</th></tr></thead>
     <tbody>
       <tr><td>El audio sale de tu Mac</td><td>nunca</td><td>sí</td><td>nunca</td></tr>
       <tr><td>Sirve en videollamada</td><td>sí</td><td>sí</td><td>con driver aparte</td></tr>
       <tr><td>Sabe quién dijo qué</td><td>sí</td><td>sí, en la nube</td><td>no</td></tr>
-      <tr><td>Usa el historial del cliente</td><td><b>sí</b></td><td>no</td><td>no</td></tr>
-      <tr><td>Te dice lo que NO se dijo</td><td><b>sí</b></td><td>no</td><td>no</td></tr>
+      <tr><td>Usa el historial del cliente</td><td>sí</td><td>en parte</td><td>no</td></tr>
+      <tr class="destaca"><td>Te dice lo que NO se dijo</td><td><b>sí</b></td><td>no</td><td>no</td></tr>
       <tr><td>Español</td><td>de origen</td><td>traducido</td><td>solo transcribe</td></tr>
       <tr><td>Precio</td><td>gratis, MIT</td><td>$10–29 al mes</td><td>pago único</td></tr>
     </tbody>
   </table>
-  <p class="nota" style="margin-top:14px">Lo que ellos hacen mejor: integración con el calendario,
+  </div>
+  <p class="nota" style="margin-top:16px">Lo que ellos hacen mejor: integración con el calendario,
   apps para el teléfono, equipos y compartir. Escriba no tiene nada de eso.</p>
 </section>
 
-<section class="env">
+<section class="env linea">
   <h2>Cómo se usa</h2>
-  <ol>
+  <ol class="pasos">
     <li><b>Elige el cliente</b> en la lista, o escribe un nombre nuevo para crearlo.</li>
     <li><b>Pulsa Grabar</b> cuando empiece la junta. También con <code>Cmd+Shift+R</code>, sin abrir la ventana.</li>
     <li><b>Detén al terminar.</b> La app mezcla las pistas, transcribe, separa las voces y redacta.</li>
@@ -205,42 +223,30 @@ footer a{color:var(--soft)}
   responsabilidad, y en muchos lugares es obligatorio por ley. Escriba no lo hace por ti.</div>
 </section>
 
-<section class="env">
-  <h2>A dónde van tus datos</h2>
-  <p class="sub">Depende del motor que elijas, y la app te lo dice sin rodeos en Ajustes.</p>
-  <table>
-    <thead><tr><th>Motor</th><th>Qué sale de tu Mac</th></tr></thead>
-    <tbody>
-      <tr><td>Claude Code</td><td>El texto de la reunión, a Anthropic</td></tr>
-      <tr><td>Tu llave de API</td><td>El texto de la reunión, al proveedor que elijas</td></tr>
-      <tr><td>Ollama (local)</td><td>Nada</td></tr>
-    </tbody>
-  </table>
-  <p class="nota" style="margin-top:16px">El audio nunca sale con ninguno de los tres. Las llaves se guardan
-  en el Keychain de macOS, nunca en un archivo.</p>
-</section>
-
-<section class="env">
-  <h2>Instalación</h2>
-  <ol>
-    <li>Descarga el <b>.dmg</b> y arrastra Escriba a Aplicaciones.</li>
-    <li>La primera vez, <b>clic derecho sobre la app y elige Abrir</b>. La app no está notarizada,
-        así que macOS pide esa confirmación una sola vez.</li>
-    <li>Al arrancar te pide tus datos y revisa qué falta. <b>Puede instalarlo todo desde ahí</b>,
-        sin abrir la terminal.</li>
-  </ol>
-</section>
-
-<section class="env">
+<section class="env-e linea">
   <h2>Para quién es</h2>
-  <p class="sub">Consultores independientes y despachos pequeños —abogados, contadores, agencias—
-  que ya llevan una carpeta por cliente, trabajan en español y prefieren que su audio no acabe
-  en un servidor de otro país.</p>
+  <p>Consultores independientes y despachos pequeños —abogados, contadores, agencias— que ya llevan
+  una carpeta por cliente, trabajan en español y prefieren que su audio no acabe en un servidor de
+  otro país.</p>
+  <p>Nació de una necesidad propia: en Kapitec salíamos de juntas de hora y media sin más registro
+  que la memoria, y lo que se olvidaba no era lo que se dijo, sino lo que quedó sin preguntar.</p>
 </section>
+
+<div class="cierre">
+  <div class="env-e">
+    <h2>Pruébalo en tu próxima junta</h2>
+    <p class="sub">Descarga, arrastra a Aplicaciones y listo. La app revisa lo que falta e instala lo
+    que haga falta, sin abrir la terminal.</p>
+    <div class="botones">
+      <a class="btn p" href="https://github.com/kapitecsoluciones/escriba/releases/latest">Descargar para Mac</a>
+      <a class="btn claro" href="https://github.com/kapitecsoluciones/escriba">Ver el código</a>
+    </div>
+  </div>
+</div>
 
 <footer class="env">
   Hecho por <a href="https://kapitec.pro">Kapitec Soluciones</a> · Código abierto con licencia MIT ·
-  <a href="https://github.com/kapitecsoluciones/escriba">GitHub</a>
+  <a href="https://github.com/kapitecsoluciones/escriba">GitHub</a> · <a href="manual.html">Manual</a>
 </footer>
 </body>
 </html>

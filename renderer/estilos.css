@@ -216,3 +216,32 @@ textarea.editor:focus{border-color:var(--azul)}
 .ruta input{flex:1;min-width:0}
 .ruta .btn{flex:none;padding:8px 12px}
 .falta .motivo{margin-top:8px}
+
+/* ---------- nuevo cliente ---------- */
+/* Crear cliente solo existía como efecto colateral de buscar un nombre que no
+   estaba. Ahora es un botón, porque eso no lo adivina nadie. */
+.nuevo-cli{width:100%;text-align:left;padding:8px 10px;margin:0 0 8px;border-radius:8px;
+  border:1px dashed var(--rule-fuerte);background:none;color:var(--soft);font-size:12.5px;
+  font-weight:600;cursor:pointer;transition:.12s}
+.nuevo-cli:hover{border-color:var(--gold);color:var(--gold-texto);background:var(--gold-soft)}
+.confirmar .caja.nuevo{width:400px;max-width:100%}
+.caja.nuevo .et{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.1em;
+  font-weight:700;color:var(--muted);margin-bottom:5px}
+.caja.nuevo input[type=text]{width:100%;padding:9px 11px;border-radius:8px;
+  border:1px solid var(--rule-fuerte);background:var(--paper);font:inherit;color:var(--ink)}
+.caja.nuevo input[type=text]:focus{outline:none;border-color:var(--gold)}
+.caja.nuevo input.mal{border-color:var(--rojo)}
+.caja.nuevo .et2{margin-top:17px;font-size:11px;text-transform:uppercase;letter-spacing:.1em;
+  font-weight:700;color:var(--muted)}
+.caja.nuevo .et2 span{text-transform:none;letter-spacing:0;font-weight:500;opacity:.75}
+.caja.nuevo .ayuda2{font-size:11.5px;color:var(--muted);line-height:1.55;margin-top:5px}
+.caja.nuevo .exps{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.caja.nuevo .exp{padding:6px 11px;border-radius:20px;border:1px solid var(--rule-fuerte);
+  background:var(--paper);font-size:12.5px;color:var(--soft);cursor:pointer;transition:.12s}
+.caja.nuevo .exp:hover{border-color:var(--gold)}
+.caja.nuevo .exp.sel{background:var(--gold-soft);border-color:var(--gold);color:var(--ink);font-weight:600}
+.caja.nuevo .fila{margin-top:20px}
+
+/* enlazar expediente desde la cabecera de un cliente que no lo tiene */
+.enlazar{background:none;border:0;padding:0;margin-left:7px;font-size:12.5px;
+  color:var(--gold-texto);font-weight:600;cursor:pointer;text-decoration:underline}

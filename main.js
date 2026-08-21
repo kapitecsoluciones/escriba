@@ -164,7 +164,13 @@ ipcMain.handle('instalar-dependencia', async (_e, formula) => {
 });
 ipcMain.handle('cliente-activo', (_e, c) => { clienteActivo = c; });
 ipcMain.handle('reuniones', (_e, slug) => R.reuniones(slug));
-ipcMain.handle('crear-cliente', (_e, nombre) => R.crearCliente(nombre));
+ipcMain.handle('crear-cliente', (_e, d) => {
+  const nombre = typeof d === 'string' ? d : (d && d.nombre);
+  const expediente = typeof d === 'string' ? null : (d && d.expediente);
+  return R.crearCliente(nombre, expediente);
+});
+ipcMain.handle('expedientes', () => R.expedientes());
+ipcMain.handle('enlazar-expediente', seguro((_e, { slug, archivo }) => R.enlazarExpediente(slug, archivo || null)));
 
 // ---------- grabación ----------
 ipcMain.handle('grabar-iniciar', async (_e, slug) => {

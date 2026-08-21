@@ -1,4 +1,4 @@
-let CLIENTES = [], actual = null, reunionActual = null, hayResultados = false;
+let CLIENTES = [], EXPEDIENTES = [], actual = null, reunionActual = null, hayResultados = false;
 let grabando = false, t0 = 0, crono = null, editando = false, vista = 'minuta';
 let borrador = null;      // texto en edición sin guardar; null = no hay nada pendiente
 let procesando = false;
@@ -31,6 +31,101 @@ function confirmar({ titulo, texto, aceptar = 'Continuar', peligro = false }) {
     capa.querySelector('[data-si]').focus();
   });
 }
+// Crear cliente estaba escondido: solo aparecía si escribías en el buscador un
+// nombre que no existía. Nadie adivina eso, así que ahora hay un botón.
+function dialogoNuevoCliente(nombrePrevio = '', op = {}) {
+  const titulo = op.titulo || 'Nuevo cliente';
+  const etiquetaOk = op.aceptar || 'Crear cliente';
+  const soloExpediente = !!op.soloExpediente;
+  return new Promise(res => {
+    let elegido = null;
+    const capa = el('div','confirmar');
+    capa.innerHTML = `<div class="caja nuevo" role="dialog" aria-modal="true">
+      <h3>${esc(titulo)}</h3>
+      <label class="et">${soloExpediente ? 'Buscar expediente' : 'Nombre'}</label>
+      <input type="text" id="nuevoNombre" autocomplete="off"
+        placeholder="${soloExpediente ? 'Escribe para filtrar' : 'Como quieras verlo en la lista'}">
+      <div class="et2">${soloExpediente ? 'Elige uno' : 'Enlazar un expediente <span>opcional</span>'}</div>
+      <div class="ayuda2">Escriba lee el expediente antes de redactar: de ahí sale lo que quedó pendiente de otras veces y lo que hoy no se dijo.</div>
+      <div class="exps" id="listaExps"></div>
+      <div class="fila"><button class="btn" data-no>Cancelar</button>
+      <button class="btn primario" data-si>${esc(etiquetaOk)}</button></div></div>`;
+    const campo = capa.querySelector('#nuevoNombre');
+    const lista = capa.querySelector('#listaExps');
+    campo.value = soloExpediente ? '' : nombrePrevio;
+
+    const pintarExps = () => {
+      const q = campo.value.toLowerCase().trim();
+      const usados = new Set(CLIENTES.map(c => c.dossier).filter(Boolean));
+      const hay = EXPEDIENTES.filter(e => !usados.has(e.archivo))
+        .filter(e => !q || e.nombre.toLowerCase().includes(q)).slice(0, soloExpediente ? 10 : 6);
+      lista.innerHTML = '';
+      if(!EXPEDIENTES.length){
+        lista.appendChild(el('div','ayuda2','No hay carpeta de expedientes configurada. Puedes ponerla luego en Ajustes.'));
+        return;
+      }
+      if(!hay.length){ lista.appendChild(el('div','ayuda2',
+        soloExpediente ? 'Ningún expediente coincide.' : 'Ningún expediente coincide. Se creará sin expediente.')); return; }
+      hay.forEach(e => {
+        const b = el('button','exp'+(elegido===e.archivo?' sel':''), esc(e.nombre));
+        b.onclick = () => {
+          elegido = elegido === e.archivo ? null : e.archivo;
+          if(elegido && !soloExpediente && !campo.value.trim()) campo.value = e.nombre;
+          pintarExps();
+        };
+        lista.appendChild(b);
+      });
+    };
+    pintarExps();
+    campo.oninput = pintarExps;
+
+    let cerrado = false;
+    const cerrar = (v) => { if(cerrado) return; cerrado = true;
+      document.removeEventListener('keydown', tecla); capa.remove(); res(v); };
+    const aceptar = () => {
+      if(soloExpediente){ if(elegido) cerrar({ nombre: nombrePrevio, expediente: elegido }); return; }
+      const nombre = campo.value.trim();
+      if(!nombre){ campo.focus(); campo.classList.add('mal'); return; }
+      cerrar({ nombre, expediente: elegido });
+    };
+    const tecla = (e) => { if(e.key==='Escape') cerrar(null);
+                           if(e.key==='Enter' && document.activeElement===campo) aceptar(); };
+    capa.querySelector('[data-no]').onclick = () => cerrar(null);
+    capa.querySelector('[data-si]').onclick = aceptar;
+    capa.onclick = (e) => { if(e.target===capa) cerrar(null); };
+    document.addEventListener('keydown', tecla);
+    document.body.appendChild(capa);
+    setTimeout(()=>campo.focus(), 0);
+  });
+}
+
+// Enlazar un expediente a un cliente que ya existe.
+async function enlazarExpediente(){
+  const usados = new Set(CLIENTES.map(c=>c.dossier).filter(Boolean));
+  const libres = EXPEDIENTES.filter(e=>!usados.has(e.archivo));
+  if(!libres.length) return aviso('No hay expedientes sin enlazar.');
+  const d = await dialogoNuevoCliente(actual.nombre,
+    { titulo: `Expediente de ${actual.nombre}`, aceptar: 'Enlazar', soloExpediente: true });
+  if(!d || !d.expediente) return;
+  const r = await window.api.enlazarExpediente({slug: actual.slug, archivo: d.expediente});
+  if(r && r.ok === false) return estado('error','No se pudo enlazar el expediente', r.error);
+  await cargarClientes();
+  actual = CLIENTES.find(c=>c.slug===actual.slug) || actual;
+  await cargarReuniones();
+  aviso('Expediente enlazado.');
+}
+
+async function crearClienteNuevo(nombrePrevio = ''){
+  const d = await dialogoNuevoCliente(nombrePrevio);
+  if(!d) return;
+  const nuevo = await window.api.crearCliente(d);
+  $('#q').value = ''; hayResultados = false;
+  await cargarClientes();
+  const c = CLIENTES.find(x => x.slug === nuevo.slug) || nuevo;
+  await elegirCliente(c);
+  aviso(d.expediente ? 'Cliente creado y expediente enlazado.' : 'Cliente creado.');
+}
+
 // Salir de una minuta a medio editar borraba los cambios sin avisar.
 async function permisoParaSalir() {
   if (!editando || borrador == null || borrador === (reunionActual && reunionActual.minuta)) return true;
@@ -44,6 +139,7 @@ async function permisoParaSalir() {
 // ---------- clientes ----------
 async function cargarClientes(){
   CLIENTES = await window.api.clientes();
+  try { EXPEDIENTES = await window.api.expedientes(); } catch { EXPEDIENTES = []; }
   pintarClientes();
 }
 function pintarClientes(){
@@ -53,19 +149,14 @@ function pintarClientes(){
   if(q && !filtrados.length && !hayResultados){
     const b = el('button','cli', `<span class="punto"></span><span class="n">Crear "${esc($('#q').value.trim())}"</span>`);
     b.style.color = 'var(--gold-texto)'; b.style.fontWeight = '600';
-    b.onclick = async () => {
-      const nuevo = await window.api.crearCliente($('#q').value.trim());
-      $('#q').value=''; CLIENTES = await window.api.clientes();
-      const c = CLIENTES.find(x=>x.slug===nuevo.slug) || nuevo;
-      elegirCliente(c);
-    };
+    b.onclick = () => crearClienteNuevo($('#q').value.trim());
     cont.appendChild(b); return;
   }
   // Sin clientes y sin búsqueda, el panel quedaba en blanco: nadie adivina que
   // se crea un cliente escribiendo en el buscador.
   if(!filtrados.length && !q){
     const v = el('div','vacio-lateral',
-      'Todavía no hay clientes.<br>Escribe un nombre en el buscador de arriba para crear el primero.');
+      'Todavía no hay clientes.<br>Pulsa <b>+ Nuevo cliente</b> para empezar.');
     cont.appendChild(v); return;
   }
   filtrados.forEach(c=>{
@@ -87,9 +178,18 @@ async function elegirCliente(c){
 }
 async function cargarReuniones(){
   const rs = await window.api.reuniones(actual.slug);
-  $('#subtitulo').textContent = rs.length
+  const sub = $('#subtitulo');
+  sub.textContent = rs.length
     ? `${rs.length} ${rs.length===1?'reunión registrada':'reuniones registradas'}`
     : 'Sin reuniones todavía';
+  // El expediente es lo que deja a Escriba detectar lo que NO se dijo: si falta,
+  // conviene que se vea y se pueda enlazar sin ir a buscar dónde.
+  if(!actual.dossier && EXPEDIENTES.length){
+    sub.appendChild(document.createTextNode(' · sin expediente'));
+    const b = el('button','enlazar','enlazar');
+    b.onclick = () => enlazarExpediente();
+    sub.appendChild(b);
+  }
   const cont = $('#reuniones'); cont.innerHTML='';
   if(!rs.length){ cont.appendChild(el('div','vacio','Aún no hay reuniones<br>de este cliente.')); }
   rs.forEach(r=>{
@@ -277,6 +377,8 @@ $('#btnGrabar').onclick = async () => {
     else { $('#btnGrabar').disabled = false; $('#btnImportar').disabled = false; }
   }
 };
+
+$('#btnNuevoCliente').onclick = () => crearClienteNuevo();
 
 $('#btnExpediente').onclick = async () => {
   estado('spin','Armando el expediente…','Juntando todas las reuniones del cliente');

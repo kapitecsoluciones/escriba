@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.5.0 — 2026-08-20
+
+Salió de usar la app para preparar una reunión real y chocar con dos cosas.
+
+**La lista eran tus clientes, y tus proyectos, y tus notas sueltas**
+
+Escriba armaba la lista con cada `.md` de la carpeta de expedientes. Pero esa
+carpeta es de contexto general: junto a los clientes hay proyectos, specs y
+documentos de trabajo. En un caso real salían **20 entradas de las que solo 3
+eran clientes**. El filtro que intentaba adivinar cuáles no lo eran no daba
+abasto, y no podía darlo.
+
+Ahora **un cliente es alguien a quien has grabado o que creaste tú**. El
+expediente se le enlaza, no al revés:
+
+- Al crear un cliente, Escriba te ofrece los expedientes que tengas para
+  enlazarlo en un clic. Si el archivo se llama igual, se enlaza solo.
+- Un cliente sin expediente lo dice junto a su nombre, con un enlace para
+  ponérselo en cualquier momento.
+- No se borra ni se mueve nada: los expedientes siguen donde estaban.
+
+**No había forma de crear un cliente**
+
+Solo aparecía la opción si escribías en el buscador un nombre que no existía.
+Eso no lo adivina nadie. Ahora hay un botón **+ Nuevo cliente** a la vista.
+
+**El nombre queda como lo escribes**
+
+Se reconstruía del nombre de la carpeta, capitalizando cada palabra: escribías
+*Amigo del sitio web* y la app mostraba *Amigo Del Sitio Web*. Ahora se guarda
+tal cual.
+
 ## 0.4.0 — 2026-08-20
 
 Usability pass, plus the first automated tests. The 0.3.0 release stopped the

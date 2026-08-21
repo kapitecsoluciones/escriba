@@ -49,7 +49,8 @@ hacerlo una vez.
 
 ## Cómo se usa
 
-1. Elige el cliente en la lista, o escribe un nombre nuevo para crearlo.
+1. Elige el cliente en la lista, o pulsa **+ Nuevo cliente**. Al crearlo puedes enlazarle un
+   expediente de los que ya tengas.
 2. **Grabar reunión**. También funciona con `Cmd+Shift+R` sin abrir la ventana.
 3. Al terminar, **Detener**. La app mezcla, transcribe, separa las voces y
    redacta.

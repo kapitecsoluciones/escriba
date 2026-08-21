@@ -14,7 +14,7 @@
     "electron-builder": "^26.15.3"
   },
   "author": "Kapitec Soluciones",
-  "homepage": "https://kapitec.pro/escriba",
+  "homepage": "https://escriba.kapitec.pro",
   "repository": {
     "type": "git",
     "url": "https://github.com/kapitecsoluciones/escriba.git"

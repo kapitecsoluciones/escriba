@@ -7,8 +7,8 @@
 <meta name="description" content="Graba tus reuniones, transcríbelas en tu propia Mac y convierte lo hablado en una minuta con acuerdos y pendientes. Código abierto.">
 <meta property="og:title" content="Escriba">
 <meta property="og:description" content="Graba la junta, saca los acuerdos. La minuta se escribe sola, con el expediente del cliente delante.">
-<meta property="og:image" content="https://kapitec.pro/escriba/escriba-og.png">
-<meta property="og:url" content="https://kapitec.pro/escriba">
+<meta property="og:image" content="https://escriba.kapitec.pro/escriba-og.png">
+<meta property="og:url" content="https://escriba.kapitec.pro">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="icono-512.png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
@@ -21,7 +21,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
 .barra{height:5px;background:linear-gradient(90deg,var(--azul),var(--verde))}
 .env{max-width:960px;margin:0 auto;padding:0 24px}
 h1,h2,h3{font-family:'Plus Jakarta Sans',Inter,sans-serif;font-weight:800;letter-spacing:-.02em;word-spacing:.04em}
-header{padding:78px 0 60px;text-align:center}
+header{padding:76px 0 40px;text-align:center}
 .logo{width:96px;height:96px;margin:0 auto 26px;display:block;border-radius:22px}
 h1{font-size:clamp(40px,7vw,62px);line-height:1.06;margin-bottom:16px}
 .claim{font-size:clamp(17px,2.4vw,21px);color:var(--soft);max-width:640px;margin:0 auto 34px}
@@ -55,6 +55,20 @@ ol li::before{content:counter(p);position:absolute;left:0;top:-1px;width:25px;he
  display:flex;align-items:center;justify-content:center}
 ol li b{color:var(--ink)}
 .captura{width:100%;border-radius:13px;border:1px solid var(--rule);box-shadow:0 12px 40px rgba(10,20,40,.10);margin-top:26px}
+.vitrina{padding-bottom:8px}
+.captura{width:100%;border-radius:14px;border:1px solid var(--rule);
+ box-shadow:0 18px 60px rgba(10,20,40,.13);display:block;margin-top:8px}
+.notas-demo{background:#FFFBF2;border:1px solid #EADFC7;border-left:3px solid var(--gold);
+ border-radius:12px;padding:26px 30px}
+.notas-demo .et{font-size:11px;text-transform:uppercase;letter-spacing:.12em;font-weight:700;
+ color:var(--gold);margin-bottom:16px}
+.notas-demo h4{font-family:'Plus Jakarta Sans',Inter,sans-serif;font-size:15.5px;font-weight:800;
+ margin:16px 0 8px;color:var(--ink)}
+.notas-demo h4:first-of-type{margin-top:0}
+.lista-notas{list-style:none;margin:0}
+.lista-notas li{position:relative;padding-left:19px;margin-bottom:9px;color:#5A4A2E;font-size:14.5px;line-height:1.6}
+.lista-notas li::before{content:"";position:absolute;left:3px;top:.7em;width:5px;height:5px;border-radius:50%;background:var(--gold)}
+.lista-notas b{color:var(--ink)}
 footer{padding:44px 0 60px;border-top:1px solid var(--rule);color:var(--muted);font-size:14px;text-align:center}
 footer a{color:var(--soft)}
 .aviso{background:var(--tint);border-left:3px solid var(--gold);border-radius:0 9px 9px 0;padding:17px 20px;margin-top:24px;font-size:14.5px;color:var(--soft)}
@@ -75,6 +89,10 @@ footer a{color:var(--soft)}
   </div>
   <p class="nota">Gratis y de código abierto · macOS 13 o superior, Apple Silicon</p>
 </header>
+
+<div class="env vitrina">
+  <img src="captura-minuta.png" alt="Escriba con una minuta lista" class="captura">
+</div>
 
 <section class="env">
   <h2>Lo que ninguna otra hace</h2>
@@ -107,6 +125,33 @@ footer a{color:var(--soft)}
       <h3>Expediente por cliente</h3>
       <p>Un PDF con todas las reuniones y la tabla de compromisos de toda la relación. Para juntas de revisión.</p></div>
   </div>
+</section>
+
+<section class="env">
+  <h2>Lo que nadie más te dice</h2>
+  <p class="sub">Al final de cada minuta, Escriba añade una sección que <b>nunca sale en el PDF</b>.
+  Es lo que un buen asistente te diría al salir de la junta.</p>
+
+  <div class="notas-demo">
+    <div class="et">Notas internas · no se envían al cliente</div>
+    <h4>Lo que NO se dijo</h4>
+    <ul class="lista-notas">
+      <li><b>El presupuesto no se mencionó.</b> Se habló del alcance durante 50 minutos y nadie preguntó el costo. Es el pendiente más urgente.</li>
+      <li><b>Los correos siguen pendientes desde la reunión anterior.</b> Dos semanas y el resumen diario sigue apagado por falta de tres direcciones.</li>
+    </ul>
+    <h4>Oportunidades</h4>
+    <ul class="lista-notas">
+      <li>Mencionaron que no miden nada del sitio. Es la entrada natural para proponer analítica.</li>
+    </ul>
+  </div>
+  <p class="nota" style="margin-top:14px">Ejemplo real de salida, con datos de una empresa ficticia.</p>
+</section>
+
+<section class="env">
+  <h2>Sabe quién dijo qué</h2>
+  <p class="sub">Tu micrófono y el audio de la llamada se graban en pistas separadas. Por eso la minuta
+  distingue tus compromisos de los del cliente, sin necesidad de un modelo de diarización.</p>
+  <img src="captura-dialogo.png" alt="Vista de quién dijo qué" class="captura">
 </section>
 
 <section class="env">

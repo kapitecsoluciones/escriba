@@ -116,6 +116,10 @@ function pintarDetalle(){
     if(r.tienePdf) add('Abrir PDF','', ()=>window.api.abrir(r.carpeta+'/minuta.pdf'));
     if(r.dialogo) add(vista==='dialogo'?'Ver minuta':'Ver diálogo','', ()=>{
       vista = vista==='dialogo' ? 'minuta' : 'dialogo'; editando=false; pintarDetalle(); });
+    add('Volver a redactar','', async (ev)=>{
+      const b=ev.target; b.disabled=true; b.textContent='Redactando…';
+      await procesar(r.carpeta);   // reutiliza la transcripción: son segundos, no minutos
+    });
   }
   add('Abrir carpeta','', ()=>window.api.abrir(r.carpeta));
   d.appendChild(barra);
@@ -158,13 +162,14 @@ async function exportarPdf(){
   const res = await window.api.pdf({carpeta:r.carpeta, cliente:actual.nombre, fecha:fechaBonita(r.id), texto:r.minuta});
   quitarEstado();
   if(res.ok){ r.tienePdf=true; await cargarReuniones(); pintarDetalle(); window.api.abrir(res.ruta); }
+  else estado('error','No se pudo generar el PDF', res.error || '');
 }
 
 // ---------- grabación ----------
 $('#btnGrabar').onclick = async () => {
   if(!grabando){
     const res = await window.api.grabarIniciar(actual.slug);
-    if(!res.ok) return alert(res.error);
+    if(!res.ok){ estado('error','No se pudo iniciar la grabación', res.error); return; }
     grabando = true; t0 = Date.now();
     $('#btnGrabar').textContent = 'Detener y procesar';
     $('#btnGrabar').classList.add('grabando');
@@ -235,6 +240,27 @@ function ponerAvisoMudo(){
   e.parentNode.insertBefore(a, e.nextSibling);
 }
 function quitarAvisoMudo(){ const a=document.getElementById('avisoMudo'); if(a) a.remove(); }
+
+// Avisos de la captura: que la grabación no se esté guardando es lo más grave
+// que puede pasar, así que se dice en grande y en el momento.
+window.api.onCapturaAviso(({tipo, texto, mb})=>{
+  if(tipo==='fallo'){
+    const e=$('#estado');
+    if(e){ e.classList.add('error'); const t=e.querySelector('.txt'); if(t) t.textContent='La grabación NO se está guardando';
+           const s=e.querySelector('.sub'); if(s) s.textContent=texto||'Revisa el espacio en disco.'; }
+    if(!document.getElementById('avisoFallo') && e){
+      const a=el('div','aviso-mudo','Detén la grabación: el audio no se está escribiendo en el disco.');
+      a.id='avisoFallo'; e.parentNode.insertBefore(a, e.nextSibling);
+    }
+  }
+  if(tipo==='disco'){
+    if(document.getElementById('avisoDisco')) return;
+    const e=$('#estado'); if(!e) return;
+    const a=el('div','aviso-mudo',`Queda poco espacio: ${mb} MB. Una hora de reunión ocupa unos 130 MB.`);
+    a.id='avisoDisco'; a.style.color='var(--gold)';
+    e.parentNode.insertBefore(a, e.nextSibling);
+  }
+});
 
 // ---------- estado ----------
 function estado(tipo, txt, sub){

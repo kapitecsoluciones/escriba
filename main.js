@@ -42,6 +42,13 @@ function crearVentana() {
 }
 
 const avisar = (etapa, detalle = '') => win && win.webContents.send('progreso', { etapa, detalle });
+
+// Un handler que lanza deja al renderer esperando para siempre. Todos devuelven
+// {ok:false,error} en vez de reventar.
+const seguro = (fn) => async (...a) => {
+  try { const r = await fn(...a); return (r && typeof r === 'object') ? r : { ok: true, valor: r }; }
+  catch (e) { return { ok: false, error: e.message || String(e) }; }
+};
 const correr = (cmd, args, opts = {}) => new Promise((res, rej) => {
   execFile(cmd, args, { maxBuffer: 1024 * 1024 * 64, ...opts }, (e, so, se) => e ? rej(new Error(se || e.message)) : res(so));
 });
@@ -99,8 +106,9 @@ ipcMain.handle('reuniones', (_e, slug) => R.reuniones(slug));
 ipcMain.handle('crear-cliente', (_e, nombre) => R.crearCliente(nombre));
 
 // ---------- grabación ----------
-ipcMain.handle('grabar-iniciar', (_e, slug) => {
+ipcMain.handle('grabar-iniciar', async (_e, slug) => {
   if (captura) return { ok: false, error: 'Ya hay una grabación en curso' };
+  if (!BIN().captura) return { ok: false, error: 'No se encontró el capturador de audio. Reinstala la app.' };
   carpetaActual = path.join(R.BASE(), slug, sello());
   fs.mkdirSync(carpetaActual, { recursive: true });
   captura = spawn(BIN().captura, [path.join(carpetaActual, 'sistema.m4a')]);
@@ -110,10 +118,41 @@ ipcMain.handle('grabar-iniciar', (_e, slug) => {
     const lineas = resto.split('\n'); resto = lineas.pop();
     for (const l of lineas) {
       const m = l.match(/^NIVEL sis=([\d.]+) mic=([\d.]+)/);
-      if (m && win) win.webContents.send('niveles', { sistema: +m[1], microfono: +m[2] });
+      if (m && win) { win.webContents.send('niveles', { sistema: +m[1], microfono: +m[2] }); continue; }
+      // avisos de la captura: se muestran en la interfaz al instante
+      const fallo = l.match(/^FALLO_ESCRITURA (.+)/);
+      if (fallo && win) {
+        win.webContents.send('captura-aviso', { tipo: 'fallo', texto: fallo[1] });
+        notificar('La grabación no se está guardando', fallo[1]);
+        continue;
+      }
+      const disco = l.match(/^DISCO (\d+)/);
+      if (disco && win) win.webContents.send('captura-aviso', { tipo: 'disco', mb: +disco[1] });
     }
   });
-  captura.on('exit', () => { captura = null; });
+  let errorArranque = '';
+  captura.stderr.on('data', (b) => { const t = b.toString(); const e = t.match(/^ERROR: (.+)/m); if (e) errorArranque = e[1]; });
+  captura.on('exit', (code) => {
+    captura = null;
+    if (code !== 0 && errorArranque && win) {
+      win.webContents.send('captura-aviso', { tipo: 'fallo', texto: errorArranque });
+    }
+  });
+  // Esperar la confirmación real de arranque: antes se decía "Grabando" aunque
+  // faltara el permiso de Grabación de Pantalla, y no se grababa nada.
+  const arranque = await new Promise((res) => {
+    const t = setTimeout(() => res({ ok: true }), 6000);   // arrancó sin decir nada: se acepta
+    const ver = (b) => {
+      const txt = b.toString();
+      if (/captura iniciada/.test(txt)) { clearTimeout(t); captura.stderr.off('data', ver); res({ ok: true }); }
+      const e = txt.match(/^ERROR: (.+)/m);
+      if (e) { clearTimeout(t); captura.stderr.off('data', ver); res({ ok: false, error: e[1] }); }
+    };
+    if (captura) captura.stderr.on('data', ver); else res({ ok: false, error: 'No arrancó el capturador' });
+    if (captura) captura.once('error', (err) => { clearTimeout(t); res({ ok: false, error: err.message }); });
+    if (captura) captura.once('exit', (code) => { if (code !== 0) { clearTimeout(t); res({ ok: false, error: errorArranque || 'El capturador terminó inesperadamente' }); } });
+  });
+  if (!arranque.ok) { try { captura && captura.kill('SIGINT'); } catch {} captura = null; return arranque; }
   return { ok: true, carpeta: carpetaActual, inicio: Date.now() };
 });
 
@@ -164,20 +203,31 @@ async function procesarInterno({ carpeta, slug, nombre }) {
     const mezcla = await mezclar(carpeta);
     const dur = await duracion(mezcla);
 
-    avisar('transcribiendo', 'Puede tardar ~1 minuto por cada 10 de reunión');
     const base = path.join(carpeta, 'mezcla');
+    // Si ya se transcribió antes (p. ej. falló la redacción), no se repite:
+    // una hora de audio cuesta ~10 min de whisper.
+    const yaTranscrito = fs.existsSync(base + '.txt') && fs.statSync(base + '.txt').size > 40;
+    if (yaTranscrito) {
+      avisar('transcribiendo', 'Ya estaba transcrita, se reutiliza');
+    } else {
+    avisar('transcribiendo', 'Puede tardar ~1 minuto por cada 10 de reunión');
     const wav = path.join(os.tmpdir(), `mezcla-${Date.now()}.wav`);
     await correr(BIN().ffmpeg, ['-nostdin', '-loglevel', 'error', '-y', '-i', mezcla, '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le', wav]);
     // -mc 0 evita los bucles de repetición en audios largos
     await correr(BIN().whisper, ['-m', BIN().modelo, '-f', wav, '-l', 'es', '-mc', '0', '-pp',
       '--output-txt', '--output-srt', '--output-file', base]);
     try { fs.unlinkSync(wav); } catch {}
+    }
     let transcripcion = fs.readFileSync(base + '.txt', 'utf8');
 
     // Si se grabó con la app hay dos pistas: se puede saber quién dijo cada cosa
     let atribuida = null;
     try {
       avisar('atribuyendo', 'Separando quién dijo cada cosa');
+      const yaDialogo = path.join(carpeta, 'dialogo.txt');
+      if (fs.existsSync(yaDialogo) && fs.statSync(yaDialogo).size > 40) {
+        atribuida = fs.readFileSync(yaDialogo, 'utf8');
+      } else
       atribuida = await VOCES.atribuir({
         ffmpeg: BIN().ffmpeg, srt: base + '.srt',
         mic: path.join(carpeta, 'microfono.m4a'),
@@ -248,14 +298,14 @@ function actualizarDossier({ dossier, cliente, fecha, minuta, carpeta }) {
   return { ok: true };
 }
 
-ipcMain.handle('actualizar-dossier', (_e, d) => actualizarDossier(d));
+ipcMain.handle('actualizar-dossier', seguro((_e, d) => actualizarDossier(d)));
 
 // ---------- minuta / pdf ----------
-ipcMain.handle('guardar-minuta', (_e, { carpeta, texto }) => {
+ipcMain.handle('guardar-minuta', seguro((_e, { carpeta, texto }) => {
   fs.writeFileSync(path.join(carpeta, 'minuta.md'), texto); return { ok: true };
-});
+}));
 
-ipcMain.handle('pdf', async (_e, { carpeta, cliente, fecha, texto }) => {
+ipcMain.handle('pdf', seguro(async (_e, { carpeta, cliente, fecha, texto }) => {
   // las notas internas nunca salen al PDF del cliente
   const soloCliente = texto.split(/##\s*Notas internas/i)[0].trim();
   const html = PDF.envolver({ cliente, fecha, cuerpoHtml: MD.convertir(soloCliente),
@@ -275,7 +325,7 @@ ipcMain.handle('pdf', async (_e, { carpeta, cliente, fecha, texto }) => {
   const destino = path.join(carpeta, 'minuta.pdf');
   fs.writeFileSync(destino, buf);
   return { ok: true, ruta: destino };
-});
+}));
 
 // Busca el término en las transcripciones y minutas de todas las reuniones.
 ipcMain.handle('buscar', (_e, termino) => {
@@ -300,7 +350,7 @@ ipcMain.handle('buscar', (_e, termino) => {
 });
 
 // Expediente del cliente: todas sus reuniones en un solo PDF, para juntas de revisión.
-ipcMain.handle('exportar-historial', async (_e, { slug, cliente }) => {
+ipcMain.handle('exportar-historial', seguro(async (_e, { slug, cliente }) => {
   const rs = R.reuniones(slug).filter(r => r.minuta).reverse(); // cronológico
   if (!rs.length) return { ok: false, error: 'Este cliente aún no tiene minutas.' };
 
@@ -367,7 +417,7 @@ ipcMain.handle('exportar-historial', async (_e, { slug, cliente }) => {
   fs.mkdirSync(dirCliente, { recursive: true });
   fs.writeFileSync(destino, buf);
   return { ok: true, ruta: destino, reuniones: rs.length, compromisos: compromisos.length };
-});
+}));
 
 ipcMain.handle('abrir', (_e, ruta) => { shell.openPath(ruta); });
 ipcMain.handle('revelar', (_e, ruta) => { shell.showItemInFolder(ruta); });
@@ -378,12 +428,12 @@ ipcMain.handle('importar', async () => {
   });
   return r.canceled ? null : r.filePaths[0];
 });
-ipcMain.handle('importar-a-carpeta', async (_e, { slug, archivo }) => {
+ipcMain.handle('importar-a-carpeta', seguro(async (_e, { slug, archivo }) => {
   const carpeta = path.join(R.BASE(), slug, sello());
   fs.mkdirSync(carpeta, { recursive: true });
   await correr(BIN().ffmpeg, ['-nostdin','-loglevel','error','-y','-i',archivo,'-c:a','aac','-b:a','96k', path.join(carpeta,'mezcla.m4a')]);
   return { carpeta };
-});
+}));
 
 function registrarAtajo() {
   // Cmd+Shift+R: empieza o detiene la grabación sin tener que ir a la ventana
@@ -401,6 +451,10 @@ function registrarAtajo() {
   });
   if (!ok) console.log('no se pudo registrar el atajo global');
 }
+
+// Dos instancias = dos grabaciones sin saberlo una de la otra.
+if (!app.requestSingleInstanceLock()) { app.quit(); }
+app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 
 app.whenReady().then(async () => {
   crearVentana();
@@ -427,4 +481,18 @@ app.whenReady().then(async () => {
   }
 });
 app.on('will-quit', () => globalShortcut.unregisterAll());
-app.on('window-all-closed', () => { if (captura) captura.kill('SIGINT'); app.quit(); });
+
+// Cerrar la ventana mientras se graba dejaba el .m4a sin finalizar y la reunión
+// se perdía. Ahora se espera a que el capturador cierre el contenedor.
+let cerrando = false;
+app.on('before-quit', (e) => {
+  if (captura && !cerrando) {
+    cerrando = true;
+    e.preventDefault();
+    const proc = captura;
+    proc.once('exit', () => { captura = null; app.quit(); });
+    proc.kill('SIGINT');
+    setTimeout(() => { captura = null; app.quit(); }, 9000);
+  }
+});
+app.on('window-all-closed', () => app.quit());

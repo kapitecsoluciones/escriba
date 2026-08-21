@@ -17,6 +17,9 @@ final class CapturaSistema: NSObject, SCStreamOutput, SCStreamDelegate {
     private var picoSis: Float = 0
     private var picoMic: Float = 0
     private var ultimoReporte = Date()
+    private var fallosEscritura = 0
+    private var avisoFalloEnviado = false
+    private var contadorReportes = 0
     private var rutaMic: URL { ruta.deletingPathExtension().appendingPathExtension("mic." + ruta.pathExtension) }
 
     init(ruta: URL) { self.ruta = ruta }
@@ -55,6 +58,14 @@ final class CapturaSistema: NSObject, SCStreamOutput, SCStreamDelegate {
         if #available(macOS 15.0, *) {
             try s.addStreamOutput(self, type: .microphone, sampleHandlerQueue: DispatchQueue(label: "audio.mic"))
         }
+        let libres = Self.espacioLibreMB(ruta: ruta)
+        if libres >= 0 && libres < 300 {
+            throw NSError(domain: "captura", code: 2, userInfo: [NSLocalizedDescriptionKey:
+                "Espacio insuficiente: quedan \(libres) MB. Una hora de reunión ocupa unos 130 MB."])
+        }
+        if libres >= 0 && libres < 2048 {
+            FileHandle.standardError.write("DISCO \(libres)\n".data(using: .utf8)!)
+        }
         try await s.startCapture()
         self.stream = s
         FileHandle.standardError.write("captura iniciada\n".data(using: .utf8)!)
@@ -64,7 +75,10 @@ final class CapturaSistema: NSObject, SCStreamOutput, SCStreamDelegate {
         try? await stream?.stopCapture()
         archivo = nil
         archivoMic = nil
-        let msg = "sistema: \(muestrasEscritas) muestras | micrófono: \(muestrasMic) muestras\n"
+        var msg = "sistema: \(muestrasEscritas) muestras | micrófono: \(muestrasMic) muestras\n"
+        if fallosEscritura > 0 {
+            msg += "ATENCION: \(fallosEscritura) bloques de audio NO se pudieron escribir\n"
+        }
         FileHandle.standardError.write(msg.data(using: .utf8)!)
     }
 
@@ -80,15 +94,24 @@ final class CapturaSistema: NSObject, SCStreamOutput, SCStreamDelegate {
         guard let formato = AVAudioFormat(streamDescription: &asbd) else { return }
 
         if archivo == nil {
-            archivo = try? AVAudioFile(forWriting: ruta, settings: Self.ajustesAAC(formato),
-                                       commonFormat: formato.commonFormat, interleaved: formato.isInterleaved)
+            do {
+                archivo = try AVAudioFile(forWriting: ruta, settings: Self.ajustesAAC(formato),
+                                          commonFormat: formato.commonFormat, interleaved: formato.isInterleaved)
+            } catch {
+                registrarFalloEscritura(error)   // con el disco lleno, falla aquí, no al escribir
+            }
         }
         guard let archivo else { return }
 
         try? sampleBuffer.withAudioBufferList { lista, _ in
             guard let pcm = AVAudioPCMBuffer(pcmFormat: formato, bufferListNoCopy: lista.unsafePointer) else { return }
-            try? archivo.write(from: pcm)
-            muestrasEscritas += Int64(pcm.frameLength)
+            // El contador solo sube si el disco aceptó el bloque: si no, mentiría.
+            do {
+                try archivo.write(from: pcm)
+                muestrasEscritas += Int64(pcm.frameLength)
+            } catch {
+                registrarFalloEscritura(error)
+            }
             picoSis = max(picoSis, Self.pico(pcm))
             reportarNiveles()
         }
@@ -99,17 +122,45 @@ final class CapturaSistema: NSObject, SCStreamOutput, SCStreamDelegate {
         var asbd = d
         guard let formato = AVAudioFormat(streamDescription: &asbd) else { return }
         if archivoMic == nil {
-            archivoMic = try? AVAudioFile(forWriting: rutaMic, settings: Self.ajustesAAC(formato),
-                                          commonFormat: formato.commonFormat, interleaved: formato.isInterleaved)
+            do {
+                archivoMic = try AVAudioFile(forWriting: rutaMic, settings: Self.ajustesAAC(formato),
+                                             commonFormat: formato.commonFormat, interleaved: formato.isInterleaved)
+            } catch {
+                registrarFalloEscritura(error)
+            }
         }
         guard let archivoMic else { return }
         try? sampleBuffer.withAudioBufferList { lista, _ in
             guard let pcm = AVAudioPCMBuffer(pcmFormat: formato, bufferListNoCopy: lista.unsafePointer) else { return }
-            try? archivoMic.write(from: pcm)
-            muestrasMic += Int64(pcm.frameLength)
+            do {
+                try archivoMic.write(from: pcm)
+                muestrasMic += Int64(pcm.frameLength)
+            } catch {
+                registrarFalloEscritura(error)
+            }
             picoMic = max(picoMic, Self.pico(pcm))
             reportarNiveles()
         }
+    }
+
+    // Una grabación que falla en silencio es peor que una que no arranca:
+    // el usuario cree que tiene la junta y se entera al final. Se avisa al instante.
+    private func registrarFalloEscritura(_ error: Error) {
+        fallosEscritura += 1
+        guard !avisoFalloEnviado else { return }
+        avisoFalloEnviado = true
+        let libres = Self.espacioLibreMB(ruta: ruta)
+        let motivo = libres < 500 ? "disco casi lleno (\(libres) MB libres)" : error.localizedDescription
+        FileHandle.standardError.write("FALLO_ESCRITURA \(motivo)\n".data(using: .utf8)!)
+    }
+
+    static func espacioLibreMB(ruta: URL) -> Int {
+        let dir = ruta.deletingLastPathComponent()
+        if let v = try? dir.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]),
+           let libres = v.volumeAvailableCapacityForImportantUsage {
+            return Int(libres / 1_048_576)
+        }
+        return -1
     }
 
     // Pico absoluto del buffer, para el medidor de nivel de la interfaz
@@ -131,6 +182,15 @@ final class CapturaSistema: NSObject, SCStreamOutput, SCStreamDelegate {
         let linea = String(format: "NIVEL sis=%.3f mic=%.3f\n", picoSis, picoMic)
         FileHandle.standardError.write(linea.data(using: .utf8)!)
         picoSis = 0; picoMic = 0
+
+        // vigilar el disco cada ~30 s (una hora de grabación ocupa unos 130 MB)
+        contadorReportes += 1
+        if contadorReportes % 100 == 0 {
+            let libres = Self.espacioLibreMB(ruta: ruta)
+            if libres >= 0 && libres < 2048 {
+                FileHandle.standardError.write("DISCO \(libres)\n".data(using: .utf8)!)
+            }
+        }
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {

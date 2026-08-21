@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld('api', {
   exportarHistorial:(d)    => ipcRenderer.invoke('exportar-historial', d),
   onProgreso:      (cb)    => ipcRenderer.on('progreso', (_e, d) => cb(d)),
   onNiveles:       (cb)    => ipcRenderer.on('niveles', (_e, d) => cb(d)),
+  onCapturaAviso:  (cb)    => ipcRenderer.on('captura-aviso', (_e, d) => cb(d)),
   clienteActivo:   (c)     => ipcRenderer.invoke('cliente-activo', c),
   onAtajo:         (cb)    => ipcRenderer.on('atajo', (_e, d) => cb(d)),
 });

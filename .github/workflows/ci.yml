@@ -45,10 +45,32 @@ jobs:
           done
           exit $fallo
 
+  pruebas:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Run the test suite
+        run: node --test "test/*.test.js"
+
   nativo:
     name: Swift helper builds
-    runs-on: macos-14
+    # macos-15 o superior: el capturador usa SCStreamConfiguration.captureMicrophone
+    # y SCStreamOutputType.microphone, que solo existen en el SDK de macOS 15.
+    # En macos-14 este job llevaba fallando desde que se creó.
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - name: Compile the capture helper
         run: swiftc -O nativo/CapturaSistema.swift -o /tmp/capturasistema
+      # Lo único del binario que se puede comprobar sin permisos de pantalla ni
+      # de micrófono. El ciclo de captura real queda fuera de alcance del CI a
+      # propósito: simularlo daría una prueba que pasa sin comprobar nada.
+      - name: With no arguments it prints usage and exits with 2
+        run: |
+          salida=$(/tmp/capturasistema 2>&1) && codigo=0 || codigo=$?
+          echo "$salida"
+          if [ "$codigo" != "2" ]; then echo "::error::se esperaba código 2, llegó $codigo"; exit 1; fi
+          echo "$salida" | grep -q "Uso: CapturaSistema" || { echo "::error::no imprimió el uso"; exit 1; }

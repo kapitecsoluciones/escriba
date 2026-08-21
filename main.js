@@ -1,6 +1,6 @@
-const { app, BrowserWindow, ipcMain, shell, dialog, globalShortcut, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, globalShortcut, Notification, clipboard } = require('electron');
 const path = require('path'), fs = require('fs'), os = require('os');
-const { spawn, execFile } = require('child_process');
+const { spawn } = require('child_process');
 const R = require('./lib/rutas');
 const BIN = R.BIN;
 const CONFIG = require('./lib/config');
@@ -9,6 +9,7 @@ const PDF = require('./lib/pdf');
 const MD = require('./lib/md');
 const VOCES = require('./lib/voces');
 const MOTORES = require('./lib/motores');
+const { actualizarDossier, quitarDelDossier } = require('./lib/dossier');
 
 let win = null;
 let captura = null;          // proceso de grabación en curso
@@ -27,11 +28,27 @@ function sello() {
 }
 
 function crearVentana() {
+  // Recuperar el tamaño y la posición de la última vez. Si la pantalla donde
+  // estaba ya no existe (se desconectó un monitor), Electron la recoloca solo.
+  const guardada = CONFIG.leer().ventana || {};
   win = new BrowserWindow({
-    width: 1180, height: 780, minWidth: 900, minHeight: 600,
+    width: guardada.ancho || 1180, height: guardada.alto || 780,
+    x: Number.isInteger(guardada.x) ? guardada.x : undefined,
+    y: Number.isInteger(guardada.y) ? guardada.y : undefined,
+    minWidth: 900, minHeight: 600,
     titleBarStyle: 'hiddenInset', backgroundColor: '#F7F9FC',
     webPreferences: { preload: path.join(__dirname, 'preload.js') }
   });
+  let guardar = null;
+  const recordar = () => {
+    clearTimeout(guardar);
+    guardar = setTimeout(() => {
+      if (!win || win.isDestroyed() || win.isMinimized() || win.isFullScreen()) return;
+      const b = win.getNormalBounds();
+      try { CONFIG.guardar({ ventana: { ancho: b.width, alto: b.height, x: b.x, y: b.y } }); } catch {}
+    }, 500);
+  };
+  win.on('resize', recordar); win.on('move', recordar);
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   // primera vez: se abre directamente en Ajustes para configurar lo mínimo
   if (!CONFIG.configurado()) {
@@ -41,7 +58,15 @@ function crearVentana() {
   }
 }
 
-const avisar = (etapa, detalle = '') => win && win.webContents.send('progreso', { etapa, detalle });
+// En modo autoprueba el avance también se escribe a un archivo: es la única
+// forma de comprobar sin ojos que la barra de progreso avanza de verdad.
+const avisar = (etapa, detalle = '', pct = null) => {
+  if (process.env.ESCRIBA_AUTOPRUEBA === '1') {
+    try { fs.appendFileSync('/private/tmp/AUTOPRUEBA-progreso.log',
+      `${new Date().toISOString()} ${etapa} ${pct == null ? '-' : pct + '%'} ${detalle}\n`); } catch {}
+  }
+  return win && win.webContents.send('progreso', { etapa, detalle, pct });
+};
 
 // Un handler que lanza deja al renderer esperando para siempre. Todos devuelven
 // {ok:false,error} en vez de reventar.
@@ -49,9 +74,45 @@ const seguro = (fn) => async (...a) => {
   try { const r = await fn(...a); return (r && typeof r === 'object') ? r : { ok: true, valor: r }; }
   catch (e) { return { ok: false, error: e.message || String(e) }; }
 };
-const correr = (cmd, args, opts = {}) => new Promise((res, rej) => {
-  execFile(cmd, args, { maxBuffer: 1024 * 1024 * 64, ...opts }, (e, so, se) => e ? rej(new Error(se || e.message)) : res(so));
-});
+
+// ---------- trabajo en curso ----------
+// Procesar una reunión encadena varios subprocesos: ffmpeg, whisper y el motor de
+// redacción. Se registran todos aquí para que Cancelar pueda detenerlos de verdad.
+let trabajo = null;
+class Cancelado extends Error { constructor() { super('Cancelado'); this.cancelado = true; } }
+const punto = () => { if (trabajo && trabajo.cancelado) throw new Cancelado(); };
+
+// Lanza un proceso y espera. A diferencia de execFile, entrega stderr línea a línea
+// mientras corre: de ahí sale el avance real de whisper, que antes se tiraba.
+function correr(cmd, args, opts = {}) {
+  return new Promise((res, rej) => {
+    let p;
+    try { p = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] }); }
+    catch (e) { return rej(e); }
+    const t = trabajo; if (t) t.hijos.add(p);
+    let so = '', se = '', resto = '';
+    // hay que drenar las dos tuberías aunque no se lean: si se llenan, el hijo se bloquea
+    p.stdout.on('data', (b) => { so += b; if (so.length > 8e6) so = so.slice(-4e6); });
+    p.stderr.on('data', (b) => {
+      const txt = b.toString();
+      se += txt; if (se.length > 8e6) se = se.slice(-4e6);
+      if (!opts.alLeer) return;
+      resto += txt;
+      const lineas = resto.split('\n'); resto = lineas.pop();
+      for (const l of lineas) { try { opts.alLeer(l); } catch {} }
+    });
+    p.on('error', (e) => { if (t) t.hijos.delete(p); rej(e); });
+    p.on('close', (code) => {
+      if (t) t.hijos.delete(p);
+      if (t && t.cancelado) return rej(new Cancelado());
+      if (code === 0) return res(so);
+      // el motivo real está al final de stderr; sin esto el fallo reaparecía dos
+      // líneas después disfrazado de "no existe el archivo"
+      const cola = se.trim().split('\n').filter(Boolean).slice(-4).join(' ').slice(0, 400);
+      rej(new Error(cola || `${path.basename(cmd)} terminó con código ${code}`));
+    });
+  });
+}
 
 // ---------- consultas ----------
 ipcMain.handle('clientes', () => R.clientes());
@@ -198,10 +259,14 @@ async function duracion(archivo) {
 }
 
 async function procesarInterno({ carpeta, slug, nombre }) {
+  // la autoprueba entra por aquí directamente: sin esto no ejercitaría ni la
+  // cancelación ni el registro de subprocesos, que es justo lo que se quiere probar
+  if (!trabajo) trabajo = { hijos: new Set(), cancelado: false, ac: new AbortController(), carpeta };
   try {
     avisar('mezclando', 'Uniendo tu voz y el audio del Mac');
     const mezcla = await mezclar(carpeta);
     const dur = await duracion(mezcla);
+    punto();   // duracion() se traga sus errores, incluida la cancelación
 
     const base = path.join(carpeta, 'mezcla');
     // Si ya se transcribió antes (p. ej. falló la redacción), no se repite:
@@ -210,12 +275,19 @@ async function procesarInterno({ carpeta, slug, nombre }) {
     if (yaTranscrito) {
       avisar('transcribiendo', 'Ya estaba transcrita, se reutiliza');
     } else {
-    avisar('transcribiendo', 'Puede tardar ~1 minuto por cada 10 de reunión');
+    avisar('transcribiendo', 'Puede tardar ~1 minuto por cada 10 de reunión', 0);
     const wav = path.join(os.tmpdir(), `mezcla-${Date.now()}.wav`);
     await correr(BIN().ffmpeg, ['-nostdin', '-loglevel', 'error', '-y', '-i', mezcla, '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le', wav]);
-    // -mc 0 evita los bucles de repetición en audios largos
+    punto();
+    // -mc 0 evita los bucles de repetición en audios largos.
+    // -pp imprime el avance por stderr: es lo que alimenta la barra de progreso.
     await correr(BIN().whisper, ['-m', BIN().modelo, '-f', wav, '-l', 'es', '-mc', '0', '-pp',
-      '--output-txt', '--output-srt', '--output-file', base]);
+      '--output-txt', '--output-srt', '--output-file', base], {
+      alLeer: (l) => {
+        const m = l.match(/progress\s*=\s*(\d+)%/);
+        if (m) avisar('transcribiendo', 'Transcribiendo el audio', +m[1]);
+      }
+    });
     try { fs.unlinkSync(wav); } catch {}
     }
     let transcripcion = fs.readFileSync(base + '.txt', 'utf8');
@@ -240,6 +312,7 @@ async function procesarInterno({ carpeta, slug, nombre }) {
       }
     } catch (e) { /* si falla, seguimos con la transcripción plana */ }
 
+    punto();
     avisar('redactando', `Escribiendo la minuta con ${MOTORES.activo().nombre}`);
     const cli = R.clientes().find(c => c.slug === slug);
     let dossier = null;
@@ -252,8 +325,17 @@ async function procesarInterno({ carpeta, slug, nombre }) {
     if (!(await motor.disponible())) {
       throw new Error(`El motor de redacción "${motor.nombre}" no está disponible. Revísalo en Ajustes.`);
     }
-    const minuta = await motor.redactar(prompt);
-    fs.writeFileSync(path.join(carpeta, 'minuta.md'), minuta);
+    const minuta = await motor.redactar(prompt, { senal: trabajo && trabajo.ac.signal });
+    punto();
+    // "Volver a redactar" pisaba las correcciones hechas a mano sin vuelta atrás.
+    // La versión anterior queda guardada al lado antes de escribir la nueva.
+    const destinoMinuta = path.join(carpeta, 'minuta.md');
+    try {
+      if (fs.existsSync(destinoMinuta) && fs.statSync(destinoMinuta).size > 0) {
+        fs.copyFileSync(destinoMinuta, path.join(carpeta, 'minuta-anterior.md'));
+      }
+    } catch {}
+    fs.writeFileSync(destinoMinuta, minuta);
 
     avisar('guardando', 'Guardando la reunión en el expediente del cliente');
     const res = actualizarDossier({
@@ -265,44 +347,53 @@ async function procesarInterno({ carpeta, slug, nombre }) {
     notificar('Minuta lista', `${nombre} · ${dur}. Ya puedes revisarla y exportar el PDF.`);
     return { ok: true, minuta, transcripcion, duracion: dur, carpeta, dossier: res };
   } catch (e) {
+    // cancelar es una decisión del usuario, no un fallo: no se le enseña un error rojo
+    if (e.cancelado || (trabajo && trabajo.cancelado)) {
+      avisar('cancelado', '');
+      return { ok: false, cancelado: true };
+    }
     avisar('error', e.message);
     notificar('No se pudo procesar', e.message);
     return { ok: false, error: e.message };
+  } finally {
+    trabajo = null;
   }
 }
 
-ipcMain.handle('procesar', (_e, d) => procesarInterno(d));
+ipcMain.handle('procesar', (_e, d) => {
+  if (trabajo) return { ok: false, error: 'Ya hay una reunión procesándose. Espera a que termine o cancélala.' };
+  trabajo = { hijos: new Set(), cancelado: false, ac: new AbortController(), carpeta: d && d.carpeta };
+  return procesarInterno(d);
+});
+
+ipcMain.handle('proceso-en-curso', () => ({ ok: true, activo: !!trabajo, carpeta: trabajo && trabajo.carpeta }));
+
+// Cancelar de verdad: sin esto, matar whisper dejaba el proceso huérfano comiendo CPU.
+ipcMain.handle('cancelar-proceso', () => {
+  const t = trabajo;
+  if (!t) return { ok: false, error: 'No hay nada en curso' };
+  t.cancelado = true;
+  try { t.ac.abort(); } catch {}
+  for (const p of t.hijos) { try { p.kill('SIGTERM'); } catch {} }
+  // el que no se muera por las buenas, se mata a los 3 s
+  setTimeout(() => { for (const p of t.hijos) { try { p.kill('SIGKILL'); } catch {} } }, 3000);
+  return { ok: true };
+});
 
 // ---------- dossier ----------
-// Cierra el ciclo de memoria: la reunión queda en el dossier del cliente,
-// para que la próxima vez la app arranque sabiendo lo que se acordó hoy.
-function actualizarDossier({ dossier, cliente, fecha, minuta, carpeta }) {
-  if (!dossier || !fs.existsSync(dossier)) return { ok: false, motivo: 'sin dossier' };
-  const previo = fs.readFileSync(dossier, 'utf8');
-  const marca = `## ${fecha} — Reunión`;
-  if (previo.includes(marca)) return { ok: false, motivo: 'ya registrada' };
-  // solo la parte del cliente; las notas internas van aparte y más cortas
-  const [publica, internas] = minuta.split(/##\s*Notas internas[^\n]*/i);
-  const resumen = publica.trim().split('\n')
-    .filter(l => /^\*\*/.test(l.trim()))
-    .filter(l => !/·/.test(l))          // fuera el encabezado "Cliente · fecha · duración"
-    .slice(0, 8)
-    .map(l => '- ' + l.replace(/\*\*/g, '').trim()).join('\n');
-  let bloque = `\n\n${marca} (${cliente})\n\nMinuta completa: \`${path.join(carpeta, 'minuta.md')}\`\n`;
-  if (resumen) bloque += `\n**Lo acordado:**\n${resumen}\n`;
-  if (internas) {
-    const pend = internas.split('\n').filter(l => /^-\s/.test(l)).slice(0, 10).join('\n');
-    if (pend) bloque += `\n**Notas internas de la reunión:**\n${pend}\n`;
-  }
-  fs.appendFileSync(dossier, bloque);
-  return { ok: true };
-}
-
 ipcMain.handle('actualizar-dossier', seguro((_e, d) => actualizarDossier(d)));
 
 // ---------- minuta / pdf ----------
 ipcMain.handle('guardar-minuta', seguro((_e, { carpeta, texto }) => {
-  fs.writeFileSync(path.join(carpeta, 'minuta.md'), texto); return { ok: true };
+  const destino = path.join(carpeta, 'minuta.md');
+  // Guardar también deja copia de lo que había: sin esto, "Restaurar la versión
+  // anterior" solo servía después de volver a redactar, no después de editar.
+  try {
+    const previo = fs.readFileSync(destino, 'utf8');
+    if (previo && previo !== texto) fs.writeFileSync(path.join(carpeta, 'minuta-anterior.md'), previo);
+  } catch {}
+  fs.writeFileSync(destino, texto);
+  return { ok: true };
 }));
 
 ipcMain.handle('pdf', seguro(async (_e, { carpeta, cliente, fecha, texto }) => {
@@ -419,6 +510,42 @@ ipcMain.handle('exportar-historial', seguro(async (_e, { slug, cliente }) => {
   return { ok: true, ruta: destino, reuniones: rs.length, compromisos: compromisos.length };
 }));
 
+// Borrar una reunión. Va a la Papelera, no a rm -rf: una grabación de una hora
+// que se borró por error se puede recuperar desde el Finder.
+ipcMain.handle('eliminar-reunion', seguro(async (_e, { carpeta, slug }) => {
+  const objetivo = path.resolve(carpeta || '');
+  if (!R.dentroDeBase(objetivo)) {
+    return { ok: false, error: 'Esa carpeta está fuera de Escriba. No se borró nada.' };
+  }
+  if (!fs.existsSync(objetivo)) return { ok: false, error: 'Esa reunión ya no existe.' };
+  if (trabajo && trabajo.carpeta && path.resolve(trabajo.carpeta) === objetivo) {
+    return { ok: false, error: 'Esa reunión se está procesando. Cancélala antes de borrarla.' };
+  }
+  // Un cliente puede tener slug de expediente distinto al de la carpeta.
+  const cli = R.clientes().find(c => c.slug === slug || (c.alias || []).includes(slug));
+  // Primero la Papelera y después el expediente: al revés, si el borrado falla,
+  // la reunión sigue ahí pero su registro en el expediente ya se perdió.
+  await shell.trashItem(objetivo);
+  const limpiado = quitarDelDossier(cli && cli.dossier, objetivo);
+  return { ok: true, dossierLimpiado: limpiado };
+}));
+
+// Selector nativo de carpeta para Ajustes: teclear una ruta absoluta a mano
+// era la parte más incómoda de configurar la app.
+ipcMain.handle('elegir-carpeta', async (_e, actual) => {
+  const r = await dialog.showOpenDialog(win, {
+    title: 'Elige la carpeta', properties: ['openDirectory', 'createDirectory'],
+    defaultPath: actual && fs.existsSync(actual) ? actual : os.homedir()
+  });
+  return r.canceled ? null : r.filePaths[0];
+});
+
+// Copiar la minuta lista para pegar en un correo. Las notas internas nunca van.
+ipcMain.handle('copiar-minuta', seguro((_e, texto) => {
+  clipboard.writeText(String(texto || '').split(/##\s*Notas internas/i)[0].trim());
+  return { ok: true };
+}));
+
 ipcMain.handle('abrir', (_e, ruta) => { shell.openPath(ruta); });
 ipcMain.handle('revelar', (_e, ruta) => { shell.showItemInFolder(ruta); });
 ipcMain.handle('importar', async () => {
@@ -467,6 +594,15 @@ app.whenReady().then(async () => {
   if (process.env.ESCRIBA_AUTOPRUEBA === '1' && fs.existsSync(centinela)) {
     const cfg = JSON.parse(fs.readFileSync(centinela, 'utf8'));
     fs.unlinkSync(centinela);
+    // Disparador de cancelación para la autoprueba. Va por el mismo camino que el
+    // botón (preload -> ipcRenderer.invoke -> handler), no por un atajo interno:
+    // probar una ruta parecida no prueba la ruta.
+    if (process.env.ESCRIBA_AUTOPRUEBA_CANCELAR) {
+      const seg = Number(process.env.ESCRIBA_AUTOPRUEBA_CANCELAR) || 20;
+      setTimeout(() => {
+        if (win) win.webContents.executeJavaScript('window.api.cancelarProceso()').catch(() => {});
+      }, 1500 + seg * 1000);
+    }
     setTimeout(async () => {
       const t = Date.now();
       let salida;
@@ -480,7 +616,16 @@ app.whenReady().then(async () => {
     }, 1500);
   }
 });
-app.on('will-quit', () => globalShortcut.unregisterAll());
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
+  // Cerrar la app mientras se transcribía dejaba whisper corriendo solo, comiendo
+  // CPU hasta terminar un trabajo que ya no le interesa a nadie.
+  if (trabajo) {
+    trabajo.cancelado = true;
+    try { trabajo.ac.abort(); } catch {}
+    for (const p of trabajo.hijos) { try { p.kill('SIGKILL'); } catch {} }
+  }
+});
 
 // Cerrar la ventana mientras se graba dejaba el .m4a sin finalizar y la reunión
 // se perdía. Ahora se espera a que el capturador cierre el contenedor.

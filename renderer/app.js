@@ -1,40 +1,44 @@
 let CLIENTES = [], actual = null, reunionActual = null, hayResultados = false;
 let grabando = false, t0 = 0, crono = null, editando = false, vista = 'minuta';
+let borrador = null;      // texto en edición sin guardar; null = no hay nada pendiente
+let procesando = false;
 
 const $ = s => document.querySelector(s);
 const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h !== undefined) e.innerHTML = h; return e; };
 const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+// El conversor de Markdown es el mismo de lib/md.js, cargado como <script>.
+// Aquí había una copia con el mismo bucle infinito, que colgaba la ventana.
+const md2html = t => window.MD.convertir(t || '');
 
-// ---------- markdown mínimo para la vista ----------
-function md2html(md){
-  const inline = s => esc(s)
-    .replace(/`([^`]+)`/g,'<code>$1</code>')
-    .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
-  const L = (md||'').replace(/\r/g,'').split('\n'); const out=[]; let i=0;
-  while(i<L.length){
-    const l=L[i];
-    if(!l.trim()){i++;continue}
-    if(/^---+$/.test(l.trim())){out.push('<hr>');i++;continue}
-    let m;
-    if((m=l.match(/^(#{1,4})\s+(.*)$/))){out.push(`<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`);i++;continue}
-    if(/^\|/.test(l) && /^\|[\s:|-]+\|?$/.test((L[i+1]||'').trim())){
-      const fila=s=>s.trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
-      const enc=fila(l); i+=2; const cu=[];
-      while(i<L.length&&/^\|/.test(L[i])){cu.push(fila(L[i]));i++}
-      out.push('<table><thead><tr>'+enc.map(c=>`<th>${inline(c)}</th>`).join('')+'</tr></thead><tbody>'+
-        cu.map(r=>'<tr>'+r.map(c=>`<td>${inline(c)}</td>`).join('')+'</tr>').join('')+'</tbody></table>');
-      continue;
-    }
-    if(/^\s*[-*]\s+/.test(l)){const it=[];while(i<L.length&&/^\s*[-*]\s+/.test(L[i])){it.push(L[i].replace(/^\s*[-*]\s+/,''));i++}
-      out.push('<ul>'+it.map(t=>`<li>${inline(t)}</li>`).join('')+'</ul>');continue}
-    if(/^\s*\d+\.\s+/.test(l)){const it=[];while(i<L.length&&/^\s*\d+\.\s+/.test(L[i])){it.push(L[i].replace(/^\s*\d+\.\s+/,''));i++}
-      out.push('<ol>'+it.map(t=>`<li>${inline(t)}</li>`).join('')+'</ol>');continue}
-    const p=[];while(i<L.length&&L[i].trim()&&!/^(#|\||\s*[-*]\s|\s*\d+\.\s|---)/.test(L[i])){p.push(L[i]);i++}
-    const txt=p.join(' ');
-    const cls=/@|\+\d|https?:/.test(txt)&&txt.length<220?' class="contact"':'';
-    out.push(`<p${cls}>${inline(txt)}</p>`);
-  }
-  return out.join('\n');
+// ---------- confirmación ----------
+// Todo lo que destruye trabajo pasa por aquí antes de ejecutarse.
+function confirmar({ titulo, texto, aceptar = 'Continuar', peligro = false }) {
+  return new Promise(res => {
+    const capa = el('div','confirmar');
+    capa.innerHTML = `<div class="caja" role="alertdialog" aria-modal="true">
+      <h3>${esc(titulo)}</h3><p>${esc(texto)}</p>
+      <div class="fila"><button class="btn" data-no>Cancelar</button>
+      <button class="btn ${peligro?'peligro':'primario'}" data-si>${esc(aceptar)}</button></div></div>`;
+    let cerrado = false;
+    const cerrar = (v) => { if (cerrado) return; cerrado = true;
+      document.removeEventListener('keydown', tecla); capa.remove(); res(v); };
+    const tecla = (e) => { if (e.key === 'Escape') cerrar(false); if (e.key === 'Enter') cerrar(true); };
+    capa.querySelector('[data-no]').onclick = () => cerrar(false);
+    capa.querySelector('[data-si]').onclick = () => cerrar(true);
+    capa.onclick = (e) => { if (e.target === capa) cerrar(false); };
+    document.addEventListener('keydown', tecla);
+    document.body.appendChild(capa);
+    capa.querySelector('[data-si]').focus();
+  });
+}
+// Salir de una minuta a medio editar borraba los cambios sin avisar.
+async function permisoParaSalir() {
+  if (!editando || borrador == null || borrador === (reunionActual && reunionActual.minuta)) return true;
+  const ok = await confirmar({ titulo: 'Tienes cambios sin guardar',
+    texto: 'Si sales ahora se pierden las correcciones que hiciste a esta minuta.',
+    aceptar: 'Salir y perderlos', peligro: true });
+  if (ok) { editando = false; borrador = null; }
+  return ok;
 }
 
 // ---------- clientes ----------
@@ -48,7 +52,7 @@ function pintarClientes(){
   const filtrados = CLIENTES.filter(c => !q || c.nombre.toLowerCase().includes(q));
   if(q && !filtrados.length && !hayResultados){
     const b = el('button','cli', `<span class="punto"></span><span class="n">Crear "${esc($('#q').value.trim())}"</span>`);
-    b.style.color = 'var(--gold)'; b.style.fontWeight = '600';
+    b.style.color = 'var(--gold-texto)'; b.style.fontWeight = '600';
     b.onclick = async () => {
       const nuevo = await window.api.crearCliente($('#q').value.trim());
       $('#q').value=''; CLIENTES = await window.api.clientes();
@@ -57,19 +61,28 @@ function pintarClientes(){
     };
     cont.appendChild(b); return;
   }
+  // Sin clientes y sin búsqueda, el panel quedaba en blanco: nadie adivina que
+  // se crea un cliente escribiendo en el buscador.
+  if(!filtrados.length && !q){
+    const v = el('div','vacio-lateral',
+      'Todavía no hay clientes.<br>Escribe un nombre en el buscador de arriba para crear el primero.');
+    cont.appendChild(v); return;
+  }
   filtrados.forEach(c=>{
     const b = el('button','cli'+(actual&&actual.slug===c.slug?' activo':''),
       `<span class="punto"></span><span class="n">${esc(c.nombre)}</span>`);
-    b.onclick = () => elegirCliente(c);
+    b.onclick = async () => { if(await permisoParaSalir()) elegirCliente(c); };
     cont.appendChild(b);
   });
 }
 async function elegirCliente(c){
-  actual = c; reunionActual = null; editando = false;
+  actual = c; reunionActual = null; editando = false; borrador = null;
   window.api.clienteActivo({slug:c.slug, nombre:c.nombre});
   $('#titulo').textContent = c.nombre;
-  $('#btnGrabar').disabled = false; $('#btnImportar').disabled = false;
-  $('#btnExpediente').disabled = false;
+  if(!procesando && !grabando){
+    $('#btnGrabar').disabled = false; $('#btnImportar').disabled = false;
+    $('#btnExpediente').disabled = false;
+  }
   pintarClientes(); await cargarReuniones();
 }
 async function cargarReuniones(){
@@ -82,9 +95,11 @@ async function cargarReuniones(){
   rs.forEach(r=>{
     const b = el('button','reu'+(reunionActual&&reunionActual.id===r.id?' activa':''),
       `<div class="f">${esc(fechaBonita(r.id))}</div><div class="e">${r.minuta?'Minuta lista':(r.transcripcion?'Transcrita':'Solo audio')}${r.tienePdf?' · PDF':''}</div>`);
-    b.onclick=()=>verReunion(r); cont.appendChild(b);
+    b.onclick=async ()=>{ if(await permisoParaSalir()) verReunion(r); };
+    cont.appendChild(b);
   });
   if(!reunionActual) pintarDetalleVacio();
+  return rs;
 }
 function fechaBonita(id){
   const m = id.match(/(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
@@ -96,32 +111,103 @@ function fechaBonita(id){
 // ---------- detalle ----------
 function pintarDetalleVacio(){
   $('#detalle').innerHTML = `<div class="vacio"><strong>${esc(actual?actual.nombre:'')}</strong>
-    Pulsa <em>Grabar reunión</em> cuando empiece la junta,<br>o importa un audio que ya tengas.</div>`;
+    Pulsa <em>Grabar reunión</em> cuando empiece la junta,<br>o importa un audio que ya tengas.
+    <div class="atajo">También puedes empezar y detener con <kbd>⌘</kbd><kbd>⇧</kbd><kbd>R</kbd> desde cualquier app.</div></div>`;
 }
 function verReunion(r){
-  reunionActual = r; editando = false; vista = 'minuta'; cargarReuniones(); pintarDetalle();
+  reunionActual = r; editando = false; borrador = null; vista = 'minuta'; cargarReuniones(); pintarDetalle();
 }
+
+// Un solo handler para cerrar cualquier menú abierto. Registrarlo dentro de
+// menuMas() añadía uno nuevo en cada repintado y nunca se quitaban.
+document.addEventListener('click', () => {
+  document.querySelectorAll('.mas .menu').forEach(m => { m.hidden = true; });
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') document.querySelectorAll('.mas .menu').forEach(m => { m.hidden = true; });
+});
+
+// Menú de acciones secundarias: seis botones en fila no dejaban ver cuál era
+// la acción principal, y "Volver a redactar" quedaba junto a "Abrir carpeta".
+function menuMas(r){
+  const caja = el('div','mas');
+  const b = el('button','btn','Más ▾'); b.setAttribute('aria-haspopup','true');
+  const m = el('div','menu'); m.hidden = true;
+  const item = (txt, fn, cls) => { const i = el('button','item'+(cls?' '+cls:''), txt);
+    i.onclick = () => { m.hidden = true; fn(); }; m.appendChild(i); return i; };
+
+  if(r.tienePdf) item('Abrir el PDF', ()=>window.api.abrir(r.carpeta+'/minuta.pdf'));
+  if(r.minuta) item('Volver a redactar', async ()=>{
+    const ok = await confirmar({ titulo: 'Volver a redactar la minuta',
+      texto: 'La IA escribirá una minuta nueva sobre la actual. Se guardará una copia de la versión de ahora por si quieres volver.',
+      aceptar: 'Redactar de nuevo' });
+    if(ok) procesar(r.carpeta);
+  });
+  if(r.anterior) item('Restaurar la versión anterior', async ()=>{
+    const ok = await confirmar({ titulo: 'Restaurar la versión anterior',
+      texto: 'Se recupera la minuta tal como estaba antes de la última redacción.', aceptar: 'Restaurar' });
+    if(!ok) return;
+    await window.api.guardarMinuta({carpeta:r.carpeta, texto:r.anterior});
+    reunionActual.minuta = r.anterior; await cargarReuniones(); pintarDetalle();
+  });
+  if(r.minuta) item('Copiar la minuta', async ()=>{
+    await window.api.copiarMinuta(r.minuta);
+    aviso('Minuta copiada, lista para pegar. Sin las notas internas.');
+  });
+  item('Abrir la carpeta', ()=>window.api.abrir(r.carpeta));
+  item('Mostrar en el Finder', ()=>window.api.revelar(r.carpeta));
+  item('Borrar esta reunión', ()=>borrarReunion(r), 'peligro');
+
+  b.onclick = (e) => { e.stopPropagation(); m.hidden = !m.hidden; };
+  caja.appendChild(b); caja.appendChild(m);
+  return caja;
+}
+
+async function borrarReunion(r){
+  const ok = await confirmar({ titulo: '¿Borrar esta reunión?',
+    texto: `Se mandan a la Papelera el audio, la transcripción y la minuta de ${fechaBonita(r.id)}. Podrás recuperarlos desde el Finder.`,
+    aceptar: 'Mandar a la Papelera', peligro: true });
+  if(!ok) return;
+  const res = await window.api.eliminarReunion({carpeta:r.carpeta, slug:actual.slug});
+  if(!res.ok) return estado('error','No se pudo borrar', res.error);
+  reunionActual = null; editando = false; borrador = null;
+  await cargarClientes(); await cargarReuniones();
+}
+
 function pintarDetalle(){
   const d = $('#detalle'); d.innerHTML='';
   const r = reunionActual; if(!r) return pintarDetalleVacio();
   const barra = el('div','acciones'); barra.style.cssText='margin-bottom:14px;gap:8px';
   const add=(txt,cls,fn)=>{const b=el('button','btn'+(cls?' '+cls:''),txt);b.onclick=fn;barra.appendChild(b);return b};
 
+  // En edición solo hay dos salidas. Antes seguían visibles "Exportar PDF" y
+  // "Volver a redactar", que trabajaban sobre la versión vieja del texto.
+  if(editando){
+    add('Guardar cambios','primario', guardarEdicion);
+    add('Descartar','', async ()=>{
+      if(!await permisoParaSalir()) return;
+      editando = false; borrador = null; pintarDetalle();
+    });
+    d.appendChild(barra);
+    const ta = el('textarea','editor'); ta.value = borrador!=null?borrador:r.minuta; ta.id='editor';
+    ta.oninput = ()=>{ borrador = ta.value; };
+    // ⌘S guarda, Escape sale preguntando
+    ta.onkeydown = (e)=>{ if((e.metaKey||e.ctrlKey) && e.key==='s'){ e.preventDefault(); guardarEdicion(); } };
+    d.appendChild(ta);
+    setTimeout(()=>ta.focus(),0);
+    return;
+  }
+
   if(!r.minuta && r.carpeta){
     add('Procesar esta reunión','primario', ()=>procesar(r.carpeta));
   }
   if(r.minuta){
-    add(editando?'Ver':'Editar','', ()=>{ if(editando){ guardarEdicion(); } else { editando=true; vista='minuta'; pintarDetalle(); }});
+    add('Editar','', ()=>{ editando=true; borrador=r.minuta; vista='minuta'; pintarDetalle(); });
+    if(r.dialogo) add(vista==='dialogo'?'Ver la minuta':'Ver quién dijo qué','', ()=>{
+      vista = vista==='dialogo' ? 'minuta' : 'dialogo'; pintarDetalle(); });
     add('Exportar PDF','primario', exportarPdf);
-    if(r.tienePdf) add('Abrir PDF','', ()=>window.api.abrir(r.carpeta+'/minuta.pdf'));
-    if(r.dialogo) add(vista==='dialogo'?'Ver minuta':'Ver diálogo','', ()=>{
-      vista = vista==='dialogo' ? 'minuta' : 'dialogo'; editando=false; pintarDetalle(); });
-    add('Volver a redactar','', async (ev)=>{
-      const b=ev.target; b.disabled=true; b.textContent='Redactando…';
-      await procesar(r.carpeta);   // reutiliza la transcripción: son segundos, no minutos
-    });
   }
-  add('Abrir carpeta','', ()=>window.api.abrir(r.carpeta));
+  barra.appendChild(menuMas(r));
   d.appendChild(barra);
 
   if(!r.minuta){
@@ -135,16 +221,12 @@ function pintarDetalle(){
     cont.innerHTML = '<h2>Quién dijo qué</h2>' + r.dialogo.split('\n').filter(Boolean).map(l=>{
       const m = l.match(/^\[([\d:]+)\]\s+([^:]+):\s*([\s\S]*)$/);
       if(!m) return `<p>${esc(l)}</p>`;
-      return `<p style="margin-bottom:11px"><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--muted);margin-right:8px">${esc(m[1])}</span>`+
-             `<strong style="color:var(--gold)">${esc(m[2])}:</strong> ${esc(m[3])}</p>`;
+      return `<p style="margin-bottom:11px"><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--soft);margin-right:8px">${esc(m[1])}</span>`+
+             `<strong style="color:var(--gold-texto)">${esc(m[2])}:</strong> ${esc(m[3])}</p>`;
     }).join('');
     d.appendChild(cont); return;
   }
   const partes = r.minuta.split(/##\s*Notas internas[^\n]*/i);
-  if(editando){
-    const ta = el('textarea','editor'); ta.value = r.minuta; ta.id='editor';
-    d.appendChild(ta); return;
-  }
   d.appendChild(el('div','minuta', md2html(partes[0])));
   if(partes[1]){
     const n = el('div','notas', `<div class="et">Notas internas · no se envían al cliente</div>${md2html(partes[1])}`);
@@ -153,8 +235,10 @@ function pintarDetalle(){
 }
 async function guardarEdicion(){
   const ta = $('#editor'); if(!ta) return;
-  await window.api.guardarMinuta({carpeta:reunionActual.carpeta, texto:ta.value});
-  reunionActual.minuta = ta.value; editando=false; pintarDetalle();
+  const res = await window.api.guardarMinuta({carpeta:reunionActual.carpeta, texto:ta.value});
+  if(res && res.ok === false) return estado('error','No se pudo guardar la minuta', res.error);
+  reunionActual.minuta = ta.value; editando=false; borrador=null; pintarDetalle();
+  aviso('Cambios guardados');
 }
 async function exportarPdf(){
   const r = reunionActual;
@@ -190,8 +274,7 @@ $('#btnGrabar').onclick = async () => {
     $('#btnGrabar').disabled = true;
     const res = await window.api.grabarDetener();
     if(res.ok) await procesar(res.carpeta);
-    $('#btnGrabar').disabled = false; $('#btnImportar').disabled = false;
-  $('#btnExpediente').disabled = false;
+    else { $('#btnGrabar').disabled = false; $('#btnImportar').disabled = false; }
   }
 };
 
@@ -206,18 +289,35 @@ $('#btnExpediente').onclick = async () => {
 $('#btnImportar').onclick = async () => {
   const archivo = await window.api.importar(); if(!archivo) return;
   estado('spin','Importando el audio…','');
-  const {carpeta} = await window.api.importarACarpeta({slug:actual.slug, archivo});
-  await procesar(carpeta);
+  const res = await window.api.importarACarpeta({slug:actual.slug, archivo});
+  if(res && res.ok === false){ quitarEstado(); return estado('error','No se pudo importar el audio', res.error); }
+  await procesar(res.carpeta);
 };
 
+// Mientras se procesa una reunión no se puede empezar otra: antes se podía
+// desde tres de las cuatro entradas y las dos se pisaban.
+function ocupado(v){
+  procesando = v;
+  for(const id of ['#btnGrabar','#btnImportar','#btnExpediente']){
+    const b = $(id); if(b) b.disabled = v || !actual;
+  }
+}
+
 async function procesar(carpeta){
+  ocupado(true);
   const res = await window.api.procesar({carpeta, slug:actual.slug, nombre:actual.nombre});
-  quitarEstado();
+  ocupado(false);
+  if(res.cancelado){ quitarEstado(); aviso('Procesamiento cancelado'); await cargarReuniones(); return; }
   if(!res.ok){ estado('error','No se pudo procesar', res.error); return; }
-  await cargarReuniones();
-  const rs = await window.api.reuniones(actual.slug);
-  reunionActual = rs.find(r=>r.carpeta===carpeta) || rs[0];
-  await cargarReuniones(); pintarDetalle();
+  quitarEstado();
+  const rs = await cargarReuniones();
+  reunionActual = (rs||[]).find(r=>r.carpeta===carpeta) || (rs||[])[0] || null;
+  await cargarReuniones();   // repinta el historial con la reunión ya marcada
+  pintarDetalle();
+  // Si la reunión no quedó anotada en el expediente, el usuario no se enteraba.
+  if(res.dossier && res.dossier.ok === false && res.dossier.motivo === 'sin dossier'){
+    aviso('Minuta lista. Este cliente no tiene expediente configurado.');
+  }
 }
 
 // ---------- medidores ----------
@@ -257,27 +357,49 @@ window.api.onCapturaAviso(({tipo, texto, mb})=>{
     if(document.getElementById('avisoDisco')) return;
     const e=$('#estado'); if(!e) return;
     const a=el('div','aviso-mudo',`Queda poco espacio: ${mb} MB. Una hora de reunión ocupa unos 130 MB.`);
-    a.id='avisoDisco'; a.style.color='var(--gold)';
+    a.id='avisoDisco'; a.style.color='var(--gold-texto)';
     e.parentNode.insertBefore(a, e.nextSibling);
   }
 });
 
 // ---------- estado ----------
-function estado(tipo, txt, sub){
+function estado(tipo, txt, sub, op={}){
   quitarEstado();
   const icono = tipo==='pulso'?'<div class="pulso"></div>':(tipo==='spin'?'<div class="spin"></div>':'');
   const e = el('div','estado'+(tipo==='error'?' error':''),
-    `${icono}<div><div class="txt">${esc(txt)}</div>${sub?`<div class="sub">${esc(sub)}</div>`:''}</div>${tipo==='pulso'?'<div class="crono">00:00</div>':''}`);
-  e.id='estado'; $('#detalle').prepend(e);
+    `${icono}<div class="cuerpo"><div class="txt">${esc(txt)}</div>${sub?`<div class="sub">${esc(sub)}</div>`:''}</div>${tipo==='pulso'?'<div class="crono">00:00</div>':''}`);
+  e.id='estado'; e.setAttribute('role','status'); e.setAttribute('aria-live','polite');
+  // Barra de avance real: whisper informa su porcentaje y antes se tiraba,
+  // así que diez minutos de espera se veían como un mensaje congelado.
+  if(op.pct!=null && op.pct>=0){
+    const b = el('div','avance', `<div class="pista"><div class="relleno" style="width:${Math.min(100,op.pct)}%"></div></div><span class="pct">${Math.min(100,op.pct)}%</span>`);
+    e.querySelector('.cuerpo').appendChild(b);
+  }
+  if(op.cancelable){
+    const c = el('button','btn cancelar','Cancelar');
+    c.onclick = async () => { c.disabled = true; c.textContent='Cancelando…'; await window.api.cancelarProceso(); };
+    e.appendChild(c);
+  }
+  $('#detalle').prepend(e);
 }
-function quitarEstado(){ const e=$('#estado'); if(e) e.remove(); }
+function quitarEstado(){ const e=$('#estado'); if(e) e.remove();
+  for(const id of ['avisoMudo','avisoFallo','avisoDisco']){ const a=document.getElementById(id); if(a) a.remove(); } }
 
-window.api.onProgreso(({etapa, detalle})=>{
+// Mensaje breve que se va solo, para confirmaciones que no merecen un diálogo.
+function aviso(txt){
+  const previo = document.getElementById('avisoBreve'); if(previo) previo.remove();
+  const a = el('div','aviso-breve', esc(txt)); a.id='avisoBreve';
+  document.body.appendChild(a);
+  setTimeout(()=>{ a.classList.add('fuera'); setTimeout(()=>a.remove(), 400); }, 2600);
+}
+
+window.api.onProgreso(({etapa, detalle, pct})=>{
   const textos = { mezclando:'Uniendo las pistas de audio', transcribiendo:'Transcribiendo la reunión',
                    atribuyendo:'Separando quién dijo cada cosa', redactando:'Redactando la minuta', guardando:'Guardando en el expediente', listo:'', error:'Error' };
   if(etapa==='listo') return quitarEstado();
+  if(etapa==='cancelado') return quitarEstado();
   if(etapa==='error') return estado('error','No se pudo procesar', detalle);
-  estado('spin', textos[etapa]||etapa, detalle);
+  estado('spin', textos[etapa]||etapa, detalle, {pct, cancelable:true});
 });
 
 let tBusca=null;
@@ -285,18 +407,26 @@ $('#q').oninput = () => {
   pintarClientes();
   clearTimeout(tBusca);
   const t = $('#q').value.trim();
-  if(t.length < 3){ hayResultados = false; if(actual) cargarReuniones(); return; }
+  if(t.length < 3){
+    hayResultados = false;
+    // Al borrar la búsqueda el encabezado se quedaba en 'Resultados de "..."'
+    if(actual){ $('#titulo').textContent = actual.nombre; cargarReuniones(); }
+    else { $('#titulo').textContent = 'Elige un cliente'; $('#subtitulo').textContent = 'Sus reuniones aparecen aquí'; }
+    return;
+  }
   tBusca = setTimeout(async ()=>{
     const res = await window.api.buscar(t);
     hayResultados = res.length > 0; pintarClientes();
     const cont = $('#reuniones'); cont.innerHTML='';
     $('#titulo').textContent = `Resultados de "${t}"`;
     $('#subtitulo').textContent = res.length ? `${res.length} coincidencia${res.length===1?'':'s'}` : 'Sin coincidencias';
+    if(!res.length) cont.appendChild(el('div','vacio','Nada con esas palabras.<br>Prueba con menos palabras<br>o con un nombre propio.'));
     res.forEach(r=>{
       const limpio = r.fragmento.replace(/\*\*/g,'').replace(/^#+\s*/gm,'').replace(/^-\s+/,'');
       const frag = esc(limpio).replace(new RegExp('('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'),'<mark>$1</mark>');
       const b = el('button','res', `<div class="c">${esc(r.cliente)} · ${esc(fechaBonita(r.id))}</div><div class="frag">${frag}</div>`);
       b.onclick = async () => {
+        if(!await permisoParaSalir()) return;
         const c = CLIENTES.find(x=>x.slug===r.slug); if(!c) return;
         $('#q').value=''; await elegirCliente(c);
         const rs = await window.api.reuniones(c.slug);
@@ -312,6 +442,24 @@ window.api.onAtajo(({accion})=>{
   if(accion==='grabar' && !grabando && !b.disabled) b.click();
   if(accion==='detener' && grabando) b.click();
 });
+
+// Cerrar la ventana con una minuta a medio editar tampoco debe perderla.
+// Un `invoke` lanzado aquí no llega a completarse: el renderer ya se está
+// desmontando. En Electron, en cambio, devolver un valor CANCELA el cierre,
+// así que se cancela, se pregunta, y se cierra después con la respuesta.
+window.onbeforeunload = (e) => {
+  const pendiente = editando && borrador != null && reunionActual && borrador !== reunionActual.minuta;
+  if (!pendiente) return undefined;
+  e.returnValue = false;
+  confirmar({ titulo: 'Tienes cambios sin guardar',
+    texto: 'Escribiste correcciones en esta minuta y no las has guardado.',
+    aceptar: 'Guardar y cerrar' }).then(async (guardarlos) => {
+      if (guardarlos) await window.api.guardarMinuta({ carpeta: reunionActual.carpeta, texto: borrador });
+      editando = false; borrador = null;
+      window.close();
+    });
+  return false;
+};
 
 window.recargarClientes = cargarClientes;
 cargarClientes();

@@ -19,7 +19,16 @@
         }).join('')
       : '';
 
+    const bienvenida = diag.configurado ? '' : `
+      <div class="bienvenida">
+        <strong>Bienvenido a Escriba.</strong>
+        Graba tus juntas, las transcribe en tu propio Mac y redacta la minuta con lo acordado,
+        quién se comprometió a qué, y lo que quedó sin decir.
+        Para empezar solo hace falta tu nombre; lo demás se puede dejar como está.
+      </div>`;
+
     c.innerHTML = `
+      ${bienvenida}
       <div class="seccion">Quién eres</div>
       <div class="campo">
         <label>Tu nombre</label>
@@ -35,7 +44,7 @@
         <input type="text" id="aContacto" value="${esc(cfg.usuario.contacto)}" placeholder="Nombre · correo · teléfono">
       </div>
 
-      <div class="seccion">Motor de redacción</div>
+      <div class="seccion">Quién escribe la minuta</div>
       ${motores.map(m => `
         <label class="motor ${cfg.motor.tipo === m.id ? 'sel' : ''} ${m.disponible ? '' : 'no'}">
           <input type="radio" name="motor" value="${m.id}" ${cfg.motor.tipo === m.id ? 'checked' : ''} ${m.disponible ? '' : 'disabled'}>
@@ -52,22 +61,24 @@
           <option value="anthropic" ${cfg.motor.proveedor === 'anthropic' ? 'selected' : ''}>Anthropic</option>
           <option value="openai" ${cfg.motor.proveedor === 'openai' ? 'selected' : ''}>OpenAI</option>
         </select>
-        <input type="password" id="aLlave" placeholder="Pega aquí tu llave" style="margin-top:7px">
-        <div class="ayuda">Se guarda en el Keychain de macOS, nunca en un archivo del proyecto.</div>
+        <input type="password" id="aLlave" placeholder="Pega aquí la llave de tu cuenta" style="margin-top:7px">
+        <div class="ayuda">Se guarda en el llavero de macOS, el mismo donde el sistema guarda tus contraseñas. Nunca queda escrita en un archivo.</div>
       </div>
       <div style="display:flex;gap:8px;margin-top:6px">
-        <button class="btn" id="btnProbar">Probar el motor</button>
+        <button class="btn" id="btnProbar">Probar que funciona</button>
       </div>
       <div id="resProbar"></div>
 
       <div class="seccion">Dónde se guarda todo</div>
       <div class="campo">
         <label>Carpeta de reuniones</label>
-        <input type="text" id="aReuniones" value="${esc(cfg.rutas.reuniones)}">
+        <div class="ruta"><input type="text" id="aReuniones" value="${esc(cfg.rutas.reuniones)}">
+        <button class="btn" data-elegir="aReuniones">Elegir…</button></div>
       </div>
       <div class="campo">
         <label>Carpeta de expedientes de cliente (opcional)</label>
-        <input type="text" id="aDossiers" value="${esc(cfg.rutas.dossiers)}" placeholder="Un archivo .md por cliente">
+        <div class="ruta"><input type="text" id="aDossiers" value="${esc(cfg.rutas.dossiers)}" placeholder="Un archivo .md por cliente">
+        <button class="btn" data-elegir="aDossiers">Elegir…</button></div>
         <div class="ayuda">Si la defines, Escriba lee el expediente del cliente antes de redactar y detecta lo que quedó pendiente de reuniones anteriores. Ese texto se envía al motor que elijas.</div>
       </div>
       ${faltantes}
@@ -92,21 +103,45 @@
       r.innerHTML = `<div class="estado-linea ${res.ok ? 'ok' : 'mal'}">${res.ok ? 'Funciona.' : 'No respondió.'} ${esc(res.detalle || '')}</div>`;
     };
 
-    c.querySelectorAll('[data-brew]').forEach(b => b.onclick = async () => {
-      const formula = b.dataset.brew;
-      b.disabled = true; b.textContent = 'Instalando…';
-      const r = await window.api.instalarDep(formula);
-      b.textContent = r.ok ? 'Instalado' : 'Falló';
-      if (r.ok) setTimeout(pintar, 900);
+    c.querySelectorAll('[data-elegir]').forEach(b => b.onclick = async () => {
+      const campo = $$('#' + b.dataset.elegir);
+      const elegida = await window.api.elegirCarpeta(campo.value);
+      if (elegida) campo.value = elegida;
     });
-    const bm = $$('#btnModelo');
-    if (bm) bm.onclick = async () => {
-      bm.disabled = true; bm.textContent = 'Descargando… 0%';
-      window.api.onDescarga(({pct}) => { bm.textContent = `Descargando… ${pct}%`; });
-      const r = await window.api.descargarModelo();
-      bm.textContent = r.ok ? 'Listo' : 'Falló: ' + (r.error || '');
-      if (r.ok) setTimeout(pintar, 900);
+
+    // Si algo falla, el botón vuelve a estar disponible: antes se quedaba en
+    // "Falló" y deshabilitado, y había que cerrar y reabrir Ajustes.
+    const conReintento = (b, etiqueta, tarea) => {
+      b.onclick = async () => {
+        b.disabled = true;
+        const previo = b.textContent;
+        const r = await tarea(b);
+        if (r && r.ok) { b.textContent = etiqueta.ok; setTimeout(pintar, 900); return; }
+        b.disabled = false;
+        b.textContent = 'Reintentar';
+        const caja = b.closest('.falta');
+        if (caja && !caja.querySelector('.motivo')) {
+          const m = document.createElement('div');
+          m.className = 'estado-linea mal motivo';
+          m.textContent = (r && (r.error || (r.salida || '').trim().split('\n').slice(-2).join(' '))) || 'No se pudo completar.';
+          caja.appendChild(m);
+        } else if (caja) {
+          caja.querySelector('.motivo').textContent = (r && (r.error || (r.salida || '').trim().split('\n').slice(-2).join(' '))) || 'No se pudo completar.';
+        }
+        void previo;
+      };
     };
+
+    c.querySelectorAll('[data-brew]').forEach(b => conReintento(b, { ok: 'Instalado' }, async () => {
+      b.textContent = 'Instalando…';
+      return window.api.instalarDep(b.dataset.brew);
+    }));
+    const bm = $$('#btnModelo');
+    if (bm) conReintento(bm, { ok: 'Listo' }, async () => {
+      bm.textContent = 'Descargando… 0%';
+      window.api.onDescarga(({ pct }) => { if (bm.disabled) bm.textContent = `Descargando… ${pct}%`; });
+      return window.api.descargarModelo();
+    });
 
     $$('#btnGuardar').onclick = () => guardar(true);
   }
@@ -124,9 +159,21 @@
     if (cerrar) { $$('#modalAjustes').hidden = true; if (window.recargarClientes) window.recargarClientes(); }
   }
 
-  window.abrirAjustes = async () => { $$('#modalAjustes').hidden = false; await pintar(); };
+  const cerrarAjustes = () => { $$('#modalAjustes').hidden = true; };
+
+  window.abrirAjustes = async () => {
+    $$('#modalAjustes').hidden = false;
+    await pintar();
+    const primero = $$('#aNombre'); if (primero) primero.focus();
+  };
   document.addEventListener('DOMContentLoaded', () => {
     $$('#btnAjustes').onclick = window.abrirAjustes;
-    $$('#cerrarAjustes').onclick = () => { $$('#modalAjustes').hidden = true; };
+    $$('#cerrarAjustes').onclick = cerrarAjustes;
+    // Escape y clic fuera cierran el modal; antes la única salida era acertarle al botón.
+    $$('#modalAjustes').addEventListener('click', (e) => { if (e.target === $$('#modalAjustes')) cerrarAjustes(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !$$('#modalAjustes').hidden && !document.querySelector('.confirmar')) cerrarAjustes();
+      if ((e.metaKey || e.ctrlKey) && e.key === ',') { e.preventDefault(); window.abrirAjustes(); }
+    });
   });
 })();

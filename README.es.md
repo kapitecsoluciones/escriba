@@ -58,6 +58,25 @@ hacerlo una vez.
 El botón **Expediente** junta todas las reuniones de un cliente en un solo PDF,
 con la tabla de compromisos de toda la relación. Sirve para juntas de revisión.
 
+Mientras transcribe verás el porcentaje real, no un mensaje fijo, y puedes
+**Cancelar** en cualquier momento: se detienen de verdad la transcripción y la
+redacción, no solo el indicador. Nada de lo que escribas se pierde — al guardar
+y al volver a redactar queda copia de la versión anterior, recuperable desde el
+menú **Más**, y salir de una minuta a medio editar pregunta antes. Borrar una
+reunión la manda a la Papelera, no la destruye.
+
+## Pruebas
+
+```bash
+npm test
+```
+
+67 pruebas sobre `lib/`, sin instalar nada más que Node. Cubren los tres casos
+que colgaban el conversor de Markdown, el margen de 2 dB que decide quién dijo
+qué, la fusión de configuración, el encabezado exacto del que depende el filtro
+de notas internas, y el escapado del PDF. Cada bloque se comprobó rompiendo el
+código a propósito: una suite que no puede fallar no sirve de nada.
+
 ## Privacidad, y algo que debes saber
 
 Escriba graba conversaciones. **Avisar a los demás que estás grabando es tu

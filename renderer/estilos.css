@@ -1,8 +1,8 @@
 :root{
-  --ink:#0A1428; --soft:#5A6680; --muted:#8A93A6;
+  --ink:#0A1428; --soft:#5A6680; --muted:#697285;
   --rule:rgba(10,20,40,.09); --rule-fuerte:rgba(10,20,40,.16);
   --paper:#FFFFFF; --tint:#F7F9FC; --tint2:#EEF2F8;
-  --gold:#B58A3E; --gold-soft:#F6EFE2;
+  --gold:#B58A3E; --gold-soft:#F6EFE2; --gold-texto:#8F6B2B;
   --azul:#2367FB; --verde:#2DD2A1; --rojo:#C0392B;
   --sombra:0 1px 2px rgba(10,20,40,.04), 0 8px 24px rgba(10,20,40,.06);
 }
@@ -85,7 +85,7 @@ input,textarea{font-family:inherit;font-size:inherit;color:inherit}
 
 /* notas internas */
 .notas{margin-top:18px;background:#FFFBF2;border:1px solid #EADFC7;border-left:3px solid var(--gold);border-radius:10px;padding:18px 22px}
-.notas .et{font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;font-weight:700;color:var(--gold);margin-bottom:10px}
+.notas .et{font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;font-weight:700;color:var(--gold-texto);margin-bottom:10px}
 .notas h2{font-size:13.5px;margin:14px 0 6px}
 .notas h2::before{display:none}
 .notas ul{list-style:none}
@@ -110,7 +110,7 @@ textarea.editor:focus{border-color:var(--azul)}
 .error{background:#FDF2F0;border-color:#EBCFC9;color:#8A3E3E}
 
 /* medidores de nivel */
-.medidores{display:flex;flex-direction:column;gap:5px;margin-left:16px;min-width:150px}
+.medidores{display:flex;flex-direction:column;gap:5px;margin-left:16px;min-width:150px;flex:none}
 .med{display:flex;align-items:center;gap:7px;font-size:10.5px;color:var(--muted)}
 .med .et{width:52px;flex:none;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
 .med .barra{flex:1;height:5px;background:var(--tint2);border-radius:3px;overflow:hidden}
@@ -158,3 +158,61 @@ textarea.editor:focus{border-color:var(--azul)}
 .estado-linea.mal{background:#FDF2F0;color:#8A3E3E}
 .falta{font-size:12px;padding:9px 11px;border-radius:7px;background:#FFFBF2;border:1px solid #EADFC7;margin-bottom:7px}
 .falta code{background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:1px 5px;font-size:11px}
+
+
+/* ---------- acciones secundarias ---------- */
+/* Seis botones en fila no dejaban ver cuál era la acción principal. */
+.mas{position:relative}
+.mas .menu{position:absolute;right:0;top:calc(100% + 6px);z-index:40;min-width:212px;
+  background:var(--paper);border:1px solid var(--rule-fuerte);border-radius:10px;
+  box-shadow:var(--sombra);padding:5px;display:flex;flex-direction:column}
+.mas .menu[hidden]{display:none}
+.mas .item{text-align:left;padding:8px 11px;border-radius:7px;background:none;border:0;
+  font-size:13px;color:var(--ink);cursor:pointer;white-space:nowrap}
+.mas .item:hover{background:var(--tint2)}
+.mas .item.peligro{color:var(--rojo);margin-top:4px;border-top:1px solid var(--rule);
+  border-radius:0 0 7px 7px;padding-top:10px}
+.mas .item.peligro:hover{background:#FDF0EE}
+.btn.peligro{background:var(--rojo);border-color:var(--rojo);color:#fff}
+.btn.peligro:hover{opacity:.88}
+
+/* ---------- avance real ---------- */
+/* whisper informa su porcentaje por stderr; antes se tiraba y la espera de diez
+   minutos se veía como un mensaje congelado. */
+.estado .cuerpo{flex:1;min-width:0}
+.avance{display:flex;align-items:center;gap:9px;margin-top:7px}
+.avance .pista{flex:1;height:4px;border-radius:2px;background:var(--tint2);overflow:hidden}
+.avance .relleno{height:100%;background:var(--gold);border-radius:2px;transition:width .35s ease}
+.avance .pct{font-size:11px;color:var(--soft);font-variant-numeric:tabular-nums;min-width:30px;text-align:right}
+.btn.cancelar{flex:none;padding:6px 12px;font-size:12.5px}
+
+/* ---------- confirmación ---------- */
+.confirmar{position:fixed;inset:0;z-index:80;background:rgba(10,20,40,.34);
+  display:flex;align-items:center;justify-content:center;padding:24px}
+.confirmar .caja{background:var(--paper);border-radius:14px;padding:22px 24px;max-width:400px;
+  box-shadow:0 18px 50px rgba(10,20,40,.22)}
+.confirmar h3{font-size:15px;margin-bottom:7px}
+.confirmar p{color:var(--soft);line-height:1.6;margin-bottom:17px}
+.confirmar .fila{display:flex;gap:8px;justify-content:flex-end}
+
+/* ---------- aviso breve ---------- */
+.aviso-breve{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:90;
+  background:var(--ink);color:#fff;padding:9px 17px;border-radius:9px;font-size:12.5px;
+  box-shadow:var(--sombra);transition:opacity .35s, transform .35s}
+.aviso-breve.fuera{opacity:0;transform:translateX(-50%) translateY(8px)}
+
+/* ---------- estados vacíos y pistas ---------- */
+.vacio-lateral{color:var(--muted);font-size:12px;line-height:1.65;padding:16px 10px;text-align:center}
+.vacio .atajo{margin-top:16px;font-size:11.5px;color:var(--muted)}
+.vacio kbd{font-family:inherit;font-size:11px;background:var(--tint2);border:1px solid var(--rule-fuerte);
+  border-bottom-width:2px;border-radius:4px;padding:1px 5px;margin:0 1px}
+.acciones .pista{font-size:11.5px;color:var(--muted);align-self:center;margin-left:2px}
+
+/* ---------- ajustes ---------- */
+.bienvenida{background:var(--tint);border:1px solid var(--rule);border-left:3px solid var(--gold);
+  border-radius:10px;padding:15px 17px;margin-bottom:22px;line-height:1.65;color:var(--soft)}
+.bienvenida strong{color:var(--ink);display:block;margin-bottom:4px}
+.ruta{display:flex;gap:7px}
+.ruta input{flex:1;min-width:0}
+.ruta .btn{flex:none;padding:8px 12px}
+.falta .motivo{margin-top:8px}

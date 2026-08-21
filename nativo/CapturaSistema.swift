@@ -3,7 +3,7 @@ import ScreenCaptureKit
 import AVFoundation
 
 // Captura el audio del sistema (lo que suena en el Mac) con ScreenCaptureKit
-// y lo escribe como CAF/PCM. Uso: CapturaSistema <salida.caf> [segundos]
+// y lo escribe como M4A/AAC. Uso: CapturaSistema <salida.m4a> [segundos]
 // Sin segundos, graba hasta recibir SIGINT (Ctrl+C).
 
 @available(macOS 13.0, *)
@@ -201,7 +201,7 @@ final class CapturaSistema: NSObject, SCStreamOutput, SCStreamDelegate {
 // ---- main ----
 let args = CommandLine.arguments
 guard args.count >= 2 else {
-    print("Uso: CapturaSistema <salida.caf> [segundos]")
+    print("Uso: CapturaSistema <salida.m4a> [segundos]")
     exit(2)
 }
 let salida = URL(fileURLWithPath: args[1])

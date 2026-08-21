@@ -1,12 +1,13 @@
 {
   "name": "escriba",
-  "version": "0.3.0",
-  "description": "Graba tus reuniones, transcríbelas en tu propia Mac y convierte lo hablado en una minuta con acuerdos y pendientes.",
+  "version": "0.4.0",
+  "description": "Graba tus reuniones, transcr\u00edbelas en tu propia Mac y convierte lo hablado en una minuta con acuerdos y pendientes.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "nativo": "swiftc -O nativo/CapturaSistema.swift -o nativo/capturasistema",
-    "dist": "npm run nativo && electron-builder --mac --arm64"
+    "dist": "npm run nativo && electron-builder --mac --arm64",
+    "test": "node --test \"test/*.test.js\""
   },
   "license": "MIT",
   "devDependencies": {
@@ -22,7 +23,7 @@
   "build": {
     "appId": "pro.kapitec.escriba",
     "productName": "Escriba",
-    "copyright": "Copyright © 2026 Kapitec Soluciones",
+    "copyright": "Copyright \u00a9 2026 Kapitec Soluciones",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -57,7 +58,7 @@
       ],
       "identity": null,
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "Para grabar tu voz durante la reunión.",
+        "NSMicrophoneUsageDescription": "Para grabar tu voz durante la reuni\u00f3n.",
         "NSScreenCaptureUsageDescription": "Para grabar el audio de tus videollamadas."
       }
     },

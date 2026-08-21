@@ -104,6 +104,30 @@ Once.
 `ffmpeg` and `whisper-cpp`. The app checks all of it on first run and installs
 what is missing.
 
+## While it works
+
+Transcription takes about a minute per ten minutes of meeting, and the app
+shows the real percentage while it runs — whisper reports it and Escriba reads
+it rather than showing a frozen message. **Cancel** stops whisper, ffmpeg and
+the writing engine, not just the spinner.
+
+Nothing you type is lost: saving keeps the previous version, re-drafting keeps
+the previous version, and leaving a half-edited minute asks first. Deleting a
+meeting moves it to the Trash and never touches anything outside the meetings
+folder.
+
+## Tests
+
+```bash
+npm test        # node --test "test/*.test.js"
+```
+
+67 tests over `lib/`, no dependencies beyond Node itself. They cover the
+Markdown converter's three former hang cases, the 2 dB margin that decides who
+said what, config merging, the exact heading the internal-notes filter depends
+on, and PDF escaping. Each was checked by breaking the code on purpose — a
+suite that cannot fail is not a suite.
+
 ## Build from source
 
 ```bash

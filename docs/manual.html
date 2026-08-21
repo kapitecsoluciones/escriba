@@ -34,6 +34,7 @@ ol>li::before{content:counter(n);position:absolute;left:0;font-weight:700;color:
 b,strong{color:var(--ink)}
 code{background:var(--tint);border:1px solid var(--rule);border-radius:4px;padding:1px 6px;font-size:13px;
  font-family:ui-monospace,Menlo,monospace}
+kbd{font-family:inherit;font-size:.85em;background:#EEF2F8;border:1px solid rgba(10,20,40,.16);border-bottom-width:2px;border-radius:4px;padding:1px 5px;margin:0 1px}
 .aviso{background:var(--gold-soft);border:1px solid #EADFC7;border-radius:10px;padding:16px 19px;margin:18px 0;font-size:14.5px;color:#5A4A2E}
 .tip{background:var(--tint);border-left:3px solid var(--gold);border-radius:0 9px 9px 0;padding:14px 18px;margin:16px 0;font-size:14.5px}
 table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14.5px}
@@ -59,6 +60,7 @@ footer a{color:var(--soft)}
   <a href="#permisos">Permisos de macOS</a>
   <a href="#grabar">Grabar una reunión</a>
   <a href="#minuta">La minuta y las notas internas</a>
+  <a href="#corregir">Corregir, rehacer y borrar</a>
   <a href="#expediente">Expedientes de cliente</a>
   <a href="#motor">Elegir quién redacta</a>
   <a href="#archivos">Dónde queda todo</a>
@@ -110,7 +112,9 @@ audio del Mac por separado, en Zoom o Meet se oyen los dos lados.</p>
 
 <h2 id="minuta">La minuta y las notas internas</h2>
 <p>Al detener, Escriba mezcla las pistas, transcribe, separa las voces y redacta. Una hora de reunión
-tarda unos diez minutos en total.</p>
+tarda unos diez minutos en total. Verás el porcentaje real mientras avanza, y puedes
+<b>Cancelar</b> en cualquier momento: se detienen de verdad la transcripción y la redacción.
+Si cancelas, el audio queda guardado y puedes retomarlo después con <b>Procesar esta reunión</b>.</p>
 <p>El resultado tiene dos partes bien distintas:</p>
 <ul>
   <li><b>La minuta.</b> Lo que quedó definido y los compromisos en dos tablas, una por cada lado.
@@ -118,8 +122,24 @@ tarda unos diez minutos en total.</p>
   <li><b>Las notas internas.</b> Lo que <em>no</em> se dijo, riesgos y oportunidades. Se ven en la
       app sobre fondo ámbar y <b>nunca salen en el PDF</b>.</li>
 </ul>
-<p>Con <b>Editar</b> puedes corregir el texto antes de exportar. <b>Ver diálogo</b> muestra la
+<p>Con <b>Editar</b> puedes corregir el texto antes de exportar. <b>Ver quién dijo qué</b> muestra la
 conversación con hora y hablante, útil para verificar una cita antes de enviar.</p>
+
+<h2 id="corregir">Corregir, rehacer y borrar</h2>
+<p>Al pulsar <b>Editar</b> aparecen solo dos botones: <b>Guardar cambios</b> (o <kbd>⌘</kbd><kbd>S</kbd>)
+y <b>Descartar</b>. Los demás desaparecen a propósito, porque trabajarían sobre la versión vieja del
+texto. Si intentas cambiar de cliente o abrir otra reunión con cambios sin guardar, la app te pregunta
+antes de perderlos.</p>
+<p>El resto de las acciones vive en el menú <b>Más</b>:</p>
+<ul>
+  <li><b>Copiar la minuta</b> — al portapapeles, lista para pegar en un correo, sin las notas internas.</li>
+  <li><b>Volver a redactar</b> — la IA escribe una minuta nueva. Pide confirmación, y la versión que
+      tenías queda guardada.</li>
+  <li><b>Restaurar la versión anterior</b> — aparece cuando hay una copia guardada. Cada vez que
+      guardas una edición o vuelves a redactar, la versión previa se conserva.</li>
+  <li><b>Borrar esta reunión</b> — manda la carpeta a la Papelera, así que se puede recuperar desde el
+      Finder, y quita la referencia del expediente del cliente para que no quede colgando.</li>
+</ul>
 
 <h2 id="expediente">Expedientes de cliente</h2>
 <p>Si en Ajustes indicas una <b>carpeta de expedientes</b> —un archivo <code>.md</code> por cliente—,

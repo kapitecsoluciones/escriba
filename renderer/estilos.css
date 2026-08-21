@@ -210,12 +210,15 @@ textarea.editor:focus{border-color:var(--azul)}
 /* ---------- avance real ---------- */
 /* whisper informa su porcentaje por stderr; antes se tiraba y la espera de diez
    minutos se veía como un mensaje congelado. */
-.estado .cuerpo{flex:1;min-width:0}
+/* OJO: no llamar a esto .cuerpo — esa clase ya es el cuerpo de la app, que es
+   flex, y convertía el título y el detalle del aviso en dos columnas pegadas. */
+.estado .texto{flex:1;min-width:0}
 .avance{display:flex;align-items:center;gap:9px;margin-top:7px}
 .avance .pista{flex:1;height:4px;border-radius:2px;background:var(--tint2);overflow:hidden}
 .avance .relleno{height:100%;background:var(--gold);border-radius:2px;transition:width .35s ease}
 .avance .pct{font-size:11px;color:var(--soft);font-variant-numeric:tabular-nums;min-width:30px;text-align:right}
 .btn.cancelar{flex:none;padding:6px 12px;font-size:12.5px}
+.estado .btn.permisos{flex:none;padding:6px 12px;font-size:12.5px;margin-left:auto}
 
 /* ---------- confirmación ---------- */
 .confirmar{position:fixed;inset:0;z-index:80;background:rgba(10,20,40,.34);
@@ -228,8 +231,12 @@ textarea.editor:focus{border-color:var(--azul)}
 
 /* ---------- aviso breve ---------- */
 .aviso-breve{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:90;
-  background:var(--ink);color:var(--ink-contra);padding:9px 17px;border-radius:9px;font-size:12.5px;
-  box-shadow:var(--sombra);transition:opacity .35s, transform .35s}
+  background:var(--ink);color:var(--ink-contra);padding:8px 10px 8px 17px;border-radius:9px;font-size:12.5px;
+  box-shadow:var(--sombra);transition:opacity .35s, transform .35s;
+  display:flex;align-items:center;gap:6px}
+.aviso-breve .ac{color:var(--ink-contra);font-weight:600;font-size:12.5px;
+  padding:4px 10px;border-radius:6px;background:color-mix(in srgb, var(--ink-contra) 16%, transparent)}
+.aviso-breve .ac:hover{background:color-mix(in srgb, var(--ink-contra) 30%, transparent)}
 .aviso-breve.fuera{opacity:0;transform:translateX(-50%) translateY(8px)}
 
 /* ---------- estados vacíos y pistas ---------- */
@@ -327,4 +334,8 @@ textarea.editor:focus{border-color:var(--azul)}
    lo borraba: te quedabas sin la única señal de que algo seguía corriendo. */
 #barraEstado{padding:0 30px;flex:none}
 #barraEstado:empty{display:none}
-#barraEstado .estado{margin:14px auto 0;max-width:680px}
+/* todo lo de la barra comparte la medida del documento: el aviso de abajo
+   quedaba pegado al borde y el recuadro centrado, cada uno por su lado */
+#barraEstado > *{max-width:680px;margin-left:auto;margin-right:auto}
+#barraEstado .estado{margin-top:14px}
+#barraEstado .aviso-mudo{margin-bottom:6px}

@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.6.1 — 2026-08-21
+
+Salió de usar la app en una reunión de verdad y no poder mandar la minuta.
+
+**El PDF se generaba, pero no había forma de enviarlo**
+
+El botón funcionaba: escribía `minuta.pdf` dentro de la carpeta de la reunión y
+lo abría en Vista Previa, sin decir dónde había quedado. Esa carpeta no es un
+sitio al que nadie navegue, así que en la práctica el PDF no existía.
+
+- Al exportar, ahora aparece **PDF listo** con tres cosas que hacer:
+  **Compartir** (hoja de macOS: Mail, Mensajes, WhatsApp, AirDrop),
+  **Guardar copia…** (con un nombre reconocible, tipo
+  *Minuta - Julio Patricio - 21 de agosto de 2026.pdf*) y **Abrir**.
+- Las tres están también en el menú **Más** para un PDF ya generado.
+
+**El permiso de grabación ya no se pierde en cada actualización**
+
+La app se firmaba ad-hoc, y esa firma va atada al hash del binario: cada
+actualización era, para macOS, **una app distinta**. El permiso de Grabación de
+Pantalla dejaba de valer sin avisar — el interruptor seguía encendido en Ajustes
+y la captura fallaba igual, con un error en inglés. Ahora se firma con un
+certificado estable, así que el requisito queda atado al certificado y el
+permiso sobrevive.
+
+> Al pasar de 0.6.0 a 0.6.1 hay que **conceder el permiso una última vez**,
+> porque la firma cambia. A partir de ahí ya no.
+
+**Cuando falta el permiso, se entiende y se puede arreglar**
+
+- El error del sistema llegaba crudo y en inglés (*"The user declined TCCs for
+  application, window, display capture"*). Ahora dice qué pasa, en español, y
+  trae un botón **Abrir Ajustes** que lleva al interruptor.
+- Ese mismo aviso mostraba el título y el detalle **en la misma línea y sin
+  espacio**: la clase del recuadro chocaba con la del cuerpo de la ventana, que
+  es un contenedor flex.
+- La línea roja de aviso quedaba desalineada respecto al recuadro.
+
 ## 0.6.0 — 2026-08-20
 
 Salió de un análisis de experiencia y de querer grabar una reunión presencial

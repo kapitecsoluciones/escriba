@@ -356,7 +356,11 @@ function menuMas(r){
   const item = (txt, fn, cls) => { const i = el('button','item'+(cls?' '+cls:''), txt);
     i.onclick = () => { m.hidden = true; fn(); }; m.appendChild(i); return i; };
 
-  if(r.tienePdf) item('Abrir el PDF', ()=>window.api.abrir(r.carpeta+'/minuta.pdf'));
+  if(r.tienePdf){
+    item('Compartir el PDF…', ()=>compartirPdf(r));
+    item('Guardar el PDF como…', ()=>guardarPdfComo(r));
+    item('Abrir el PDF', ()=>window.api.abrir(r.carpeta+'/minuta.pdf'));
+  }
   if(r.minuta) item('Volver a redactar', async ()=>{
     const ok = await confirmar({ titulo: 'Volver a redactar la minuta',
       texto: 'La IA escribirá una minuta nueva sobre la actual. Se guardará una copia de la versión de ahora por si quieres volver.',
@@ -479,7 +483,16 @@ async function exportarPdf(){
   estado('spin','Generando el PDF…','');
   const res = await window.api.pdf({carpeta:r.carpeta, cliente:actual.nombre, fecha:fechaBonita(r.id), texto:r.minuta});
   quitarEstado();
-  if(res.ok){ r.tienePdf=true; await cargarReuniones(); pintarDetalle(); window.api.abrir(res.ruta); }
+  if(res.ok){
+    r.tienePdf=true; await cargarReuniones(); pintarDetalle();
+    // Antes se abría en Vista Previa sin decir dónde había quedado, y desde ahí
+    // no había forma evidente de mandárselo al cliente.
+    aviso('PDF listo.', [
+      {texto:'Compartir',      fn:()=>compartirPdf(r)},
+      {texto:'Guardar copia…', fn:()=>guardarPdfComo(r)},
+      {texto:'Abrir',          fn:()=>window.api.abrir(res.ruta)},
+    ]);
+  }
   else estado('error','No se pudo generar el PDF', res.error || '');
 }
 
@@ -487,7 +500,16 @@ async function exportarPdf(){
 $('#btnGrabar').onclick = async () => {
   if(!grabando){
     const res = await window.api.grabarIniciar(actual.slug);
-    if(!res.ok){ estado('error','No se pudo iniciar la grabación', res.error); return; }
+    if(!res.ok){
+      const causa = explicar(res.error);
+      estado('error','No se pudo iniciar la grabación', causa.texto);
+      if(causa.permisos){
+        const e=$('#estado');
+        if(e){ const b=el('button','btn permisos','Abrir Ajustes');
+               b.onclick=()=>window.api.abrirPermisos(); e.appendChild(b); }
+      }
+      return;
+    }
     grabando = true; t0 = Date.now();
     $('#btnGrabar').textContent = 'Detener y procesar';
     $('#btnGrabar').classList.add('grabando');
@@ -579,15 +601,37 @@ function ponerAvisoMudo(){
 }
 function quitarAvisoMudo(){ const a=document.getElementById('avisoMudo'); if(a) a.remove(); }
 
+// Los errores de ScreenCaptureKit llegan en inglés y en jerga del sistema. El
+// más común con diferencia es que falte el permiso, y ahí lo único útil es
+// decir qué hacer y llevar al interruptor.
+function explicar(texto){
+  const t = String(texto || '');
+  if(/declined TCC|not authorized|TCCs|permission/i.test(t))
+    return { texto: 'macOS no está dando permiso para grabar la pantalla y el audio del sistema.',
+             permisos: true };
+  if(/no space|espacio/i.test(t)) return { texto: 'No queda espacio en el disco.' };
+  return { texto: t || 'Revisa el espacio en disco.' };
+}
+
 // Avisos de la captura: que la grabación no se esté guardando es lo más grave
 // que puede pasar, así que se dice en grande y en el momento.
 window.api.onCapturaAviso(({tipo, texto, mb})=>{
   if(tipo==='fallo'){
+    const causa = explicar(texto);
     const e=$('#estado');
-    if(e){ e.classList.add('error'); const t=e.querySelector('.txt'); if(t) t.textContent='La grabación NO se está guardando';
-           const s=e.querySelector('.sub'); if(s) s.textContent=texto||'Revisa el espacio en disco.'; }
+    if(e){ e.classList.add('error');
+           const t=e.querySelector('.txt'); if(t) t.textContent='La grabación NO se está guardando';
+           const s=e.querySelector('.sub'); if(s) s.textContent=causa.texto;
+           if(causa.permisos && !e.querySelector('.permisos')){
+             const b = el('button','btn permisos','Abrir Ajustes');
+             b.onclick = () => window.api.abrirPermisos();
+             e.appendChild(b);
+           }
+    }
     if(!document.getElementById('avisoFallo') && e){
-      const a=el('div','aviso-mudo','Detén la grabación: el audio no se está escribiendo en el disco.');
+      const a=el('div','aviso-mudo', causa.permisos
+        ? 'Detén la grabación, concede el permiso y vuelve a empezar: ahora mismo no se está guardando nada.'
+        : 'Detén la grabación: el audio no se está escribiendo en el disco.');
       a.id='avisoFallo'; e.parentNode.insertBefore(a, e.nextSibling);
     }
   }
@@ -620,13 +664,13 @@ function estado(tipo, txt, sub, op={}){
   quitarEstado();
   const icono = tipo==='pulso'?'<div class="pulso"></div>':(tipo==='spin'?'<div class="spin"></div>':'');
   const e = el('div','estado'+(tipo==='error'?' error':''),
-    `${icono}<div class="cuerpo"><div class="txt">${esc(txt)}</div>${sub?`<div class="sub">${esc(sub)}</div>`:''}</div>${tipo==='pulso'?'<div class="crono">00:00</div>':''}`);
+    `${icono}<div class="texto"><div class="txt">${esc(txt)}</div>${sub?`<div class="sub">${esc(sub)}</div>`:''}</div>${tipo==='pulso'?'<div class="crono">00:00</div>':''}`);
   e.id='estado'; e.setAttribute('role','status'); e.setAttribute('aria-live','polite');
   // Barra de avance real: whisper informa su porcentaje y antes se tiraba,
   // así que diez minutos de espera se veían como un mensaje congelado.
   if(op.pct!=null && op.pct>=0){
     const b = el('div','avance', `<div class="pista"><div class="relleno" style="width:${Math.min(100,op.pct)}%"></div></div><span class="pct">${Math.min(100,op.pct)}%</span>`);
-    e.querySelector('.cuerpo').appendChild(b);
+    e.querySelector('.texto').appendChild(b);
   }
   if(op.cancelable){
     const c = el('button','btn cancelar','Cancelar');
@@ -638,12 +682,41 @@ function estado(tipo, txt, sub, op={}){
 function quitarEstado(){ const e=$('#estado'); if(e) e.remove();
   for(const id of ['avisoMudo','avisoFallo','avisoDisco','avisoMicro']){ const a=document.getElementById(id); if(a) a.remove(); } }
 
-// Mensaje breve que se va solo, para confirmaciones que no merecen un diálogo.
-function aviso(txt){
+// Mensaje breve que se va solo. Puede traer acciones: es lo que convierte
+// "ya existe el PDF" en "ya se lo puedo mandar", sin ir a buscarlo al Finder.
+function aviso(txt, acciones){
   const previo = document.getElementById('avisoBreve'); if(previo) previo.remove();
-  const a = el('div','aviso-breve', esc(txt)); a.id='avisoBreve';
+  const a = el('div','aviso-breve'); a.id='avisoBreve';
+  a.appendChild(el('span','t', esc(txt)));
+  (acciones||[]).forEach(ac=>{
+    const b = el('button','ac', esc(ac.texto));
+    b.onclick = () => { a.remove(); ac.fn(); };
+    a.appendChild(b);
+  });
   document.body.appendChild(a);
-  setTimeout(()=>{ a.classList.add('fuera'); setTimeout(()=>a.remove(), 400); }, 2600);
+  const espera = acciones && acciones.length ? 9000 : 2600;
+  setTimeout(()=>{ if(!document.body.contains(a)) return;
+    a.classList.add('fuera'); setTimeout(()=>a.remove(), 400); }, espera);
+}
+
+// Nombre con el que un PDF se puede reconocer en el Escritorio o en un correo.
+function nombrePdf(r){
+  const m = r.id.match(/(\d{4})-(\d{2})-(\d{2})/);
+  const meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const fecha = m ? `${+m[3]} de ${meses[+m[2]-1]} de ${m[1]}` : r.id;
+  return `Minuta - ${actual.nombre} - ${fecha}.pdf`.replace(/[/:]/g,'-');
+}
+
+// Guardar una copia donde el usuario quiera, y compartir por la hoja de macOS.
+async function guardarPdfComo(r){
+  const res = await window.api.guardarComo({origen: r.carpeta+'/minuta.pdf', nombre: nombrePdf(r)});
+  if(res && res.ok === false) return estado('error','No se pudo guardar el PDF', res.error);
+  if(res && res.cancelado) return;
+  aviso('PDF guardado.', [{texto:'Mostrar', fn:()=>window.api.revelar(res.ruta)}]);
+}
+async function compartirPdf(r){
+  const res = await window.api.compartir({archivo: r.carpeta+'/minuta.pdf'});
+  if(res && res.ok === false) estado('error','No se pudo compartir', res.error);
 }
 
 window.api.onProgreso(({etapa, detalle, pct})=>{

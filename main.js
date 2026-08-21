@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, dialog, globalShortcut, Notification, clipboard, Menu, nativeTheme } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, globalShortcut, Notification, clipboard, Menu, nativeTheme, ShareMenu } = require('electron');
 const path = require('path'), fs = require('fs'), os = require('os');
 const { spawn } = require('child_process');
 const R = require('./lib/rutas');
@@ -573,6 +573,36 @@ ipcMain.handle('elegir-carpeta', async (_e, actual) => {
 // Copiar la minuta lista para pegar en un correo. Las notas internas nunca van.
 ipcMain.handle('copiar-minuta', seguro((_e, texto) => {
   clipboard.writeText(String(texto || '').split(/##\s*Notas internas/i)[0].trim());
+  return { ok: true };
+}));
+
+// El PDF se genera dentro de la carpeta de la reunión, que es donde debe quedar
+// archivado — pero nadie navega hasta ahí para mandárselo a un cliente. Estas dos
+// son las que convierten "existe un PDF" en "se lo puedo enviar".
+ipcMain.handle('guardar-como', seguro(async (_e, { origen, nombre }) => {
+  if (!fs.existsSync(origen)) return { ok: false, error: 'Ese archivo ya no existe.' };
+  const r = await dialog.showSaveDialog(win, {
+    title: 'Guardar el PDF',
+    defaultPath: path.join(app.getPath('desktop'), nombre || path.basename(origen)),
+    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+  });
+  if (r.canceled || !r.filePath) return { ok: true, cancelado: true };
+  fs.copyFileSync(origen, r.filePath);
+  return { ok: true, ruta: r.filePath };
+}));
+
+// Hoja de compartir de macOS: Mail, Mensajes, WhatsApp, AirDrop.
+ipcMain.handle('compartir', seguro(async (_e, { archivo }) => {
+  if (!fs.existsSync(archivo)) return { ok: false, error: 'Ese archivo ya no existe.' };
+  const menu = new ShareMenu({ filePaths: [archivo] });
+  menu.popup({ window: win });
+  return { ok: true };
+}));
+
+// Cuando falta el permiso de grabación no basta con decirlo: hay que llevar
+// hasta el interruptor, que está a tres niveles dentro de Ajustes del sistema.
+ipcMain.handle('abrir-permisos', seguro(async () => {
+  await shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
   return { ok: true };
 }));
 

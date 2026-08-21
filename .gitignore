@@ -13,3 +13,4 @@ nativo/capturasistema
 build/mac/
 *.dmg
 *.zip
+*.p12

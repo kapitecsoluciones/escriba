@@ -34,6 +34,7 @@ h1{font-size:clamp(40px,7vw,62px);line-height:1.06;margin-bottom:16px}
 .nota{font-size:13px;color:var(--muted);margin-top:14px}
 section{padding:56px 0;border-top:1px solid var(--rule)}
 h2{font-size:clamp(24px,3.4vw,31px);margin-bottom:14px}
+.sub-t{font-family:'Plus Jakarta Sans',Inter,sans-serif;font-size:18px;font-weight:800;margin:30px 0 10px;letter-spacing:-.015em;word-spacing:.04em}
 .sub{color:var(--soft);max-width:680px;margin-bottom:30px}
 .rejilla{display:grid;grid-template-columns:repeat(auto-fit,minmax(266px,1fr));gap:20px}
 .tarjeta{background:var(--tint);border:1px solid var(--rule);border-radius:13px;padding:24px}
@@ -152,6 +153,39 @@ footer a{color:var(--soft)}
   <p class="sub">Tu micrófono y el audio de la llamada se graban en pistas separadas. Por eso la minuta
   distingue tus compromisos de los del cliente, sin necesidad de un modelo de diarización.</p>
   <img src="captura-dialogo.png" alt="Vista de quién dijo qué" class="captura">
+</section>
+
+<section class="env">
+  <h2>Cómo lo hace</h2>
+  <p class="sub">Dos decisiones técnicas que lo separan del resto.</p>
+
+  <h3 class="sub-t">Distingue las voces sin modelo de diarización</h3>
+  <p>Escriba graba <b>dos pistas separadas</b>: tu micrófono y el audio del Mac. Para etiquetar cada
+  frase compara la energía de ambas en ese tramo y se queda con la más fuerte, con un margen de 2 dB
+  para que las voces encimadas hereden al hablante anterior.</p>
+  <p>Ese es todo el truco: unas 80 líneas, sin pyannote, sin servicio en la nube y sin modelo extra.
+  Funciona porque los dos lados nunca se mezclaron. Por lo mismo, es exacto en videollamada
+  e inútil en una sala con un solo micrófono. El trato es ese, y lo decimos de frente.</p>
+
+  <h3 class="sub-t">Captura el audio del sistema sin instalar drivers</h3>
+  <p>Un binario de 98 KB en Swift sobre ScreenCaptureKit, compilado <b>sin Xcode</b>. Escribe el
+  micrófono y la salida del Mac en dos archivos a la vez, ya sincronizados. La alternativa habitual
+  es pedirte que instales un driver de audio virtual.</p>
+
+  <table style="margin-top:30px">
+    <thead><tr><th></th><th>Escriba</th><th>Granola · Fireflies</th><th>MacWhisper</th></tr></thead>
+    <tbody>
+      <tr><td>El audio sale de tu Mac</td><td>nunca</td><td>sí</td><td>nunca</td></tr>
+      <tr><td>Sirve en videollamada</td><td>sí</td><td>sí</td><td>con driver aparte</td></tr>
+      <tr><td>Sabe quién dijo qué</td><td>sí</td><td>sí, en la nube</td><td>no</td></tr>
+      <tr><td>Usa el historial del cliente</td><td><b>sí</b></td><td>no</td><td>no</td></tr>
+      <tr><td>Te dice lo que NO se dijo</td><td><b>sí</b></td><td>no</td><td>no</td></tr>
+      <tr><td>Español</td><td>de origen</td><td>traducido</td><td>solo transcribe</td></tr>
+      <tr><td>Precio</td><td>gratis, MIT</td><td>$10–29 al mes</td><td>pago único</td></tr>
+    </tbody>
+  </table>
+  <p class="nota" style="margin-top:14px">Lo que ellos hacen mejor: integración con el calendario,
+  apps para el teléfono, equipos y compartir. Escriba no tiene nada de eso.</p>
 </section>
 
 <section class="env">

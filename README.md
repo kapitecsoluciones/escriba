@@ -1,90 +1,130 @@
 <p align="center">
-  <img src="build/marca/icono-512.png" width="120" alt="Escriba">
+  <img src="build/marca/icono-512.png" width="112" alt="Escriba">
 </p>
 
 <h1 align="center">Escriba</h1>
 
 <p align="center">
-  Record your meetings, transcribe them on your own Mac, and turn what was said
-  into a minute with agreements and open items.<br>
-  <a href="README.es.md">Léeme en español</a>
+  <b>Meeting minutes on your Mac.</b><br>
+  Records both sides, transcribes locally, and knows who said what —
+  without a diarization model.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/license-MIT-black" alt="MIT">
+  <img src="https://img.shields.io/badge/macOS-13%2B-black" alt="macOS 13+">
+  <img src="https://img.shields.io/badge/Apple%20Silicon-arm64-black" alt="arm64">
+  <img src="https://img.shields.io/github/v/release/kapitecsoluciones/escriba?color=black" alt="release">
+  <a href="README.es.md"><img src="https://img.shields.io/badge/léeme-en%20español-B58A3E" alt="Español"></a>
+</p>
+
+<p align="center">
+  <img src="docs/captura-minuta.png" width="860" alt="Escriba showing a finished minute">
 </p>
 
 ---
 
-## What makes it different
+## Two things it does that others don't
 
-Plenty of tools transcribe a meeting. Escriba reads **the client's own file**
-before writing, so the minute knows what was pending from last time.
+### 1. Speaker attribution without a diarization model
 
-That is why, besides the minute you send the client, it produces a set of
-**internal notes you never send**: what was *not* said, what was postponed
-again, and which openings came up.
+Escriba records **two separate tracks** — your microphone and the Mac's system
+audio. To label a line, it compares the RMS energy of both tracks over that
+segment and picks the louder one, with a 2 dB margin so overlapping speech
+inherits the previous speaker.
 
-- **Records both sides.** Your microphone and the Mac's own audio, so it works
-  for in-person meetings and for video calls alike.
-- **Knows who said what.** The two audio tracks are recorded separately, so the
-  minute can tell your commitments apart from the client's — no diarization
-  model required.
-- **Everything stays local.** Audio never leaves the machine. Transcription runs
-  on your Mac with whisper.cpp.
-- **Your choice of writer.** Claude Code, your own API key, or a local model
-  through Ollama.
-- **Branded PDF**, ready to send.
+That is the whole trick. No pyannote, no cloud service, no extra model —
+about 80 lines in [`lib/voces.js`](lib/voces.js). It only works because the
+two sides were never mixed in the first place, which is also why it is exact
+for video calls and useless for a single-microphone room recording. Honest
+trade-off, stated up front.
 
-## Requirements
+```
+[00:00] You:    So the free-shipping threshold is still at 800.
+[00:09] Client: Right. I'll send you the addresses on Monday.
+```
 
-- macOS 13 or newer, Apple Silicon
-- [Homebrew](https://brew.sh) for `ffmpeg` and `whisper-cpp`
-- A writing engine: Claude Code, an API key, or Ollama
+### 2. It reads the client's file before writing
 
-The app checks all of this on first launch and installs what is missing.
+Point Escriba at a folder with one Markdown file per client and it loads the
+relevant one into the prompt. The minute then knows what was left pending last
+time — and produces a second section, **never included in the PDF**, listing
+what was *not* said:
+
+> **The budget was never mentioned.** Fifty minutes discussing scope and nobody
+> asked the price. Most urgent open item.
+>
+> **The email addresses are still pending from the previous meeting.** Two weeks,
+> and the daily summary is still off for want of three addresses.
+
+## How it captures system audio
+
+A 98 KB Swift helper built on ScreenCaptureKit, compiled with `swiftc` — **no
+Xcode needed**, the Command Line Tools SDK is enough. It writes the microphone
+and the system output to two AAC files at once, already in sync.
+
+Electron's own `getDisplayMedia({audio:'loopback'})` looks like it works —
+`getAudioTracks()` returns a track and `MediaRecorder` starts without error —
+but the resulting file has no audio stream at all. That dead end is why the
+helper exists.
+
+## Compared to the alternatives
+
+|  | Escriba | Granola / Fireflies | MacWhisper / Superwhisper |
+|---|---|---|---|
+| Audio leaves your Mac | never | yes | never |
+| Works on video calls | yes | yes | needs a virtual driver |
+| Knows who said what | yes, from two tracks | yes, cloud diarization | no |
+| Uses your client history | **yes** | no | no |
+| Tells you what was *not* said | **yes** | no | no |
+| Spanish | first-class | translated | transcription only |
+| Price | free, MIT | $10–29 / user / month | one-off purchase |
+
+What they do better: polished onboarding, calendar integrations, mobile apps,
+teams and sharing. Escriba has none of that.
 
 ## Install
 
 Download the `.dmg` from [Releases](https://github.com/kapitecsoluciones/escriba/releases)
-and drag Escriba to Applications.
+and drag it to Applications.
 
-The app is **not notarized**, so the first time macOS will refuse to open it:
-right-click the app and choose *Open*, then confirm. You only do this once.
+The app is **not notarized**, so the first launch needs right-click → *Open*.
+Once.
+
+**Requirements:** macOS 13+, Apple Silicon, [Homebrew](https://brew.sh) for
+`ffmpeg` and `whisper-cpp`. The app checks all of it on first run and installs
+what is missing.
 
 ## Build from source
 
 ```bash
 git clone https://github.com/kapitecsoluciones/escriba.git
-cd escriba
-pnpm install
-pnpm run nativo   # compiles the Swift audio capture helper
+cd escriba && pnpm install
+pnpm run nativo   # compiles the Swift capture helper
 pnpm start
 ```
 
-`pnpm run dist` produces the `.dmg`.
+`pnpm run dist` produces the `.dmg`. **Zero production dependencies** — the
+whole app runs on Electron plus what macOS already ships.
 
-## Privacy, and one thing you should know
+## Who writes the minute
 
-Escriba records conversations. **Telling the other people in the room that you
-are recording is your responsibility**, and in many places it is a legal
-requirement. The app will not do it for you.
-
-Where your data goes depends on the engine you pick, and the app states it in
-plain language on the settings screen:
+Your choice, and the app states in plain words what leaves the machine:
 
 | Engine | What leaves your Mac |
 |---|---|
 | Claude Code | The meeting text, to Anthropic |
-| Your API key | The meeting text, to your chosen provider |
+| Your own API key | The meeting text, to your provider |
 | Ollama | Nothing |
 
-Audio never leaves the machine with any of them. If you point Escriba at a
-folder of client files, the relevant file's content is included in the prompt —
-so pick your engine accordingly.
+Audio never leaves, with any of them. Keys live in the macOS Keychain.
 
-## Why ffmpeg is not bundled
+## One thing you should know
 
-ffmpeg is GPL-licensed. Shipping it inside an MIT-licensed app would force the
-whole app to become GPL, so Escriba installs it through Homebrew instead.
-whisper.cpp is MIT, so that one does ship with the app.
+Escriba records conversations. **Telling the other people that you are
+recording is your responsibility**, and in many places it is a legal
+requirement. The app will not do it for you.
 
 ## License
 
-MIT © Kapitec Soluciones
+MIT © [Kapitec Soluciones](https://kapitec.pro) · [escriba.kapitec.pro](https://escriba.kapitec.pro)

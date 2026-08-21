@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  privacidad:
+    name: No prohibited private terms
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for private terms
+        env:
+          PRIVATE_TERMS: ${{ secrets.PRIVATE_TERMS }}
+        run: |
+          if [ -z "$PRIVATE_TERMS" ]; then
+            echo "PRIVATE_TERMS secret not set; skipping."
+            exit 0
+          fi
+          fallo=0
+          while IFS= read -r termino; do
+            [ -z "$termino" ] && continue
+            if grep -ri --exclude-dir=.git --exclude-dir=node_modules -l "$termino" . > /dev/null 2>&1; then
+              echo "::error::Private term found in the tree: $termino"
+              grep -ri --exclude-dir=.git --exclude-dir=node_modules -l "$termino" . | head -5
+              fallo=1
+            fi
+          done <<< "$PRIVATE_TERMS"
+          exit $fallo
+
+  sintaxis:
+    name: Syntax check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Check every JS file parses
+        run: |
+          fallo=0
+          for f in main.js preload.js lib/*.js lib/motores/*.js renderer/*.js; do
+            node --check "$f" || fallo=1
+          done
+          exit $fallo
+
+  nativo:
+    name: Swift helper builds
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile the capture helper
+        run: swiftc -O nativo/CapturaSistema.swift -o /tmp/capturasistema

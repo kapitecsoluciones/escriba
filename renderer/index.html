@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Escriba</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+<div class="app">
+  <aside class="lateral">
+    <div class="marca">
+      <h1>Escriba</h1>
+      <div class="barra"></div>
+    </div>
+    <div class="buscar"><input id="q" type="search" placeholder="Buscar o crear cliente" autocomplete="off"></div>
+    <div class="lista" id="clientes"></div>
+    <button class="ajustes-btn" id="btnAjustes">Ajustes</button>
+  </aside>
+
+  <main class="panel">
+    <div class="cabecera">
+      <div class="fila">
+        <div>
+          <h2 id="titulo">Elige un cliente</h2>
+          <div class="sub" id="subtitulo">Sus reuniones aparecen aquí</div>
+        </div>
+        <div class="acciones">
+          <button class="btn" id="btnExpediente" disabled>Expediente</button>
+          <button class="btn" id="btnImportar" disabled>Importar audio</button>
+          <button class="btn primario" id="btnGrabar" disabled>Grabar reunión</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="cuerpo">
+      <div class="historial">
+        <h3>Historial</h3>
+        <div id="reuniones"></div>
+      </div>
+      <div class="detalle" id="detalle">
+        <div class="vacio">
+          <strong>Nada seleccionado</strong>
+          Elige un cliente a la izquierda y graba una reunión,<br>o importa un audio que ya tengas.
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<div class="modal" id="modalAjustes" hidden>
+  <div class="modal-caja">
+    <div class="modal-cab">
+      <h2>Ajustes</h2>
+      <button class="btn" id="cerrarAjustes">Cerrar</button>
+    </div>
+    <div class="modal-cuerpo" id="cuerpoAjustes"></div>
+  </div>
+</div>
+<script src="ajustes.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

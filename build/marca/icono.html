@@ -1,0 +1,28 @@
+<!doctype html><meta charset="utf-8">
+<style>
+ html,body{margin:0;width:1024px;height:1024px;overflow:hidden;background:#0A1428}
+ .lienzo{width:1024px;height:1024px;display:flex;align-items:center;justify-content:center;position:relative}
+ .glifo{display:flex;align-items:center;gap:30px;height:420px}
+ .onda{display:flex;align-items:center;gap:26px;height:100%}
+ .b{width:34px;border-radius:20px;background:#fff}
+ .texto{display:flex;flex-direction:column;justify-content:center;gap:34px}
+ .l{height:30px;border-radius:16px;background:#B58A3E}
+ .anillo{position:absolute;width:820px;height:820px;border-radius:50%;
+   background:linear-gradient(135deg,#2367FB,#2DD2A1);
+   -webkit-mask:radial-gradient(circle, transparent 0 366px, #000 366px);}
+</style>
+<div class="lienzo">
+  <div class="anillo"></div>
+  <div class="glifo">
+    <div class="onda">
+      <div class="b" style="height:120px"></div>
+      <div class="b" style="height:250px"></div>
+      <div class="b" style="height:400px"></div>
+    </div>
+    <div class="texto">
+      <div class="l" style="width:210px"></div>
+      <div class="l" style="width:170px"></div>
+      <div class="l" style="width:120px"></div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Escriba · Graba la junta, saca los acuerdos</title>
+<meta name="description" content="Graba tus reuniones, transcríbelas en tu propia Mac y convierte lo hablado en una minuta con acuerdos y pendientes. Código abierto.">
+<meta property="og:title" content="Escriba">
+<meta property="og:description" content="Graba la junta, saca los acuerdos. La minuta se escribe sola, con el expediente del cliente delante.">
+<meta property="og:image" content="https://escriba.kapitec.pro/escriba-og.png">
+<meta property="og:url" content="https://escriba.kapitec.pro">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="icono-512.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0A1428;--soft:#4A5670;--muted:#8A93A6;--rule:rgba(10,20,40,.10);
+ --paper:#fff;--tint:#F7F9FC;--gold:#B58A3E;--gold-soft:#F6EFE2;--azul:#2367FB;--verde:#2DD2A1}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(--ink);
+ background:var(--paper);line-height:1.65;-webkit-font-smoothing:antialiased}
+.barra{height:5px;background:linear-gradient(90deg,var(--azul),var(--verde))}
+.env{max-width:960px;margin:0 auto;padding:0 24px}
+h1,h2,h3{font-family:'Plus Jakarta Sans',Inter,sans-serif;font-weight:800;letter-spacing:-.02em;word-spacing:.04em}
+header{padding:78px 0 60px;text-align:center}
+.logo{width:96px;height:96px;margin:0 auto 26px;display:block;border-radius:22px}
+h1{font-size:clamp(40px,7vw,62px);line-height:1.06;margin-bottom:16px}
+.claim{font-size:clamp(17px,2.4vw,21px);color:var(--soft);max-width:640px;margin:0 auto 34px}
+.botones{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-block;padding:13px 24px;border-radius:10px;font-weight:600;text-decoration:none;
+ border:1px solid var(--rule);color:var(--ink);transition:.14s}
+.btn:hover{border-color:var(--ink)}
+.btn.p{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn.p:hover{opacity:.88}
+.nota{font-size:13px;color:var(--muted);margin-top:14px}
+section{padding:56px 0;border-top:1px solid var(--rule)}
+h2{font-size:clamp(24px,3.4vw,31px);margin-bottom:14px}
+.sub{color:var(--soft);max-width:680px;margin-bottom:30px}
+.rejilla{display:grid;grid-template-columns:repeat(auto-fit,minmax(266px,1fr));gap:20px}
+.tarjeta{background:var(--tint);border:1px solid var(--rule);border-radius:13px;padding:24px}
+.tarjeta h3{font-size:16.5px;margin-bottom:7px}
+.tarjeta p{font-size:14.5px;color:var(--soft)}
+.tarjeta .et{width:24px;height:2px;background:var(--gold);border-radius:1px;margin-bottom:13px}
+.destacado{background:var(--gold-soft);border:1px solid #EADFC7;border-radius:13px;padding:28px 30px;margin:8px 0 26px}
+.destacado h3{font-size:18px;margin-bottom:9px}
+.destacado p{color:#5A4A2E;font-size:15px}
+table{width:100%;border-collapse:collapse;margin-top:18px;font-size:14.5px}
+th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);
+ padding:0 12px 8px;border-bottom:1.5px solid var(--ink)}
+td{padding:11px 12px;border-bottom:1px solid var(--rule);color:var(--soft)}
+td:first-child{color:var(--ink);font-weight:600;white-space:nowrap}
+ol{margin:16px 0 0 0;list-style:none;counter-reset:p}
+ol li{counter-increment:p;position:relative;padding-left:38px;margin-bottom:16px;color:var(--soft)}
+ol li::before{content:counter(p);position:absolute;left:0;top:-1px;width:25px;height:25px;border-radius:50%;
+ background:var(--gold-soft);border:1px solid #EADFC7;color:var(--gold);font-weight:700;font-size:12.5px;
+ display:flex;align-items:center;justify-content:center}
+ol li b{color:var(--ink)}
+.captura{width:100%;border-radius:13px;border:1px solid var(--rule);box-shadow:0 12px 40px rgba(10,20,40,.10);margin-top:26px}
+footer{padding:44px 0 60px;border-top:1px solid var(--rule);color:var(--muted);font-size:14px;text-align:center}
+footer a{color:var(--soft)}
+.aviso{background:var(--tint);border-left:3px solid var(--gold);border-radius:0 9px 9px 0;padding:17px 20px;margin-top:24px;font-size:14.5px;color:var(--soft)}
+</style>
+</head>
+<body>
+<div class="barra"></div>
+
+<header class="env">
+  <img src="icono-512.png" class="logo" alt="Escriba">
+  <h1>Graba la junta,<br>saca los acuerdos.</h1>
+  <p class="claim">Escriba graba tu reunión, la transcribe en tu propia Mac y la convierte
+  en una minuta con acuerdos y pendientes. Con el expediente del cliente delante.</p>
+  <div class="botones">
+    <a class="btn p" href="https://github.com/kapitecsoluciones/escriba/releases/latest">Descargar para Mac</a>
+    <a class="btn" href="manual.html">Manual</a>
+    <a class="btn" href="https://github.com/kapitecsoluciones/escriba">Ver el código</a>
+  </div>
+  <p class="nota">Gratis y de código abierto · macOS 13 o superior, Apple Silicon</p>
+</header>
+
+<section class="env">
+  <h2>Lo que ninguna otra hace</h2>
+  <p class="sub">Transcribir una reunión lo hace mucha gente. La diferencia está en lo que pasa después.</p>
+
+  <div class="destacado">
+    <h3>Lee el expediente del cliente antes de escribir</h3>
+    <p>Por eso la minuta sabe qué quedó pendiente la vez pasada, y por eso además te entrega
+    unas notas internas que nunca se envían: lo que <em>no</em> se dijo, lo que se volvió a
+    posponer y las oportunidades que aparecieron en la conversación.</p>
+  </div>
+
+  <div class="rejilla">
+    <div class="tarjeta"><div class="et"></div>
+      <h3>Presencial y videollamada</h3>
+      <p>Graba tu micrófono y el audio del Mac a la vez. Zoom, Meet o una junta en la sala: da igual.</p></div>
+    <div class="tarjeta"><div class="et"></div>
+      <h3>Sabe quién dijo qué</h3>
+      <p>Las dos pistas se graban por separado, así que distingue tus compromisos de los del cliente. Sin modelos de diarización.</p></div>
+    <div class="tarjeta"><div class="et"></div>
+      <h3>El audio no sale de tu Mac</h3>
+      <p>La transcripción corre en tu equipo con whisper.cpp. Nunca se sube una grabación a ningún lado.</p></div>
+    <div class="tarjeta"><div class="et"></div>
+      <h3>Tú eliges quién redacta</h3>
+      <p>Claude Code, tu propia llave de API, o un modelo local con Ollama y sin internet.</p></div>
+    <div class="tarjeta"><div class="et"></div>
+      <h3>PDF con tu marca</h3>
+      <p>La minuta sale lista para mandar por WhatsApp o correo, con tu logo y tus datos.</p></div>
+    <div class="tarjeta"><div class="et"></div>
+      <h3>Expediente por cliente</h3>
+      <p>Un PDF con todas las reuniones y la tabla de compromisos de toda la relación. Para juntas de revisión.</p></div>
+  </div>
+</section>
+
+<section class="env">
+  <h2>Cómo se usa</h2>
+  <ol>
+    <li><b>Elige el cliente</b> en la lista, o escribe un nombre nuevo para crearlo.</li>
+    <li><b>Pulsa Grabar</b> cuando empiece la junta. También con <code>Cmd+Shift+R</code>, sin abrir la ventana.</li>
+    <li><b>Detén al terminar.</b> La app mezcla las pistas, transcribe, separa las voces y redacta.</li>
+    <li><b>Revisa y exporta.</b> Puedes editar la minuta antes de generar el PDF.</li>
+  </ol>
+  <div class="aviso"><b>Antes de grabar:</b> avisar a los demás que estás grabando es tu
+  responsabilidad, y en muchos lugares es obligatorio por ley. Escriba no lo hace por ti.</div>
+</section>
+
+<section class="env">
+  <h2>A dónde van tus datos</h2>
+  <p class="sub">Depende del motor que elijas, y la app te lo dice sin rodeos en Ajustes.</p>
+  <table>
+    <thead><tr><th>Motor</th><th>Qué sale de tu Mac</th></tr></thead>
+    <tbody>
+      <tr><td>Claude Code</td><td>El texto de la reunión, a Anthropic</td></tr>
+      <tr><td>Tu llave de API</td><td>El texto de la reunión, al proveedor que elijas</td></tr>
+      <tr><td>Ollama (local)</td><td>Nada</td></tr>
+    </tbody>
+  </table>
+  <p class="nota" style="margin-top:16px">El audio nunca sale con ninguno de los tres. Las llaves se guardan
+  en el Keychain de macOS, nunca en un archivo.</p>
+</section>
+
+<section class="env">
+  <h2>Instalación</h2>
+  <ol>
+    <li>Descarga el <b>.dmg</b> y arrastra Escriba a Aplicaciones.</li>
+    <li>La primera vez, <b>clic derecho sobre la app y elige Abrir</b>. La app no está notarizada,
+        así que macOS pide esa confirmación una sola vez.</li>
+    <li>Al arrancar te pide tus datos y revisa qué falta. <b>Puede instalarlo todo desde ahí</b>,
+        sin abrir la terminal.</li>
+  </ol>
+</section>
+
+<footer class="env">
+  Hecho por <a href="https://kapitec.pro">Kapitec Soluciones</a> · Código abierto con licencia MIT ·
+  <a href="https://github.com/kapitecsoluciones/escriba">GitHub</a>
+</footer>
+</body>
+</html>

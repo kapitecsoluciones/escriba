@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Manual · Escriba</title>
+<link rel="icon" href="icono-512.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0A1428;--soft:#4A5670;--muted:#8A93A6;--rule:rgba(10,20,40,.10);
+ --paper:#fff;--tint:#F7F9FC;--gold:#B58A3E;--gold-soft:#F6EFE2;--azul:#2367FB;--verde:#2DD2A1}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,sans-serif;color:var(--ink);line-height:1.68;background:var(--paper)}
+.barra{height:5px;background:linear-gradient(90deg,var(--azul),var(--verde))}
+.env{max-width:780px;margin:0 auto;padding:0 24px}
+h1,h2,h3{font-family:'Plus Jakarta Sans',Inter,sans-serif;font-weight:800;letter-spacing:-.02em;word-spacing:.05em}
+header{padding:58px 0 30px}
+h1{font-size:40px;margin-bottom:8px}
+.claim{color:var(--soft)}
+nav{margin:26px 0 10px;padding:18px 20px;background:var(--tint);border:1px solid var(--rule);border-radius:11px}
+nav b{font-size:11.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);display:block;margin-bottom:9px}
+nav a{display:block;color:var(--soft);text-decoration:none;padding:3px 0;font-size:14.5px}
+nav a:hover{color:var(--ink)}
+h2{font-size:26px;margin:46px 0 12px;padding-top:26px;border-top:1px solid var(--rule)}
+h3{font-size:17px;margin:26px 0 8px}
+p,li{color:var(--soft)}
+p{margin-bottom:12px}
+ul,ol{margin:0 0 14px 0;padding-left:0;list-style:none}
+li{position:relative;padding-left:20px;margin-bottom:8px}
+ul>li::before{content:"";position:absolute;left:3px;top:.72em;width:5px;height:5px;border-radius:50%;background:var(--gold)}
+ol{counter-reset:n}
+ol>li{counter-increment:n}
+ol>li::before{content:counter(n);position:absolute;left:0;font-weight:700;color:var(--gold);font-size:13px}
+b,strong{color:var(--ink)}
+code{background:var(--tint);border:1px solid var(--rule);border-radius:4px;padding:1px 6px;font-size:13px;
+ font-family:ui-monospace,Menlo,monospace}
+.aviso{background:var(--gold-soft);border:1px solid #EADFC7;border-radius:10px;padding:16px 19px;margin:18px 0;font-size:14.5px;color:#5A4A2E}
+.tip{background:var(--tint);border-left:3px solid var(--gold);border-radius:0 9px 9px 0;padding:14px 18px;margin:16px 0;font-size:14.5px}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14.5px}
+th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);padding:0 11px 7px;border-bottom:1.5px solid var(--ink)}
+td{padding:10px 11px;border-bottom:1px solid var(--rule);color:var(--soft);vertical-align:top}
+td:first-child{color:var(--ink);font-weight:600}
+footer{padding:44px 0 60px;margin-top:48px;border-top:1px solid var(--rule);color:var(--muted);font-size:14px}
+footer a{color:var(--soft)}
+</style>
+</head>
+<body>
+<div class="barra"></div>
+<div class="env">
+
+<header>
+  <h1>Manual de Escriba</h1>
+  <p class="claim">Todo lo que necesitas para pasar de una junta grabada a una minuta enviada.</p>
+</header>
+
+<nav>
+  <b>En esta página</b>
+  <a href="#primera">La primera vez</a>
+  <a href="#permisos">Permisos de macOS</a>
+  <a href="#grabar">Grabar una reunión</a>
+  <a href="#minuta">La minuta y las notas internas</a>
+  <a href="#expediente">Expedientes de cliente</a>
+  <a href="#motor">Elegir quién redacta</a>
+  <a href="#archivos">Dónde queda todo</a>
+  <a href="#problemas">Cuando algo falla</a>
+</nav>
+
+<h2 id="primera">La primera vez</h2>
+<p>Al abrir Escriba por primera vez, macOS se va a negar porque la app no está notarizada.
+No es un error: es el aviso normal para aplicaciones que no pasaron por la revisión de Apple.</p>
+<ol>
+  <li>Haz <b>clic derecho</b> sobre Escriba en la carpeta Aplicaciones.</li>
+  <li>Elige <b>Abrir</b>.</li>
+  <li>Confirma en el diálogo. Solo hay que hacerlo una vez.</li>
+</ol>
+<p>Después se abre directamente en Ajustes y te pide lo mínimo:</p>
+<ul>
+  <li><b>Tu nombre.</b> Se usa para saber cuál voz eres tú en una videollamada.</li>
+  <li><b>Tu empresa y tu línea de contacto.</b> Aparecen en la minuta y en el pie del PDF.</li>
+  <li><b>Carpeta de reuniones.</b> Dónde se guardan las grabaciones y los documentos.</li>
+</ul>
+<p>En esa misma pantalla, abajo, Escriba te dice qué falta por instalar y lo instala por ti:
+<code>ffmpeg</code>, <code>whisper-cpp</code> y el modelo de transcripción (1.5 GB, se descarga una sola vez).</p>
+
+<h2 id="permisos">Permisos de macOS</h2>
+<p>Escriba necesita dos permisos, y macOS los pide la primera vez que grabas:</p>
+<table>
+  <thead><tr><th>Permiso</th><th>Para qué</th></tr></thead>
+  <tbody>
+    <tr><td>Micrófono</td><td>Grabar tu voz.</td></tr>
+    <tr><td>Grabación de pantalla</td><td>Capturar el audio del Mac. Es el permiso que macOS usa para el sonido del sistema; Escriba no guarda imagen de tu pantalla.</td></tr>
+  </tbody>
+</table>
+<p>Si los rechazaste sin querer, se activan en <b>Ajustes del Sistema › Privacidad y seguridad</b>,
+y hay que cerrar y volver a abrir Escriba.</p>
+
+<h2 id="grabar">Grabar una reunión</h2>
+<ol>
+  <li><b>Elige el cliente</b> en la lista de la izquierda. Si no existe, escribe su nombre en el
+      buscador y aparecerá la opción de crearlo.</li>
+  <li><b>Pulsa Grabar reunión.</b> También funciona <code>Cmd+Shift+R</code> desde cualquier
+      aplicación, sin abrir la ventana.</li>
+  <li>Mientras grabas verás dos medidores: <b>Tu voz</b> y <b>Llamada</b>.</li>
+  <li><b>Detener y procesar</b> al terminar.</li>
+</ol>
+<div class="tip"><b>Mira los medidores al empezar.</b> Si la barra de <em>Tu voz</em> no se mueve,
+Escriba te avisa en rojo. Enterarte en el primer minuto vale mucho más que descubrirlo al final.</div>
+<p>Funciona igual para una junta presencial que para una videollamada: como graba el micrófono y el
+audio del Mac por separado, en Zoom o Meet se oyen los dos lados.</p>
+
+<h2 id="minuta">La minuta y las notas internas</h2>
+<p>Al detener, Escriba mezcla las pistas, transcribe, separa las voces y redacta. Una hora de reunión
+tarda unos diez minutos en total.</p>
+<p>El resultado tiene dos partes bien distintas:</p>
+<ul>
+  <li><b>La minuta.</b> Lo que quedó definido y los compromisos en dos tablas, una por cada lado.
+      Es lo que le mandas al cliente.</li>
+  <li><b>Las notas internas.</b> Lo que <em>no</em> se dijo, riesgos y oportunidades. Se ven en la
+      app sobre fondo ámbar y <b>nunca salen en el PDF</b>.</li>
+</ul>
+<p>Con <b>Editar</b> puedes corregir el texto antes de exportar. <b>Ver diálogo</b> muestra la
+conversación con hora y hablante, útil para verificar una cita antes de enviar.</p>
+
+<h2 id="expediente">Expedientes de cliente</h2>
+<p>Si en Ajustes indicas una <b>carpeta de expedientes</b> —un archivo <code>.md</code> por cliente—,
+Escriba lo lee antes de redactar. Con eso la minuta reconoce lo que quedó pendiente de reuniones
+anteriores y te lo señala en las notas internas.</p>
+<p>Al terminar, añade al expediente lo acordado y los pendientes, así la siguiente reunión arranca
+con memoria.</p>
+<p>El botón <b>Expediente</b> genera un PDF con todas las reuniones del cliente y una tabla con los
+compromisos de toda la relación. Es el documento para una junta de revisión.</p>
+
+<h2 id="motor">Elegir quién redacta</h2>
+<p>La transcripción siempre corre en tu Mac. Lo que cambia es quién escribe la minuta:</p>
+<table>
+  <thead><tr><th>Motor</th><th>Qué necesitas</th><th>Qué sale de tu Mac</th></tr></thead>
+  <tbody>
+    <tr><td>Claude Code</td><td>Tenerlo instalado y con sesión</td><td>El texto, a Anthropic</td></tr>
+    <tr><td>Llave propia</td><td>Una llave de Anthropic o de OpenAI</td><td>El texto, a ese proveedor</td></tr>
+    <tr><td>Ollama</td><td>Ollama y un modelo descargado</td><td>Nada</td></tr>
+  </tbody>
+</table>
+<p>Las llaves se guardan en el <b>Keychain de macOS</b>, nunca en un archivo. El botón
+<b>Probar el motor</b> confirma que responde antes de que dependas de él.</p>
+<div class="aviso"><b>Antes de grabar:</b> avisar a los demás que estás grabando es tu
+responsabilidad, y en muchos lugares es obligatorio por ley. Escriba no lo hace por ti.</div>
+
+<h2 id="archivos">Dónde queda todo</h2>
+<p>Cada reunión es una carpeta dentro de <code>&lt;tu carpeta&gt;/&lt;cliente&gt;/&lt;fecha&gt;/</code>:</p>
+<table>
+  <thead><tr><th>Archivo</th><th>Qué es</th></tr></thead>
+  <tbody>
+    <tr><td>mezcla.m4a</td><td>El audio completo de la reunión</td></tr>
+    <tr><td>microfono.m4a</td><td>Solo tu voz</td></tr>
+    <tr><td>sistema.m4a</td><td>Solo el otro lado</td></tr>
+    <tr><td>mezcla.txt / .srt</td><td>La transcripción, con y sin marcas de tiempo</td></tr>
+    <tr><td>dialogo.txt</td><td>La conversación con hablante y hora</td></tr>
+    <tr><td>minuta.md / .pdf</td><td>La minuta, editable y lista para enviar</td></tr>
+  </tbody>
+</table>
+<p>Es una carpeta normal: puedes respaldarla, moverla o borrarla sin pedirle permiso a la app.
+Una reunión de una hora ocupa unos 130 MB.</p>
+
+<h2 id="problemas">Cuando algo falla</h2>
+<h3>No se grabó nada</h3>
+<p>Casi siempre es el permiso de grabación de pantalla. Revísalo en Ajustes del Sistema y reinicia
+Escriba.</p>
+<h3>La transcripción trae frases repetidas</h3>
+<p>Pasa con audios largos y silencios prolongados. Escriba ya usa la opción que lo evita; si aun así
+ocurre, vuelve a procesar la reunión desde la app.</p>
+<h3>La minuta no se genera</h3>
+<p>Abre Ajustes y pulsa <b>Probar el motor</b>. Si el motor no responde, elige otro: los tres son
+intercambiables y la transcripción ya está hecha, así que no pierdes la reunión.</p>
+<h3>El PDF sale sin logo</h3>
+<p>Pon un archivo <code>logo.png</code> en la carpeta del cliente, o indica el logo de tu empresa en
+Ajustes. Sin ninguno de los dos, el encabezado sale con el nombre en tipografía.</p>
+
+<footer>
+  <a href="index.html">← Volver a la portada</a> · <a href="https://github.com/kapitecsoluciones/escriba">Código en GitHub</a> ·
+  Hecho por <a href="https://kapitec.pro">Kapitec Soluciones</a>
+</footer>
+
+</div>
+</body>
+</html>

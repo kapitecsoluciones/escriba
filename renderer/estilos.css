@@ -5,6 +5,29 @@
   --gold:#B58A3E; --gold-soft:#F6EFE2; --gold-texto:#8F6B2B;
   --azul:#2367FB; --verde:#2DD2A1; --rojo:#C0392B;
   --sombra:0 1px 2px rgba(10,20,40,.04), 0 8px 24px rgba(10,20,40,.06);
+  /* texto que va ENCIMA de un fondo sólido: se invierte con el tema */
+  --ink-contra:#FFFFFF; --rojo-contra:#FFFFFF;
+  /* bloques de aviso, antes con el color escrito a mano */
+  --ambar-fondo:#FFFBF2; --ambar-borde:#EADFC7;
+  --mal-fondo:#FDF2F0; --mal-borde:#EBCFC9; --mal-texto:#8A3E3E;
+  --bien-fondo:#EDF9F3; --bien-texto:#1F6B4D;
+}
+
+/* Modo oscuro siguiendo al sistema. Solo la ventana de la app: el PDF de la
+   minuta y el sitio web se quedan claros, que es como se leen y se imprimen. */
+@media (prefers-color-scheme: dark){
+  :root{
+    --ink:#E8ECF4; --soft:#A9B2C4; --muted:#8A93A6;
+    --rule:rgba(255,255,255,.09); --rule-fuerte:rgba(255,255,255,.17);
+    --paper:#161B25; --tint:#0F131A; --tint2:#1E242F;
+    --gold:#C9A163; --gold-soft:rgba(201,161,99,.15); --gold-texto:#D9B87A;
+    --azul:#5C90FF; --verde:#2DD2A1; --rojo:#E5705F;
+    --sombra:0 1px 2px rgba(0,0,0,.32), 0 8px 24px rgba(0,0,0,.34);
+    --ink-contra:#0F131A; --rojo-contra:#1A0F0D;
+    --ambar-fondo:rgba(201,161,99,.10); --ambar-borde:rgba(201,161,99,.28);
+    --mal-fondo:rgba(229,112,95,.12); --mal-borde:rgba(229,112,95,.32); --mal-texto:#F0A99C;
+    --bien-fondo:rgba(45,210,161,.12); --bien-texto:#6FE0BC;
+  }
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{
@@ -15,7 +38,7 @@ body{
 button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit}
 input,textarea{font-family:inherit;font-size:inherit;color:inherit}
 
-.app{display:grid;grid-template-columns:248px 1fr;height:100vh}
+.app{display:grid;grid-template-columns:292px 1fr;height:100vh}
 
 /* ---------- barra lateral ---------- */
 .lateral{background:var(--paper);border-right:1px solid var(--rule);display:flex;flex-direction:column;overflow:hidden}
@@ -43,26 +66,34 @@ input,textarea{font-family:inherit;font-size:inherit;color:inherit}
 .acciones{display:flex;gap:8px}
 .btn{padding:8px 14px;border-radius:8px;border:1px solid var(--rule-fuerte);background:var(--paper);font-weight:600;transition:.12s}
 .btn:hover{border-color:var(--ink)}
-.btn.primario{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn.primario{background:var(--ink);color:var(--ink-contra);border-color:var(--ink)}
 .btn.primario:hover{opacity:.88}
-.btn.grabando{background:var(--rojo);border-color:var(--rojo);color:#fff}
+.btn.grabando{background:var(--rojo);border-color:var(--rojo);color:var(--rojo-contra)}
 .btn:disabled{opacity:.4;cursor:default}
 
-.cuerpo{flex:1;display:grid;grid-template-columns:280px 1fr;gap:0;overflow:hidden;margin-top:18px}
-.historial{border-right:1px solid var(--rule);overflow-y:auto;padding:4px 14px 20px 26px}
-.historial h3{font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:700;margin:8px 0 8px}
-.reu{display:block;width:100%;text-align:left;padding:10px 12px;border-radius:9px;border:1px solid transparent;margin-bottom:6px;line-height:1.4}
-.reu:hover{background:var(--paper)}
-.reu.activa{background:var(--paper);border-color:var(--rule-fuerte);box-shadow:var(--sombra)}
-.reu .f{font-weight:600}
-.reu .e{font-size:11.5px;color:var(--muted);margin-top:2px}
+.cuerpo{flex:1;display:flex;overflow:hidden;margin-top:18px}
 
-.detalle{overflow-y:auto;padding:4px 30px 40px}
+/* reuniones del cliente activo, anidadas en la barra lateral */
+.reus{margin:2px 0 8px 10px;padding-left:9px;border-left:1px solid var(--rule)}
+.reu{display:block;width:100%;text-align:left;padding:6px 9px;border-radius:7px;
+  border:1px solid transparent;margin-bottom:2px;line-height:1.35}
+.reu:hover{background:var(--tint)}
+.reu.activa{background:var(--paper);border-color:var(--rule-fuerte);box-shadow:var(--sombra)}
+.reu .f{font-weight:600;font-size:12.5px}
+.reu .e{font-size:11px;color:var(--muted);margin-top:1px}
+.reu-vacio{font-size:11.5px;color:var(--muted);padding:5px 9px}
+
+/* El documento es el producto: se lleva todo el ancho que sobra, pero con una
+   medida de lectura fija. Sin límite, maximizada en un monitor grande las
+   líneas pasaban de 200 caracteres; con la ventana al mínimo, no llegaban a 40. */
+.detalle{flex:1;overflow-y:auto;padding:4px 30px 48px}
+.detalle > *{max-width:680px;margin-left:auto;margin-right:auto}
 .vacio{color:var(--muted);text-align:center;padding:70px 20px;line-height:1.7}
 .vacio strong{display:block;color:var(--soft);font-size:15px;margin-bottom:6px}
 
 /* minuta renderizada */
-.minuta{background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:26px 28px;box-shadow:var(--sombra);line-height:1.62}
+.minuta{background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:26px 30px;
+  box-shadow:var(--sombra);line-height:1.68;font-size:14px}
 .minuta h1,.minuta h2{font-family:'Plus Jakarta Sans',Inter,sans-serif;font-weight:800;word-spacing:.09em;letter-spacing:0}
 .minuta h1{font-size:17px;margin:22px 0 10px;padding-top:14px;border-top:1px solid var(--rule)}
 .minuta h1:first-child{border:none;padding:0;margin-top:0}
@@ -84,7 +115,7 @@ input,textarea{font-family:inherit;font-size:inherit;color:inherit}
 .minuta .contact{background:var(--tint);border:1px solid var(--rule);border-left:3px solid var(--gold);border-radius:6px;padding:11px 13px;margin-top:18px}
 
 /* notas internas */
-.notas{margin-top:18px;background:#FFFBF2;border:1px solid #EADFC7;border-left:3px solid var(--gold);border-radius:10px;padding:18px 22px}
+.notas{margin-top:18px;background:var(--ambar-fondo);border:1px solid var(--ambar-borde);border-left:3px solid var(--gold);border-radius:10px;padding:18px 22px}
 .notas .et{font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;font-weight:700;color:var(--gold-texto);margin-bottom:10px}
 .notas h2{font-size:13.5px;margin:14px 0 6px}
 .notas h2::before{display:none}
@@ -107,7 +138,7 @@ textarea.editor:focus{border-color:var(--azul)}
 .estado .crono{margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:16px;font-weight:700}
 .spin{width:14px;height:14px;border:2px solid var(--rule-fuerte);border-top-color:var(--azul);border-radius:50%;animation:gira .7s linear infinite}
 @keyframes gira{to{transform:rotate(360deg)}}
-.error{background:#FDF2F0;border-color:#EBCFC9;color:#8A3E3E}
+.error{background:var(--mal-fondo);border-color:var(--mal-borde);color:var(--mal-texto)}
 
 /* medidores de nivel */
 .medidores{display:flex;flex-direction:column;gap:5px;margin-left:16px;min-width:150px;flex:none}
@@ -154,9 +185,9 @@ textarea.editor:focus{border-color:var(--azul)}
 .motor .d{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.5}
 .motor .p{font-size:11px;color:var(--gold);margin-top:4px;font-weight:600}
 .estado-linea{font-size:12px;margin-top:8px;padding:8px 11px;border-radius:7px;background:var(--tint)}
-.estado-linea.ok{background:#EDF9F3;color:#1F6B4D}
-.estado-linea.mal{background:#FDF2F0;color:#8A3E3E}
-.falta{font-size:12px;padding:9px 11px;border-radius:7px;background:#FFFBF2;border:1px solid #EADFC7;margin-bottom:7px}
+.estado-linea.ok{background:var(--bien-fondo);color:var(--bien-texto)}
+.estado-linea.mal{background:var(--mal-fondo);color:var(--mal-texto)}
+.falta{font-size:12px;padding:9px 11px;border-radius:7px;background:var(--ambar-fondo);border:1px solid var(--ambar-borde);margin-bottom:7px}
 .falta code{background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:1px 5px;font-size:11px}
 
 
@@ -172,8 +203,8 @@ textarea.editor:focus{border-color:var(--azul)}
 .mas .item:hover{background:var(--tint2)}
 .mas .item.peligro{color:var(--rojo);margin-top:4px;border-top:1px solid var(--rule);
   border-radius:0 0 7px 7px;padding-top:10px}
-.mas .item.peligro:hover{background:#FDF0EE}
-.btn.peligro{background:var(--rojo);border-color:var(--rojo);color:#fff}
+.mas .item.peligro:hover{background:var(--mal-fondo)}
+.btn.peligro{background:var(--rojo);border-color:var(--rojo);color:var(--rojo-contra)}
 .btn.peligro:hover{opacity:.88}
 
 /* ---------- avance real ---------- */
@@ -197,7 +228,7 @@ textarea.editor:focus{border-color:var(--azul)}
 
 /* ---------- aviso breve ---------- */
 .aviso-breve{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:90;
-  background:var(--ink);color:#fff;padding:9px 17px;border-radius:9px;font-size:12.5px;
+  background:var(--ink);color:var(--ink-contra);padding:9px 17px;border-radius:9px;font-size:12.5px;
   box-shadow:var(--sombra);transition:opacity .35s, transform .35s}
 .aviso-breve.fuera{opacity:0;transform:translateX(-50%) translateY(8px)}
 
@@ -245,3 +276,55 @@ textarea.editor:focus{border-color:var(--azul)}
 /* enlazar expediente desde la cabecera de un cliente que no lo tiene */
 .enlazar{background:none;border:0;padding:0;margin-left:7px;font-size:12.5px;
   color:var(--gold-texto);font-weight:600;cursor:pointer;text-decoration:underline}
+
+/* ---------- lo que hay que hacer con la minuta ---------- */
+/* Compromisos y hallazgos van ARRIBA: eran lo más valioso del documento y
+   estaban a media página y al final, en texto corrido. */
+.tarjeta{background:var(--paper);border:1px solid var(--rule-fuerte);border-radius:11px;
+  padding:13px 16px;margin-bottom:11px;box-shadow:var(--sombra)}
+.tarjeta .et{font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;font-weight:700;
+  color:var(--muted);margin-bottom:9px}
+
+.compromisos .comp{display:flex;align-items:flex-start;gap:10px;padding:6px 0;border-top:1px solid var(--rule)}
+.compromisos .comp:first-of-type{border-top:none;padding-top:0}
+.compromisos .marca{flex:none;width:19px;height:19px;margin-top:1px;border-radius:6px;
+  border:1.5px solid var(--rule-fuerte);background:var(--paper);font-size:12px;
+  line-height:1;color:var(--ink-contra);transition:.12s}
+.compromisos .marca:hover{border-color:var(--gold)}
+.compromisos .comp.hecho .marca{background:var(--gold);border-color:var(--gold)}
+.compromisos .txt{flex:1;min-width:0}
+.compromisos .txt .t{line-height:1.42;font-size:13px}
+.compromisos .txt .m{font-size:11.5px;color:var(--muted);margin-top:1px}
+.compromisos .comp.hecho .txt .t{text-decoration:line-through;color:var(--muted)}
+.compromisos .copiar{flex:none;font-size:11.5px;color:var(--muted);padding:2px 6px;border-radius:5px;opacity:0;transition:.12s}
+.compromisos .comp:hover .copiar{opacity:1}
+.compromisos .copiar:hover{background:var(--tint2);color:var(--ink)}
+
+.hallazgos{background:var(--ambar-fondo);border-color:var(--ambar-borde);border-left:3px solid var(--gold)}
+.hallazgos .et{color:var(--gold-texto)}
+.hallazgos .h{position:relative;padding-left:15px;margin-bottom:5px;line-height:1.55;font-size:13px}
+.hallazgos .h::before{content:"";position:absolute;left:2px;top:.6em;width:4px;height:4px;
+  border-radius:50%;background:var(--gold)}
+.hallazgos .vertodo{margin-top:7px;font-size:11.5px;color:var(--gold-texto);font-weight:600;text-decoration:underline}
+.compromisos .vertodo{margin-top:9px;font-size:11.5px;color:var(--soft);font-weight:600;
+  padding-top:8px;border-top:1px solid var(--rule);width:100%;text-align:left}
+.compromisos .vertodo:hover{color:var(--ink)}
+
+/* ---------- audio de la reunión ---------- */
+/* Las marcas de tiempo del diálogo eran decorativas: no había forma de oír nada.
+   Verificar una cita antes de mandar el PDF es justo donde más caro sale fallar. */
+.audio-caja{margin-bottom:12px}
+.audio-caja audio{width:100%;height:34px}
+.audio-caja.mal{font-size:12px;color:var(--rojo)}
+.minuta.dialogo p{margin-bottom:11px}
+.minuta.dialogo .salto{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--soft);
+  margin-right:8px;padding:1px 5px;border-radius:4px;background:var(--tint);border:1px solid var(--rule)}
+.minuta.dialogo .salto:hover{background:var(--gold-soft);border-color:var(--gold);color:var(--gold-texto)}
+.minuta.dialogo strong{color:var(--gold-texto)}
+
+/* ---------- barra de estado ---------- */
+/* El aviso de progreso vivía dentro del documento, así que cambiar de cliente
+   lo borraba: te quedabas sin la única señal de que algo seguía corriendo. */
+#barraEstado{padding:0 30px;flex:none}
+#barraEstado:empty{display:none}
+#barraEstado .estado{margin:14px auto 0;max-width:680px}

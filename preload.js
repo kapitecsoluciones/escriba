@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('api', {
   motorProbar:     (id)    => ipcRenderer.invoke('motor-probar', id),
   guardarLlave:    (d)     => ipcRenderer.invoke('guardar-llave', d),
   diagnostico:     ()      => ipcRenderer.invoke('diagnostico'),
+  micros:          ()      => ipcRenderer.invoke('micros'),
   descargarModelo: ()      => ipcRenderer.invoke('descargar-modelo'),
   instalarDep:     (f)     => ipcRenderer.invoke('instalar-dependencia', f),
   onDescarga:      (cb)    => ipcRenderer.on('descarga', (_e, d) => cb(d)),
@@ -25,6 +26,9 @@ contextBridge.exposeInMainWorld('api', {
   guardarMinuta:   (d)     => ipcRenderer.invoke('guardar-minuta', d),
   pdf:             (d)     => ipcRenderer.invoke('pdf', d),
   copiarMinuta:    (t)     => ipcRenderer.invoke('copiar-minuta', t),
+  compromisos:     (d)     => ipcRenderer.invoke('compromisos', d),
+  marcarCompromiso:(d)     => ipcRenderer.invoke('compromiso-marcar', d),
+  copiarTexto:     (t)     => ipcRenderer.invoke('copiar-texto', t),
   abrir:           (r)     => ipcRenderer.invoke('abrir', r),
   revelar:         (r)     => ipcRenderer.invoke('revelar', r),
   importar:        ()      => ipcRenderer.invoke('importar'),
@@ -36,4 +40,5 @@ contextBridge.exposeInMainWorld('api', {
   onCapturaAviso:  (cb)    => ipcRenderer.on('captura-aviso', (_e, d) => cb(d)),
   clienteActivo:   (c)     => ipcRenderer.invoke('cliente-activo', c),
   onAtajo:         (cb)    => ipcRenderer.on('atajo', (_e, d) => cb(d)),
+  onMenu:          (cb)    => ipcRenderer.on('menu', (_e, d) => cb(d)),
 });

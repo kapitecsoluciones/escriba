@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, dialog, globalShortcut, Notification, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, globalShortcut, Notification, clipboard, Menu, nativeTheme } = require('electron');
 const path = require('path'), fs = require('fs'), os = require('os');
 const { spawn } = require('child_process');
 const R = require('./lib/rutas');
@@ -7,6 +7,7 @@ const CONFIG = require('./lib/config');
 const PROMPT = require('./lib/prompt');
 const PDF = require('./lib/pdf');
 const MD = require('./lib/md');
+const MINUTA = require('./lib/minuta');
 const VOCES = require('./lib/voces');
 const MOTORES = require('./lib/motores');
 const { actualizarDossier, quitarDelDossier } = require('./lib/dossier');
@@ -36,7 +37,9 @@ function crearVentana() {
     x: Number.isInteger(guardada.x) ? guardada.x : undefined,
     y: Number.isInteger(guardada.y) ? guardada.y : undefined,
     minWidth: 900, minHeight: 600,
-    titleBarStyle: 'hiddenInset', backgroundColor: '#F7F9FC',
+    titleBarStyle: 'hiddenInset',
+    // sin esto la ventana parpadea en blanco al abrirse con el sistema en oscuro
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0F131A' : '#F7F9FC',
     webPreferences: { preload: path.join(__dirname, 'preload.js') }
   });
   let guardar = null;
@@ -123,6 +126,16 @@ ipcMain.handle('motor-probar', async (_e, id) => MOTORES.porId(id).probar());
 ipcMain.handle('guardar-llave', async (_e, { proveedor, llave }) => {
   await require('./lib/motores/api').guardarLlave(proveedor, llave); return { ok: true };
 });
+// Entradas de audio del equipo. Con el iPhone cerca y Continuity activo, su
+// micrófono aparece aquí como una más y se puede elegir sin cambiar la
+// configuración de sonido de todo el Mac.
+ipcMain.handle('micros', seguro(async () => {
+  const bin = BIN().captura;
+  if (!bin) return { ok: false, error: 'No se encontró el capturador de audio.' };
+  const salida = await correr(bin, ['--micros']);
+  return { ok: true, micros: JSON.parse(salida || '[]') };
+}));
+
 ipcMain.handle('diagnostico', () => ({ faltantes: R.faltantes(), binarios: R.BIN(), configurado: CONFIG.configurado() }));
 
 // Descarga del modelo de transcripción (1.5 GB) con progreso, sin terminal.
@@ -178,7 +191,10 @@ ipcMain.handle('grabar-iniciar', async (_e, slug) => {
   if (!BIN().captura) return { ok: false, error: 'No se encontró el capturador de audio. Reinstala la app.' };
   carpetaActual = path.join(R.BASE(), slug, sello());
   fs.mkdirSync(carpetaActual, { recursive: true });
-  captura = spawn(BIN().captura, [path.join(carpetaActual, 'sistema.m4a')]);
+  const micro = (CONFIG.leer().grabacion || {}).microfono || '';
+  const argsCaptura = [path.join(carpetaActual, 'sistema.m4a')];
+  if (micro) argsCaptura.push('--mic', micro);
+  captura = spawn(BIN().captura, argsCaptura);
   let resto = '';
   captura.stderr.on('data', (b) => {
     resto += b.toString();
@@ -195,6 +211,13 @@ ipcMain.handle('grabar-iniciar', async (_e, slug) => {
       }
       const disco = l.match(/^DISCO (\d+)/);
       if (disco && win) win.webContents.send('captura-aviso', { tipo: 'disco', mb: +disco[1] });
+      // Con qué micrófono se está grabando. Enterarse al empezar y no al final
+      // es la diferencia entre repetir una junta y no repetirla.
+      const cual = l.match(/^MICROFONO (.+)/);
+      if (cual && win) win.webContents.send('captura-aviso', { tipo: 'microfono', texto: cual[1] });
+      if (/^MICROFONO_AUSENTE /.test(l) && win) {
+        win.webContents.send('captura-aviso', { tipo: 'microfono-ausente' });
+      }
     }
   });
   let errorArranque = '';
@@ -425,15 +448,21 @@ ipcMain.handle('pdf', seguro(async (_e, { carpeta, cliente, fecha, texto }) => {
 }));
 
 // Busca el término en las transcripciones y minutas de todas las reuniones.
+// Sin tildes y en minúsculas. En español, buscar "catalogo" y no encontrar
+// "catálogo" hace que el buscador parezca roto. La longitud no cambia: NFD
+// expande la letra acentuada a dos y quitar la marca la devuelve a una, así
+// que las posiciones siguen valiendo para recortar el fragmento.
+const plano = (t) => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
 ipcMain.handle('buscar', (_e, termino) => {
-  const t = (termino || '').trim().toLowerCase();
+  const t = plano(termino).trim();
   if (t.length < 3) return [];
   const salida = [];
   for (const c of R.clientes()) {
     for (const r of R.reuniones(c.slug)) {
       for (const [campo, texto] of [['minuta', r.minuta], ['transcripción', r.transcripcion]]) {
         if (!texto) continue;
-        const bajo = texto.toLowerCase();
+        const bajo = plano(texto);
         let i = bajo.indexOf(t);
         if (i === -1) continue;
         const frag = texto.slice(Math.max(0, i - 70), i + 110)
@@ -461,13 +490,8 @@ ipcMain.handle('exportar-historial', seguro(async (_e, { slug, cliente }) => {
   // reunir los compromisos de todas las tablas de todas las minutas
   const compromisos = [];
   for (const r of rs) {
-    const publica = r.minuta.split(/##\s*Notas internas/i)[0];
-    for (const linea of publica.split('\n')) {
-      const celdas = linea.trim().match(/^\|(.+)\|$/);
-      if (!celdas) continue;
-      const c = celdas[1].split('|').map(x => x.trim());
-      if (c.length < 2 || /^-+$/.test(c[0]) || /compromiso|qué\b/i.test(c[0])) continue;
-      compromisos.push({ fecha: fechaLegible(r.id), texto: c[0], quien: c[1] || '' });
+    for (const c of MINUTA.extraer(r.minuta)) {
+      compromisos.push({ fecha: fechaLegible(r.id), texto: c.texto, quien: c.quien });
     }
   }
 
@@ -552,6 +576,14 @@ ipcMain.handle('copiar-minuta', seguro((_e, texto) => {
   return { ok: true };
 }));
 
+ipcMain.handle('copiar-texto', seguro((_e, texto) => { clipboard.writeText(String(texto || '')); return { ok: true }; }));
+ipcMain.handle('compromisos', seguro((_e, { carpeta, minuta }) => ({
+  ok: true, lista: MINUTA.conEstado(minuta, carpeta), hallazgos: MINUTA.hallazgos(minuta)
+})));
+ipcMain.handle('compromiso-marcar', seguro((_e, { carpeta, texto, hecho }) => {
+  MINUTA.marcar(carpeta, texto, hecho); return { ok: true };
+}));
+
 ipcMain.handle('abrir', (_e, ruta) => { shell.openPath(ruta); });
 ipcMain.handle('revelar', (_e, ruta) => { shell.showItemInFolder(ruta); });
 ipcMain.handle('importar', async () => {
@@ -567,6 +599,74 @@ ipcMain.handle('importar-a-carpeta', seguro(async (_e, { slug, archivo }) => {
   await correr(BIN().ffmpeg, ['-nostdin','-loglevel','error','-y','-i',archivo,'-c:a','aac','-b:a','96k', path.join(carpeta,'mezcla.m4a')]);
   return { carpeta };
 }));
+
+// Sin esto se queda el menú por defecto de Electron, en inglés. En una app de
+// Mac el menú es además donde se descubren los atajos: si no están ahí, no existen.
+function construirMenu() {
+  const alRenderer = (accion) => () => { if (win) { win.show(); win.webContents.send('menu', { accion }); } };
+  const plantilla = [
+    {
+      label: 'Escriba',
+      submenu: [
+        { label: 'Acerca de Escriba', role: 'about' },
+        { type: 'separator' },
+        { label: 'Ajustes…', accelerator: 'Command+,', click: alRenderer('ajustes') },
+        { type: 'separator' },
+        { label: 'Ocultar Escriba', role: 'hide' },
+        { label: 'Ocultar otras', role: 'hideOthers' },
+        { label: 'Mostrar todas', role: 'unhide' },
+        { type: 'separator' },
+        { label: 'Salir de Escriba', role: 'quit' },
+      ],
+    },
+    {
+      label: 'Reunión',
+      submenu: [
+        { label: 'Grabar o detener', accelerator: 'Command+R', click: alRenderer('grabar') },
+        { label: 'Importar audio…', accelerator: 'Command+O', click: alRenderer('importar') },
+        { type: 'separator' },
+        { label: 'Exportar el PDF', accelerator: 'Command+E', click: alRenderer('pdf') },
+        { label: 'Copiar la minuta', accelerator: 'Shift+Command+C', click: alRenderer('copiar') },
+        { type: 'separator' },
+        { label: 'Expediente del cliente', accelerator: 'Shift+Command+E', click: alRenderer('expediente') },
+      ],
+    },
+    {
+      label: 'Cliente',
+      submenu: [
+        { label: 'Nuevo cliente…', accelerator: 'Command+N', click: alRenderer('nuevo-cliente') },
+        { label: 'Buscar', accelerator: 'Command+F', click: alRenderer('buscar') },
+      ],
+    },
+    {
+      label: 'Edición',
+      submenu: [
+        { label: 'Deshacer', role: 'undo' }, { label: 'Rehacer', role: 'redo' },
+        { type: 'separator' },
+        { label: 'Cortar', role: 'cut' }, { label: 'Copiar', role: 'copy' },
+        { label: 'Pegar', role: 'paste' }, { label: 'Seleccionar todo', role: 'selectAll' },
+      ],
+    },
+    {
+      label: 'Ventana',
+      submenu: [
+        { label: 'Minimizar', role: 'minimize' },
+        { label: 'Zoom', role: 'zoom' },
+        { label: 'Pantalla completa', role: 'togglefullscreen' },
+        { type: 'separator' },
+        { label: 'Recargar la ventana', accelerator: 'Shift+Command+R', role: 'forceReload' },
+      ],
+    },
+    {
+      label: 'Ayuda',
+      submenu: [
+        { label: 'Manual de Escriba', click: () => shell.openExternal('https://escriba.kapitec.pro/manual.html') },
+        { label: 'Carpeta de reuniones', click: () => shell.openPath(R.BASE()) },
+      ],
+    },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(plantilla));
+}
 
 function registrarAtajo() {
   // Cmd+Shift+R: empieza o detiene la grabación sin tener que ir a la ventana
@@ -591,6 +691,7 @@ app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(
 
 app.whenReady().then(async () => {
   crearVentana();
+  construirMenu();
   registrarAtajo();
   // Autoprueba: si existe el centinela, procesa esa carpeta y escribe el resultado.
   // Sirve para verificar que los subprocesos (whisper, claude) funcionan cuando la

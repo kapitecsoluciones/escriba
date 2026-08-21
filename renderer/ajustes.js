@@ -7,6 +7,8 @@
     const cfg = await window.api.configLeer();
     const motores = await window.api.motoresEstado();
     const diag = await window.api.diagnostico();
+    const rm = await window.api.micros().catch(() => ({ ok: false }));
+    const micros = (rm && rm.ok && rm.micros) || [];
     const c = $$('#cuerpoAjustes');
 
     const faltantes = diag.faltantes.length
@@ -42,6 +44,16 @@
       <div class="campo">
         <label>Línea de contacto para el pie de la minuta</label>
         <input type="text" id="aContacto" value="${esc(cfg.usuario.contacto)}" placeholder="Nombre · correo · teléfono">
+      </div>
+
+      <div class="seccion">Con qué se graba</div>
+      <div class="campo">
+        <label>Micrófono</label>
+        <select id="aMicrofono">
+          <option value="">El que use el sistema${micros.length ? ` — ahora ${esc((micros.find(m => m.porDefecto) || {}).nombre || '')}` : ''}</option>
+          ${micros.map(m => `<option value="${esc(m.id)}" ${cfg.grabacion && cfg.grabacion.microfono === m.id ? 'selected' : ''}>${esc(m.nombre)}</option>`).join('')}
+        </select>
+        <div class="ayuda">Para una reunión presencial, el micrófono del iPhone capta mejor a quien está al otro lado de la mesa. Aparece aquí si lo tienes cerca y con Continuidad activada. Si el que elijas no está al empezar, se graba con el del sistema y se avisa.</div>
       </div>
 
       <div class="seccion">Quién escribe la minuta</div>
@@ -154,6 +166,7 @@
     await window.api.configGuardar({
       usuario: { nombre: $$('#aNombre').value.trim(), empresa: $$('#aEmpresa').value.trim(), contacto: $$('#aContacto').value.trim() },
       rutas: { reuniones: $$('#aReuniones').value.trim(), dossiers: $$('#aDossiers').value.trim() },
+      grabacion: { microfono: $$('#aMicrofono') ? $$('#aMicrofono').value : '' },
       motor: { tipo: $$('input[name=motor]:checked').value, proveedor: $$('#aProveedor') ? $$('#aProveedor').value : 'anthropic' },
     });
     if (cerrar) { $$('#modalAjustes').hidden = true; if (window.recargarClientes) window.recargarClientes(); }

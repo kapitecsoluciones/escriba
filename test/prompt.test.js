@@ -49,3 +49,20 @@ test('avisa al modelo cuando la transcripción trae hablantes', () => {
   const sin = PROMPT.construir({ ...BASE, conHablantes: false });
   assert.notStrictEqual(con.length, sin.length);
 });
+
+
+// Si no se sabe quién habló, hay que decírselo al modelo. Callarse deja que
+// reparta compromisos por su cuenta en un documento que se manda al cliente.
+test('sin hablantes, avisa al modelo de que no invente atribuciones', () => {
+  const p = PROMPT.construir({ ...BASE, conHablantes: false });
+  assert.match(p, /No se sabe quién dijo cada cosa/i);
+  assert.match(p, /No inventes atribuciones/i);
+  assert.doesNotMatch(p, /así que es fiable/i,
+    'no puede decirle que la separación es fiable cuando no hay separación');
+});
+
+test('con hablantes, sí le pide atribuir los compromisos', () => {
+  const p = PROMPT.construir({ ...BASE, conHablantes: true });
+  assert.match(p, /quién se comprometió a qué/i);
+  assert.doesNotMatch(p, /No se sabe quién dijo cada cosa/i);
+});

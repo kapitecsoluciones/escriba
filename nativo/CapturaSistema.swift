@@ -6,12 +6,36 @@ import AVFoundation
 // y lo escribe como M4A/AAC. Uso: CapturaSistema <salida.m4a> [segundos]
 // Sin segundos, graba hasta recibir SIGINT (Ctrl+C).
 
+// Entradas de audio del equipo. Con el iPhone cerca y Continuity activo, su
+// micrófono aparece aquí como una entrada más.
+enum Micros {
+    static func lista() -> [AVCaptureDevice] {
+        var tipos: [AVCaptureDevice.DeviceType] = []
+        if #available(macOS 14.0, *) { tipos = [.microphone, .external] }
+        else { tipos = [.builtInMicrophone] }
+        return AVCaptureDevice.DiscoverySession(deviceTypes: tipos, mediaType: .audio,
+                                                position: .unspecified).devices
+    }
+    static func buscar(id: String) -> AVCaptureDevice? {
+        return lista().first { $0.uniqueID == id }
+    }
+    static func comoJSON() -> String {
+        let porDefecto = AVCaptureDevice.default(for: .audio)?.uniqueID
+        let filas = lista().map { d -> [String: Any] in
+            ["id": d.uniqueID, "nombre": d.localizedName, "porDefecto": d.uniqueID == porDefecto]
+        }
+        let datos = try? JSONSerialization.data(withJSONObject: filas, options: [.prettyPrinted])
+        return datos.flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
+    }
+}
+
 @available(macOS 13.0, *)
 final class CapturaSistema: NSObject, SCStreamOutput, SCStreamDelegate {
     private var stream: SCStream?
     private var archivo: AVAudioFile?
     private var archivoMic: AVAudioFile?
     private let ruta: URL
+    private var microfonoID: String?
     private var muestrasEscritas: Int64 = 0
     private var muestrasMic: Int64 = 0
     private var picoSis: Float = 0
@@ -22,7 +46,7 @@ final class CapturaSistema: NSObject, SCStreamOutput, SCStreamDelegate {
     private var contadorReportes = 0
     private var rutaMic: URL { ruta.deletingPathExtension().appendingPathExtension("mic." + ruta.pathExtension) }
 
-    init(ruta: URL) { self.ruta = ruta }
+    init(ruta: URL, microfonoID: String? = nil) { self.ruta = ruta; self.microfonoID = microfonoID }
 
     // AAC a 64 kbps mono-equivalente: ~29 MB por hora en vez de ~1.4 GB en PCM
     static func ajustesAAC(_ formato: AVAudioFormat) -> [String: Any] {
@@ -49,6 +73,21 @@ final class CapturaSistema: NSObject, SCStreamOutput, SCStreamDelegate {
         config.width = 2; config.height = 2
         if #available(macOS 15.0, *) {
             config.captureMicrophone = true   // mic + sistema en el mismo stream, ya sincronizados
+            // Sin dispositivo, ScreenCaptureKit usa la entrada por defecto del sistema.
+            // Con él se puede grabar con el micrófono del iPhone (Continuity) o con
+            // cualquier otra entrada, sin cambiar la configuración de todo el Mac.
+            if let id = microfonoID, let dispositivo = Micros.buscar(id: id) {
+                config.microphoneCaptureDeviceID = id
+                FileHandle.standardError.write("MICROFONO \(dispositivo.localizedName)\n".data(using: .utf8)!)
+            } else {
+                if let id = microfonoID {
+                    // El iPhone se fue, o se cambió de equipo: seguir con el de por
+                    // defecto es mucho mejor que no grabar la reunión.
+                    FileHandle.standardError.write("MICROFONO_AUSENTE \(id)\n".data(using: .utf8)!)
+                }
+                let porDefecto = AVCaptureDevice.default(for: .audio)?.localizedName ?? "el del sistema"
+                FileHandle.standardError.write("MICROFONO \(porDefecto)\n".data(using: .utf8)!)
+            }
         }
         config.minimumFrameInterval = CMTime(value: 1, timescale: 1)
 
@@ -199,16 +238,31 @@ final class CapturaSistema: NSObject, SCStreamOutput, SCStreamDelegate {
 }
 
 // ---- main ----
-let args = CommandLine.arguments
-guard args.count >= 2 else {
-    print("Uso: CapturaSistema <salida.m4a> [segundos]")
+var args = Array(CommandLine.arguments.dropFirst())
+
+// --micros: lista las entradas de audio en JSON y sale. Lo usa Ajustes.
+if args.first == "--micros" {
+    print(Micros.comoJSON())
+    exit(0)
+}
+
+// --mic <uniqueID>: graba con esa entrada en vez de con la de por defecto.
+var microfonoElegido: String? = nil
+if let i = args.firstIndex(of: "--mic") {
+    if i + 1 < args.count { microfonoElegido = args[i + 1]; args.removeSubrange(i...(i + 1)) }
+    else { args.remove(at: i) }
+}
+
+guard args.count >= 1 else {
+    print("Uso: CapturaSistema <salida.m4a> [segundos] [--mic <id>]")
+    print("     CapturaSistema --micros")
     exit(2)
 }
-let salida = URL(fileURLWithPath: args[1])
-let segundos = args.count >= 3 ? Double(args[2]) ?? 0 : 0
+let salida = URL(fileURLWithPath: args[0])
+let segundos = args.count >= 2 ? Double(args[1]) ?? 0 : 0
 
 if #available(macOS 13.0, *) {
-    let cap = CapturaSistema(ruta: salida)
+    let cap = CapturaSistema(ruta: salida, microfonoID: microfonoElegido)
     let sem = DispatchSemaphore(value: 0)
 
     // Manejar SIGINT y SIGTERM: el script lanzador usa SIGTERM porque un `trap` de

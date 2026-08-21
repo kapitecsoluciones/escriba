@@ -59,6 +59,11 @@ hacerlo una vez.
 El botón **Expediente** junta todas las reuniones de un cliente en un solo PDF,
 con la tabla de compromisos de toda la relación. Sirve para juntas de revisión.
 
+Los compromisos salen como lista al principio: se marcan como hechos y se
+copian sueltos. Lo que **no** se dijo se resume arriba, siempre marcado como que
+no se envía. Y pulsando una marca de tiempo del diálogo se oye ese momento, para
+verificar una cita antes de mandar el PDF.
+
 Mientras transcribe verás el porcentaje real, no un mensaje fijo, y puedes
 **Cancelar** en cualquier momento: se detienen de verdad la transcripción y la
 redacción, no solo el indicador. Nada de lo que escribas se pierde — al guardar
@@ -77,6 +82,20 @@ que colgaban el conversor de Markdown, el margen de 2 dB que decide quién dijo
 qué, la fusión de configuración, el encabezado exacto del que depende el filtro
 de notas internas, y el escapado del PDF. Cada bloque se comprobó rompiendo el
 código a propósito: una suite que no puede fallar no sirve de nada.
+
+## Reuniones presenciales
+
+Escriba se diseñó para videollamadas: tu micrófono eres tú y el audio del Mac es
+el otro lado. De ahí sale la separación de voces sin ningún modelo de diarización.
+
+**En una reunión presencial solo hay una pista con voces, así que no se separan
+los hablantes** — y la app lo dice en vez de adivinar. También se lo dice al
+motor de redacción, para que no reparta compromisos por su cuenta: un compromiso
+sin responsable es mejor que un responsable equivocado en algo que se envía.
+
+Puedes elegir con qué micrófono se graba. Con el iPhone cerca y Continuidad
+activada aparece en la lista, y capta mucho mejor a quien está al otro lado de
+una mesa.
 
 ## Privacidad, y algo que debes saber
 

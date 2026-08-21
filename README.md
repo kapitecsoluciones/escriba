@@ -104,12 +104,33 @@ Once.
 `ffmpeg` and `whisper-cpp`. The app checks all of it on first run and installs
 what is missing.
 
+## In-person meetings
+
+Escriba was built for video calls: your microphone is you, the Mac's audio is
+the other side. That is what makes speaker attribution possible without a
+diarization model.
+
+**In person there is only one track with voices, so speakers are not
+separated** — and Escriba says so rather than guessing. It tells the writing
+engine not to invent attributions either, because a commitment with no owner is
+better than a commitment with the wrong owner in a document you send to a
+client.
+
+You can pick which microphone records. With an iPhone nearby and Continuity
+enabled, its microphone shows up in the list — useful across a table, where a
+laptop microphone struggles.
+
 ## While it works
 
 Transcription takes about a minute per ten minutes of meeting, and the app
 shows the real percentage while it runs — whisper reports it and Escriba reads
 it rather than showing a frozen message. **Cancel** stops whisper, ffmpeg and
 the writing engine, not just the spinner.
+
+Commitments are lifted out of the minute into a checklist you can tick and copy,
+and what was *never said* is summarised at the top instead of buried at the
+bottom. Clicking a timestamp in the transcript plays that moment, so you can
+check a quote before sending the PDF.
 
 Nothing you type is lost: saving keeps the previous version, re-drafting keeps
 the previous version, and leaving a half-edited minute asks first. Deleting a

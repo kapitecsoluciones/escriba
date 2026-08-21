@@ -1,4 +1,5 @@
-let CLIENTES = [], EXPEDIENTES = [], actual = null, reunionActual = null, hayResultados = false;
+let CLIENTES = [], EXPEDIENTES = [], REUNIONES = [], RESULTADOS = null;
+let actual = null, reunionActual = null, hayResultados = false;
 let grabando = false, t0 = 0, crono = null, editando = false, vista = 'minuta';
 let borrador = null;      // texto en edición sin guardar; null = no hay nada pendiente
 let procesando = false;
@@ -142,9 +143,41 @@ async function cargarClientes(){
   try { EXPEDIENTES = await window.api.expedientes(); } catch { EXPEDIENTES = []; }
   pintarClientes();
 }
+// Etiqueta de estado de una reunión, la misma en la lista y en la cabecera.
+function estadoReunion(r){
+  return (r.minuta ? 'Minuta lista' : (r.transcripcion ? 'Transcrita' : 'Solo audio')) + (r.tienePdf ? ' · PDF' : '');
+}
+
+// La barra lateral lleva clientes y, bajo el activo, sus reuniones. Antes las
+// reuniones tenían una columna propia que con una o dos quedaba casi entera
+// vacía, y le robaba el ancho al documento, que es lo único que se lee.
 function pintarClientes(){
   const q = ($('#q').value||'').toLowerCase().trim();
   const cont = $('#clientes'); cont.innerHTML='';
+
+  // buscando: la lista se convierte en los resultados
+  if(RESULTADOS){
+    if(!RESULTADOS.length){
+      cont.appendChild(el('div','vacio-lateral',
+        'Nada con esas palabras.<br>Prueba con menos palabras o con un nombre propio.'));
+      return;
+    }
+    const t = $('#q').value.trim();
+    RESULTADOS.forEach(r=>{
+      const limpio = r.fragmento.replace(/\*\*/g,'').replace(/^#+\s*/gm,'').replace(/^-\s+/,'');
+      const frag = esc(limpio).replace(new RegExp('('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'),'<mark>$1</mark>');
+      const b = el('button','res', `<div class="c">${esc(r.cliente)} · ${esc(fechaBonita(r.id))}</div><div class="frag">${frag}</div>`);
+      b.onclick = async () => {
+        if(!await permisoParaSalir()) return;
+        const c = CLIENTES.find(x=>x.slug===r.slug); if(!c) return;
+        $('#q').value=''; RESULTADOS=null; hayResultados=false; await elegirCliente(c);
+        const reu = REUNIONES.find(x=>x.id===r.id); if(reu) await verReunion(reu);
+      };
+      cont.appendChild(b);
+    });
+    return;
+  }
+
   const filtrados = CLIENTES.filter(c => !q || c.nombre.toLowerCase().includes(q));
   if(q && !filtrados.length && !hayResultados){
     const b = el('button','cli', `<span class="punto"></span><span class="n">Crear "${esc($('#q').value.trim())}"</span>`);
@@ -160,10 +193,23 @@ function pintarClientes(){
     cont.appendChild(v); return;
   }
   filtrados.forEach(c=>{
-    const b = el('button','cli'+(actual&&actual.slug===c.slug?' activo':''),
+    const activo = actual && actual.slug===c.slug;
+    const b = el('button','cli'+(activo?' activo':''),
       `<span class="punto"></span><span class="n">${esc(c.nombre)}</span>`);
     b.onclick = async () => { if(await permisoParaSalir()) elegirCliente(c); };
     cont.appendChild(b);
+    if(!activo) return;
+    const caja = el('div','reus');
+    if(!REUNIONES.length){
+      caja.appendChild(el('div','reu-vacio','Aún no hay reuniones'));
+    }
+    REUNIONES.forEach(r=>{
+      const rb = el('button','reu'+(reunionActual&&reunionActual.id===r.id?' activa':''),
+        `<div class="f">${esc(fechaBonita(r.id))}</div><div class="e">${estadoReunion(r)}</div>`);
+      rb.onclick = async ()=>{ if(await permisoParaSalir()) await verReunion(r); };
+      caja.appendChild(rb);
+    });
+    cont.appendChild(caja);
   });
 }
 async function elegirCliente(c){
@@ -174,7 +220,7 @@ async function elegirCliente(c){
     $('#btnGrabar').disabled = false; $('#btnImportar').disabled = false;
     $('#btnExpediente').disabled = false;
   }
-  pintarClientes(); await cargarReuniones();
+  await cargarReuniones();
 }
 async function cargarReuniones(){
   const rs = await window.api.reuniones(actual.slug);
@@ -190,14 +236,8 @@ async function cargarReuniones(){
     b.onclick = () => enlazarExpediente();
     sub.appendChild(b);
   }
-  const cont = $('#reuniones'); cont.innerHTML='';
-  if(!rs.length){ cont.appendChild(el('div','vacio','Aún no hay reuniones<br>de este cliente.')); }
-  rs.forEach(r=>{
-    const b = el('button','reu'+(reunionActual&&reunionActual.id===r.id?' activa':''),
-      `<div class="f">${esc(fechaBonita(r.id))}</div><div class="e">${r.minuta?'Minuta lista':(r.transcripcion?'Transcrita':'Solo audio')}${r.tienePdf?' · PDF':''}</div>`);
-    b.onclick=async ()=>{ if(await permisoParaSalir()) verReunion(r); };
-    cont.appendChild(b);
-  });
+  REUNIONES = rs;
+  pintarClientes();
   if(!reunionActual) pintarDetalleVacio();
   return rs;
 }
@@ -214,8 +254,88 @@ function pintarDetalleVacio(){
     Pulsa <em>Grabar reunión</em> cuando empiece la junta,<br>o importa un audio que ya tengas.
     <div class="atajo">También puedes empezar y detener con <kbd>⌘</kbd><kbd>⇧</kbd><kbd>R</kbd> desde cualquier app.</div></div>`;
 }
-function verReunion(r){
-  reunionActual = r; editando = false; borrador = null; vista = 'minuta'; cargarReuniones(); pintarDetalle();
+async function verReunion(r){
+  reunionActual = r; editando = false; borrador = null; vista = 'minuta'; compromisosAbiertos = false;
+  pintarClientes(); pintarDetalle();
+  if(r.minuta && !r.extras){
+    const x = await window.api.compromisos({carpeta:r.carpeta, minuta:r.minuta});
+    if(x && x.ok){ r.extras = x; if(reunionActual===r) pintarDetalle(); }
+  }
+}
+
+// Ruta file:// segura para un audio que puede tener acentos o espacios.
+function urlAudio(carpeta){
+  return 'file://' + carpeta.split('/').map(encodeURIComponent).join('/') + '/mezcla.m4a';
+}
+
+// Un reproductor delgado, para verificar una cita antes de mandar el PDF.
+function reproductor(r){
+  const caja = el('div','audio-caja');
+  const a = document.createElement('audio');
+  a.id = 'audioReunion'; a.controls = true; a.preload = 'metadata'; a.src = urlAudio(r.carpeta);
+  a.onerror = () => { caja.textContent = 'No se pudo abrir el audio de esta reunión.'; caja.classList.add('mal'); };
+  caja.appendChild(a);
+  return caja;
+}
+
+// Los compromisos: lo más valioso de la minuta, hasta ahora texto plano a media
+// página. Aquí se pueden marcar y copiar sueltos, sin tocar minuta.md.
+let compromisosAbiertos = false;
+const TOPE_COMPROMISOS = 4;
+function bloqueCompromisos(r){
+  const todos = (r.extras && r.extras.lista) || [];
+  if(!todos.length) return null;
+  const hechos = todos.filter(c=>c.hecho).length;
+  // pendientes primero: lo hecho ya no hace falta tenerlo delante
+  const orden = [...todos.filter(c=>!c.hecho), ...todos.filter(c=>c.hecho)];
+  // Una reunión larga puede dejar quince o veinte compromisos, y todos juntos
+  // empujan el documento fuera de la pantalla.
+  const lista = compromisosAbiertos ? orden : orden.slice(0, TOPE_COMPROMISOS);
+  const caja = el('div','tarjeta compromisos');
+  caja.appendChild(el('div','et', `Compromisos${hechos?` · ${hechos} de ${todos.length} hechos`:''}`));
+  lista.forEach(c=>{
+    const fila = el('div','comp'+(c.hecho?' hecho':''));
+    const chk = el('button','marca', c.hecho?'✓':'');
+    chk.title = c.hecho ? 'Marcar como pendiente' : 'Marcar como hecho';
+    chk.onclick = async () => {
+      const nuevo = !c.hecho;
+      const res = await window.api.marcarCompromiso({carpeta:r.carpeta, texto:c.texto, hecho:nuevo});
+      if(res && res.ok === false) return estado('error','No se pudo guardar', res.error);
+      c.hecho = nuevo; pintarDetalle();
+    };
+    const cuerpo = el('div','txt');
+    cuerpo.appendChild(el('div','t', esc(c.texto)));
+    const meta = [c.quien, c.cuando].filter(Boolean).join(' · ');
+    if(meta) cuerpo.appendChild(el('div','m', esc(meta)));
+    const cop = el('button','copiar','copiar');
+    cop.onclick = async () => {
+      await window.api.copiarTexto([c.texto, meta].filter(Boolean).join(' — '));
+      aviso('Compromiso copiado.');
+    };
+    fila.appendChild(chk); fila.appendChild(cuerpo); fila.appendChild(cop);
+    caja.appendChild(fila);
+  });
+  if(orden.length > TOPE_COMPROMISOS){
+    const b = el('button','vertodo', compromisosAbiertos
+      ? 'Ver menos'
+      : `Ver los ${orden.length} compromisos`);
+    b.onclick = () => { compromisosAbiertos = !compromisosAbiertos; pintarDetalle(); };
+    caja.appendChild(b);
+  }
+  return caja;
+}
+
+// Lo que NO se dijo es el diferenciador y estaba al final del documento.
+function bloqueHallazgos(r){
+  const h = (r.extras && r.extras.hallazgos) || [];
+  if(!h.length) return null;
+  const caja = el('div','tarjeta hallazgos');
+  caja.appendChild(el('div','et','Lo que no se dijo · no se envía al cliente'));
+  h.forEach(x => caja.appendChild(el('div','h', esc(x))));
+  const ver = el('button','vertodo','Ver todas las notas internas');
+  ver.onclick = () => { const n = document.querySelector('#detalle .notas'); if(n) n.scrollIntoView({behavior:'smooth', block:'start'}); };
+  caja.appendChild(ver);
+  return caja;
 }
 
 // Un solo handler para cerrar cualquier menú abierto. Registrarlo dentro de
@@ -248,7 +368,8 @@ function menuMas(r){
       texto: 'Se recupera la minuta tal como estaba antes de la última redacción.', aceptar: 'Restaurar' });
     if(!ok) return;
     await window.api.guardarMinuta({carpeta:r.carpeta, texto:r.anterior});
-    reunionActual.minuta = r.anterior; await cargarReuniones(); pintarDetalle();
+    reunionActual.minuta = r.anterior; delete reunionActual.extras;
+    await cargarReuniones(); await verReunion(reunionActual);
   });
   if(r.minuta) item('Copiar la minuta', async ()=>{
     await window.api.copiarMinuta(r.minuta);
@@ -317,16 +438,27 @@ function pintarDetalle(){
     return;
   }
   if(vista==='dialogo' && r.dialogo){
-    const cont = el('div','minuta');
+    if(r.tieneAudio) d.appendChild(reproductor(r));
+    const cont = el('div','minuta dialogo');
     cont.innerHTML = '<h2>Quién dijo qué</h2>' + r.dialogo.split('\n').filter(Boolean).map(l=>{
       const m = l.match(/^\[([\d:]+)\]\s+([^:]+):\s*([\s\S]*)$/);
       if(!m) return `<p>${esc(l)}</p>`;
-      return `<p style="margin-bottom:11px"><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--soft);margin-right:8px">${esc(m[1])}</span>`+
-             `<strong style="color:var(--gold-texto)">${esc(m[2])}:</strong> ${esc(m[3])}</p>`;
+      // la marca de tiempo era decorativa; ahora salta a ese momento del audio
+      return `<p><button class="salto" data-t="${esc(m[1])}" title="Oír este momento">${esc(m[1])}</button>`+
+             `<strong>${esc(m[2])}:</strong> ${esc(m[3])}</p>`;
     }).join('');
+    cont.querySelectorAll('.salto').forEach(b => { b.onclick = () => {
+      const a = document.getElementById('audioReunion'); if(!a) return;
+      const p = b.dataset.t.split(':').map(Number);
+      a.currentTime = p.length===3 ? p[0]*3600+p[1]*60+p[2] : p[0]*60+p[1];
+      a.play().catch(()=>{});
+    }; });
     d.appendChild(cont); return;
   }
   const partes = r.minuta.split(/##\s*Notas internas[^\n]*/i);
+  const comp = bloqueCompromisos(r); if(comp) d.appendChild(comp);
+  const hall = bloqueHallazgos(r);   if(hall) d.appendChild(hall);
+  if(r.tieneAudio) d.appendChild(reproductor(r));
   d.appendChild(el('div','minuta', md2html(partes[0])));
   if(partes[1]){
     const n = el('div','notas', `<div class="et">Notas internas · no se envían al cliente</div>${md2html(partes[1])}`);
@@ -337,7 +469,9 @@ async function guardarEdicion(){
   const ta = $('#editor'); if(!ta) return;
   const res = await window.api.guardarMinuta({carpeta:reunionActual.carpeta, texto:ta.value});
   if(res && res.ok === false) return estado('error','No se pudo guardar la minuta', res.error);
-  reunionActual.minuta = ta.value; editando=false; borrador=null; pintarDetalle();
+  reunionActual.minuta = ta.value;
+  delete reunionActual.extras;          // el texto cambió: los compromisos también pueden
+  await verReunion(reunionActual);
   aviso('Cambios guardados');
 }
 async function exportarPdf(){
@@ -405,17 +539,19 @@ function ocupado(v){
   }
 }
 
+let procesandoPara = null;
 async function procesar(carpeta){
+  procesandoPara = actual ? actual.nombre : null;
   ocupado(true);
   const res = await window.api.procesar({carpeta, slug:actual.slug, nombre:actual.nombre});
-  ocupado(false);
+  ocupado(false); procesandoPara = null;
   if(res.cancelado){ quitarEstado(); aviso('Procesamiento cancelado'); await cargarReuniones(); return; }
   if(!res.ok){ estado('error','No se pudo procesar', res.error); return; }
   quitarEstado();
   const rs = await cargarReuniones();
-  reunionActual = (rs||[]).find(r=>r.carpeta===carpeta) || (rs||[])[0] || null;
-  await cargarReuniones();   // repinta el historial con la reunión ya marcada
-  pintarDetalle();
+  const nueva = (rs||[]).find(r=>r.carpeta===carpeta) || (rs||[])[0] || null;
+  // por verReunion, no a mano: es lo que carga los compromisos y los hallazgos
+  if(nueva) await verReunion(nueva); else { reunionActual = null; pintarDetalle(); }
   // Si la reunión no quedó anotada en el expediente, el usuario no se enteraba.
   if(res.dossier && res.dossier.ok === false && res.dossier.motivo === 'sin dossier'){
     aviso('Minuta lista. Este cliente no tiene expediente configurado.');
@@ -455,6 +591,21 @@ window.api.onCapturaAviso(({tipo, texto, mb})=>{
       a.id='avisoFallo'; e.parentNode.insertBefore(a, e.nextSibling);
     }
   }
+  if(tipo==='microfono'){
+    const m = document.getElementById('medMic');
+    if(m){ const et = m.querySelector('.et'); if(et) et.title = 'Grabando con: ' + texto; }
+    const e = $('#estado'); const sub = e && e.querySelector('.sub');
+    if(sub) sub.textContent = 'Micrófono: ' + texto;
+    return;
+  }
+  if(tipo==='microfono-ausente'){
+    const e=$('#estado'); if(!e) return;
+    if(document.getElementById('avisoMicro')) return;
+    const a=el('div','aviso-mudo','El micrófono que elegiste no está disponible. Se está grabando con el del sistema.');
+    a.id='avisoMicro'; a.style.color='var(--gold-texto)';
+    e.parentNode.insertBefore(a, e.nextSibling);
+    return;
+  }
   if(tipo==='disco'){
     if(document.getElementById('avisoDisco')) return;
     const e=$('#estado'); if(!e) return;
@@ -482,10 +633,10 @@ function estado(tipo, txt, sub, op={}){
     c.onclick = async () => { c.disabled = true; c.textContent='Cancelando…'; await window.api.cancelarProceso(); };
     e.appendChild(c);
   }
-  $('#detalle').prepend(e);
+  $('#barraEstado').appendChild(e);
 }
 function quitarEstado(){ const e=$('#estado'); if(e) e.remove();
-  for(const id of ['avisoMudo','avisoFallo','avisoDisco']){ const a=document.getElementById(id); if(a) a.remove(); } }
+  for(const id of ['avisoMudo','avisoFallo','avisoDisco','avisoMicro']){ const a=document.getElementById(id); if(a) a.remove(); } }
 
 // Mensaje breve que se va solo, para confirmaciones que no merecen un diálogo.
 function aviso(txt){
@@ -501,7 +652,10 @@ window.api.onProgreso(({etapa, detalle, pct})=>{
   if(etapa==='listo') return quitarEstado();
   if(etapa==='cancelado') return quitarEstado();
   if(etapa==='error') return estado('error','No se pudo procesar', detalle);
-  estado('spin', textos[etapa]||etapa, detalle, {pct, cancelable:true});
+  // decir de quién es: si cambias de cliente mientras se procesa, antes el aviso
+  // desaparecía y era la única señal de que algo seguía corriendo
+  const de = procesandoPara ? ` · ${procesandoPara}` : '';
+  estado('spin', (textos[etapa]||etapa) + de, detalle, {pct, cancelable:true});
 });
 
 let tBusca=null;
@@ -510,7 +664,7 @@ $('#q').oninput = () => {
   clearTimeout(tBusca);
   const t = $('#q').value.trim();
   if(t.length < 3){
-    hayResultados = false;
+    hayResultados = false; RESULTADOS = null;
     // Al borrar la búsqueda el encabezado se quedaba en 'Resultados de "..."'
     if(actual){ $('#titulo').textContent = actual.nombre; cargarReuniones(); }
     else { $('#titulo').textContent = 'Elige un cliente'; $('#subtitulo').textContent = 'Sus reuniones aparecen aquí'; }
@@ -518,26 +672,29 @@ $('#q').oninput = () => {
   }
   tBusca = setTimeout(async ()=>{
     const res = await window.api.buscar(t);
-    hayResultados = res.length > 0; pintarClientes();
-    const cont = $('#reuniones'); cont.innerHTML='';
+    hayResultados = res.length > 0; RESULTADOS = res;
     $('#titulo').textContent = `Resultados de "${t}"`;
     $('#subtitulo').textContent = res.length ? `${res.length} coincidencia${res.length===1?'':'s'}` : 'Sin coincidencias';
-    if(!res.length) cont.appendChild(el('div','vacio','Nada con esas palabras.<br>Prueba con menos palabras<br>o con un nombre propio.'));
-    res.forEach(r=>{
-      const limpio = r.fragmento.replace(/\*\*/g,'').replace(/^#+\s*/gm,'').replace(/^-\s+/,'');
-      const frag = esc(limpio).replace(new RegExp('('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'),'<mark>$1</mark>');
-      const b = el('button','res', `<div class="c">${esc(r.cliente)} · ${esc(fechaBonita(r.id))}</div><div class="frag">${frag}</div>`);
-      b.onclick = async () => {
-        if(!await permisoParaSalir()) return;
-        const c = CLIENTES.find(x=>x.slug===r.slug); if(!c) return;
-        $('#q').value=''; await elegirCliente(c);
-        const rs = await window.api.reuniones(c.slug);
-        const reu = rs.find(x=>x.id===r.id); if(reu) verReunion(reu);
-      };
-      cont.appendChild(b);
-    });
+    pintarClientes();
   }, 260);
 };
+// El menú de la aplicación dispara las mismas acciones que los botones.
+window.api.onMenu(({accion})=>{
+  const pulsar = (id) => { const b=$(id); if(b && !b.disabled) b.click(); };
+  if(accion==='ajustes')        return window.abrirAjustes && window.abrirAjustes();
+  if(accion==='nuevo-cliente')  return crearClienteNuevo();
+  if(accion==='buscar')         { const q=$('#q'); q.focus(); q.select(); return; }
+  if(accion==='grabar')         return pulsar('#btnGrabar');
+  if(accion==='importar')       return pulsar('#btnImportar');
+  if(accion==='expediente')     return pulsar('#btnExpediente');
+  if(accion==='pdf')            { if(reunionActual && reunionActual.minuta && !editando) exportarPdf(); return; }
+  if(accion==='copiar'){
+    if(!reunionActual || !reunionActual.minuta) return;
+    window.api.copiarMinuta(reunionActual.minuta).then(()=>aviso('Minuta copiada, lista para pegar. Sin las notas internas.'));
+    return;
+  }
+});
+
 // el atajo global (Cmd+Shift+R) dispara el mismo botón
 window.api.onAtajo(({accion})=>{
   const b = $('#btnGrabar');

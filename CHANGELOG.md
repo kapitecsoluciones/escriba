@@ -1,5 +1,79 @@
 # Changelog
 
+## 0.6.0 — 2026-08-20
+
+Salió de un análisis de experiencia y de querer grabar una reunión presencial
+con el micrófono del iPhone. Buscando eso apareció algo que pesaba más que
+cualquier mejora visual.
+
+**En una reunión presencial la minuta podía mentir sobre quién se comprometió a qué**
+
+Escriba se diseñó para videollamadas: micrófono = tú, audio del sistema = el
+otro lado. Una reunión presencial rompe ese supuesto y **fallaba en silencio**:
+
+- Sin nada sonando en el Mac, la pista del sistema queda muda, pero existe y
+  pesa. Las comprobaciones de tamaño la daban por buena.
+- Al comparar energías, el micrófono ganaba siempre, así que **cada frase se
+  atribuía a quien grabó**, incluidas las del otro.
+- Y con eso al modelo se le decía, literalmente, que la separación era *fiable*,
+  y se le pedía repartir los compromisos por hablante.
+
+La tabla de compromisos del PDF que se envía al cliente podía salir con las
+responsabilidades cambiadas, con toda seguridad aparente. Ahora, si solo una
+pista tiene voz, **no se atribuye nada** y se le dice al modelo que no invente
+atribuciones. Comprobado con audio real: una videollamada sigue separando voces
+igual de bien.
+
+**Micrófono a elegir, incluido el del iPhone**
+
+- Selector de micrófono en Ajustes. Con el iPhone cerca y Continuidad activada,
+  aparece como una entrada más — verificado grabando con él.
+- Durante la grabación se ve **con qué micrófono** se está grabando. Antes no
+  había forma de enterarse de que era el equivocado hasta el final.
+- Si el elegido no está al empezar, graba con el del sistema y lo avisa, en vez
+  de fallar.
+
+**Dos columnas: el documento se lleva el espacio**
+
+La ventana tenía tres columnas y el documento —lo único que se lee de verdad—
+se quedaba con la más estrecha, con una columna de historial casi vacía al lado.
+Las reuniones se anidan ahora bajo su cliente en la barra lateral, y el
+documento tiene una **medida de lectura** fija: antes no había ningún límite, así
+que maximizada en un monitor grande las líneas pasaban de 200 caracteres.
+
+**Lo importante, arriba**
+
+- **Los compromisos** salen como lista al principio: se pueden marcar como
+  hechos y copiar sueltos. El estado vive aparte, sin tocar la minuta.
+- **Lo que no se dijo** —el diferenciador— estaba al final del documento en un
+  recuadro apagado. Ahora se resume arriba, siempre marcado como *no se envía al
+  cliente*.
+
+**Se puede oír la reunión**
+
+Las marcas de tiempo de «Quién dijo qué» eran decorativas. Ahora hay
+reproductor y pulsar una marca salta a ese momento, que es lo que deja
+verificar una cita antes de mandar el PDF.
+
+**Acabado de Mac**
+
+- Menú de aplicación propio **en español**: antes se quedaba el de Electron, en
+  inglés. Con atajos: ⌘N cliente nuevo · ⌘F buscar · ⌘R grabar · ⌘E exportar ·
+  ⇧⌘C copiar la minuta · ⌘O importar.
+- **Modo oscuro** siguiendo al sistema. Solo la ventana: el PDF de la minuta y
+  el sitio se quedan claros, que es como se leen y se imprimen.
+
+**Correcciones**
+
+- **El buscador no encontraba palabras con tilde.** Buscar «catalogo» no daba
+  «catálogo», lo que hacía parecer que no había nada.
+- **El encabezado de las tablas se colaba como un compromiso más** en el PDF de
+  expediente. El filtro usaba `qué\b`, y `\b` no casa después de una vocal
+  acentuada. Ahora el encabezado se detecta por la fila separadora.
+- El aviso de progreso vivía dentro del documento: cambiar de cliente mientras
+  algo se procesaba **borraba la única señal** de que seguía corriendo. Ahora
+  tiene sitio propio y dice de qué cliente es.
+
 ## 0.5.0 — 2026-08-20
 
 Salió de usar la app para preparar una reunión real y chocar con dos cosas.

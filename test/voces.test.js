@@ -90,3 +90,42 @@ test('un solo hablante produce un solo turno', () => {
 test('la energía de un tramo sin muestras devuelve silencio', () => {
   assert.strictEqual(V.energiaEn([], 0, 5), -120);
 });
+
+
+// --- pista muda: el fallo que hacía mentir a la minuta en reuniones presenciales ---
+// Sin esto, en presencial el audio del sistema queda mudo pero existe, gana
+// siempre el micrófono, y TODA la conversación se atribuye a quien grabó.
+const envolvente = (n, fn) => Array.from({ length: n }, (_, i) => ({ t: i * 0.064, db: fn(i) }));
+
+test('una pista en silencio digital no cuenta como presente', () => {
+  assert.strictEqual(V.pistaAudible(envolvente(1000, () => -120)), false);
+});
+
+test('una pista con voz sí cuenta', () => {
+  // habla un tercio del tiempo, como cualquiera en una conversación
+  assert.strictEqual(V.pistaAudible(envolvente(1000, i => (i % 3 === 0 ? -22 : -70))), true);
+});
+
+test('quien habla poco pero habla, cuenta', () => {
+  // 2 % del tiempo: el que solo asiente en una llamada de una hora
+  assert.strictEqual(V.pistaAudible(envolvente(1000, i => (i % 50 === 0 ? -25 : -110))), true);
+});
+
+test('un sonido suelto no convierte una pista muda en pista con voz', () => {
+  // una notificación del sistema en toda la reunión
+  assert.strictEqual(V.pistaAudible(envolvente(1000, i => (i < 3 ? -20 : -120))), false);
+});
+
+test('el ruido de fondo por debajo del umbral no cuenta', () => {
+  assert.strictEqual(V.pistaAudible(envolvente(1000, () => -62)), false);
+});
+
+test('una envolvente vacía no cuenta', () => {
+  assert.strictEqual(V.pistaAudible([]), false);
+  assert.strictEqual(V.pistaAudible(null), false);
+});
+
+test('los umbrales son los que dice el módulo', () => {
+  assert.strictEqual(V.UMBRAL_DB, -55);
+  assert.strictEqual(V.FRACCION_MINIMA, 0.01);
+});

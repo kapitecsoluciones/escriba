@@ -110,7 +110,10 @@ jobs:
           # ad-hoc, que es lo que queremos aquí. Esto impide además que
           # electron-builder salga a buscar una identidad por su cuenta.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-        run: pnpm exec electron-builder --mac --arm64
+        # --publish never: en GitHub Actions electron-builder intenta subir el
+        # artefacto a una release y pide GH_TOKEN. Este job solo verifica; la
+        # release la crea el autor a mano con el .dmg firmado en su Mac.
+        run: pnpm exec electron-builder --mac --arm64 --publish never
       - name: The DMG exists and is not a stub
         run: |
           v=$(node -p "require('./package.json').version"); dmg="dist/Escriba-${v}-arm64.dmg"

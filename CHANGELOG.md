@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.1 — 2026-08-22
+
+- **El logo, dentro de la app.** El glifo del icono (voz → texto) va ahora junto
+  al nombre, arriba a la izquierda: el Dock y la ventana no compartían marca.
+  Es el mismo dibujo de `build/marca/icono.html`, como SVG en línea, y se ve
+  igual en claro y en oscuro.
+
 ## 0.8.0 — 2026-08-22
 
 Una ronda de usabilidad y diseño. Empezó capturando cada estado de la app en

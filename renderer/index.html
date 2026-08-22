@@ -9,8 +9,20 @@
 <div class="app">
   <aside class="lateral">
     <div class="marca">
-      <h1>Escriba</h1>
-      <div class="marca-linea"></div>
+      <!-- el mismo glifo del icono (build/marca/icono.html): voz → texto -->
+      <svg class="marca-logo" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+        <rect width="64" height="64" rx="16" fill="#0A1428"/>
+        <rect x="13"   y="27.8"  width="4.5" height="8.4"  rx="2.25" fill="#fff"/>
+        <rect x="20.7" y="23.25" width="4.5" height="17.5" rx="2.25" fill="#fff"/>
+        <rect x="28.4" y="18"    width="4.5" height="28"   rx="2.25" fill="#fff"/>
+        <rect x="36.9" y="24.35" width="15"  height="3.5"  rx="1.75" fill="#B58A3E"/>
+        <rect x="36.9" y="30.25" width="12"  height="3.5"  rx="1.75" fill="#B58A3E"/>
+        <rect x="36.9" y="36.15" width="8.5" height="3.5"  rx="1.75" fill="#B58A3E"/>
+      </svg>
+      <div>
+        <h1>Escriba</h1>
+        <div class="marca-linea"></div>
+      </div>
     </div>
     <div class="buscar"><input id="q" type="search" placeholder="Buscar en clientes y minutas" title="Un cliente por nombre, o cualquier cosa que se haya dicho en una reunión (⌘F)" autocomplete="off"></div>
     <button class="nuevo-cli" id="btnNuevoCliente" title="Crear un cliente (⌘N)">+ Nuevo cliente</button>

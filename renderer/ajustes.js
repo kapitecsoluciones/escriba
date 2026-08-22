@@ -29,7 +29,15 @@
         Para empezar solo hace falta tu nombre; lo demás se puede dejar como está.
       </div>`;
 
+    const configRoto = diag.configRoto ? `
+      <div class="falta" style="margin-bottom:14px">
+        <b>Tu configuración no se pudo leer y se empezó de cero.</b>
+        El archivo dañado se guardó en <code>${esc(diag.configRoto.respaldo)}</code> por si quieres
+        recuperar algo. Vuelve a escribir tus datos aquí y se arregla.
+      </div>` : '';
+
     c.innerHTML = `
+      ${configRoto}
       ${bienvenida}
       <div class="seccion">Quién eres</div>
       <div class="campo">
@@ -59,7 +67,7 @@
       <div class="seccion">Quién escribe la minuta</div>
       ${motores.map(m => `
         <label class="motor ${cfg.motor.tipo === m.id ? 'sel' : ''} ${m.disponible ? '' : 'no'}">
-          <input type="radio" name="motor" value="${m.id}" ${cfg.motor.tipo === m.id ? 'checked' : ''} ${m.disponible ? '' : 'disabled'}>
+          <input type="radio" name="motor" value="${m.id}" ${cfg.motor.tipo === m.id ? 'checked' : ''}>
           <div>
             <div class="n">${esc(m.nombre)} ${m.disponible ? '' : '— no disponible'}</div>
             <div class="d">${esc(m.descripcion)}</div>
@@ -67,6 +75,11 @@
           </div>
         </label>`).join('')}
 
+      ${motores.some(m => m.disponible) ? '' : `<div class="falta" style="margin-bottom:12px">
+        <b>Ninguno está listo todavía.</b> Puedes elegir uno igualmente y configurarlo:
+        con <b>Claude Code</b> basta instalarlo y autenticarlo; con <b>tu propia llave</b>
+        solo hay que pegarla aquí abajo; <b>Ollama</b> necesita estar corriendo en este equipo.
+      </div>`}
       <div class="campo" id="cajaLlave" ${cfg.motor.tipo === 'api' ? '' : 'hidden'}>
         <label>Proveedor y llave</label>
         <select id="aProveedor">

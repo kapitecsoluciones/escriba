@@ -10,9 +10,18 @@ const MD = require('./lib/md');
 const MINUTA = require('./lib/minuta');
 const VOCES = require('./lib/voces');
 const MOTORES = require('./lib/motores');
-const { actualizarDossier, quitarDelDossier } = require('./lib/dossier');
+const { quitarDelDossier } = require('./lib/dossier');
+const MEMORIA = require('./lib/memoria');
+const ATOMICO = require('./lib/atomico');
+const MIGRACION = require('./lib/migracion');
+const PREPARACION = require('./lib/preparacion');
 
 let win = null;
+// Versión del formato de dialogo.txt. Sube cuando cambia el criterio de
+// atribución: un diálogo cacheado con un criterio viejo se descarta en vez
+// de servirse para siempre (pasó: una atribución falsa se habría reutilizado
+// en cada "Volver a redactar").
+const VERSION_DIALOGO = '<!-- escriba:dialogo:2 -->';
 let captura = null;          // proceso de grabación en curso
 let carpetaActual = null;
 let clienteActivo = null;    // {slug, nombre} — lo informa el renderer
@@ -23,9 +32,22 @@ const notificar = (titulo, cuerpo) => {
 
 // Sello de tiempo en hora local. Con toISOString() una reunión de las 17:41
 // quedaba archivada como del día siguiente a las 00:41.
+// Con resolución de minuto, dos grabaciones seguidas dentro del mismo minuto
+// compartían carpeta: la segunda truncaba el .m4a de la primera y, si esta ya
+// se había procesado, heredaba su transcripción y redactaba la minuta del audio
+// nuevo con el texto del viejo. Los segundos lo cierran.
 function sello() {
   const d = new Date(), z = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}_${z(d.getHours())}${z(d.getMinutes())}`;
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}_${z(d.getHours())}${z(d.getMinutes())}${z(d.getSeconds())}`;
+}
+
+// La fecha de la REUNIÓN, sacada del nombre de la carpeta. Antes se usaba
+// `new Date()` al procesar: redactar hoy la junta de ayer ponía la fecha de hoy
+// en la minuta mientras el PDF de expediente la fechaba bien.
+function fechaDeCarpeta(carpeta) {
+  const m = String(carpeta || '').match(/(\d{4})-(\d{2})-(\d{2})_/);
+  if (!m) return new Date();
+  return new Date(+m[1], +m[2] - 1, +m[3]);
 }
 
 function crearVentana() {
@@ -52,11 +74,16 @@ function crearVentana() {
     }, 500);
   };
   win.on('resize', recordar); win.on('move', recordar);
+  // Sin esto, durante los 9 s en que before-quit espera al capturador seguían
+  // llegando eventos NIVEL y `win.webContents.send` reventaba el proceso
+  // principal sobre un objeto destruido — justo en la ventana que existe para
+  // cerrar bien el contenedor M4A.
+  win.on('closed', () => { win = null; });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   // primera vez: se abre directamente en Ajustes para configurar lo mínimo
   if (!CONFIG.configurado()) {
     win.webContents.once('did-finish-load', () => {
-      setTimeout(() => win.webContents.executeJavaScript('window.abrirAjustes && window.abrirAjustes()').catch(() => {}), 400);
+      setTimeout(() => { if (win && !win.isDestroyed()) win.webContents.executeJavaScript('window.abrirAjustes && window.abrirAjustes()').catch(() => {}); }, 400);
     });
   }
 }
@@ -136,7 +163,17 @@ ipcMain.handle('micros', seguro(async () => {
   return { ok: true, micros: JSON.parse(salida || '[]') };
 }));
 
-ipcMain.handle('diagnostico', () => ({ faltantes: R.faltantes(), binarios: R.BIN(), configurado: CONFIG.configurado() }));
+// La captura del micrófono vive tras `#available(macOS 15.0, *)` en el binario
+// Swift. En 13 o 14 no hay pista de micrófono EN ABSOLUTO: una reunión presencial
+// sale muda y una videollamada graba solo al otro lado. El README anunciaba 13+.
+const soportaMicrofono = () => {
+  try { return parseInt(process.getSystemVersion(), 10) >= 15; } catch { return true; }
+};
+ipcMain.handle('soporta-microfono', () => ({ ok: true, si: soportaMicrofono(),
+                                             version: process.getSystemVersion() }));
+
+ipcMain.handle('diagnostico', () => ({ faltantes: R.faltantes(), binarios: R.BIN(), configurado: CONFIG.configurado(),
+                                        configRoto: CONFIG.corrupcion() }));
 
 // Descarga del modelo de transcripción (1.5 GB) con progreso, sin terminal.
 ipcMain.handle('descargar-modelo', async () => {
@@ -158,6 +195,13 @@ ipcMain.handle('descargar-modelo', async () => {
     }
     salida.end();
     await new Promise(res => salida.on('close', res));
+    // Si el servidor corta la conexión limpiamente a mitad, el bucle termina sin
+    // excepción: un .bin incompleto de 1,5 GB quedaba instalado como válido y
+    // whisper fallaba después con un error que la app atribuía a otra cosa.
+    if (total && recibido !== total) {
+      try { fs.unlinkSync(parcial); } catch {}
+      return { ok: false, error: `La descarga se cortó: llegaron ${Math.round(recibido / 1e6)} MB de ${Math.round(total / 1e6)} MB. Vuelve a intentarlo.` };
+    }
     fs.renameSync(parcial, destino);
     return { ok: true };
   } catch (e) { return { ok: false, error: e.message }; }
@@ -189,7 +233,7 @@ ipcMain.handle('enlazar-expediente', seguro((_e, { slug, archivo }) => R.enlazar
 ipcMain.handle('grabar-iniciar', async (_e, slug) => {
   if (captura) return { ok: false, error: 'Ya hay una grabación en curso' };
   if (!BIN().captura) return { ok: false, error: 'No se encontró el capturador de audio. Reinstala la app.' };
-  carpetaActual = path.join(R.BASE(), slug, sello());
+  carpetaActual = path.join(R.BASE(), R.exigirSlug(slug), sello());
   fs.mkdirSync(carpetaActual, { recursive: true });
   const micro = (CONFIG.leer().grabacion || {}).microfono || '';
   const argsCaptura = [path.join(carpetaActual, 'sistema.m4a')];
@@ -242,15 +286,33 @@ ipcMain.handle('grabar-iniciar', async (_e, slug) => {
     if (captura) captura.once('error', (err) => { clearTimeout(t); res({ ok: false, error: err.message }); });
     if (captura) captura.once('exit', (code) => { if (code !== 0) { clearTimeout(t); res({ ok: false, error: errorArranque || 'El capturador terminó inesperadamente' }); } });
   });
-  if (!arranque.ok) { try { captura && captura.kill('SIGINT'); } catch {} captura = null; return arranque; }
+  if (!arranque.ok) {
+    try { captura && captura.kill('SIGINT'); } catch {} captura = null;
+    // La carpeta se crea antes de saber si la captura arranca. Si no arrancó,
+    // dejarla ahí llenaba la lista del cliente de reuniones fantasma vacías,
+    // etiquetadas además como "Solo audio" cuando no hay ningún audio.
+    try { if (fs.readdirSync(carpetaActual).length === 0) fs.rmdirSync(carpetaActual); } catch {}
+    carpetaActual = null;
+    return arranque;
+  }
+  if (!soportaMicrofono() && win) {
+    win.webContents.send('captura-aviso', { tipo: 'sin-microfono', texto: process.getSystemVersion() });
+  }
   return { ok: true, carpeta: carpetaActual, inicio: Date.now() };
 });
 
 ipcMain.handle('grabar-detener', async () => {
-  if (!captura) return { ok: false, error: 'No hay grabación activa' };
+  if (!captura) return { ok: false, error: 'La grabación se había detenido sola. Revisa si quedó audio en la carpeta de la reunión.' };
   const proc = captura;
   await new Promise(res => { proc.once('exit', res); proc.kill('SIGINT'); setTimeout(res, 8000); });
   captura = null;
+  // Si no quedó nada escrito, no dejar la carpeta vacía en el historial.
+  try {
+    if (carpetaActual && fs.readdirSync(carpetaActual).length === 0) {
+      fs.rmdirSync(carpetaActual);
+      return { ok: false, error: 'No se grabó nada. Revisa el permiso de Grabación de Pantalla y el micrófono.' };
+    }
+  } catch {}
   return { ok: true, carpeta: carpetaActual };
 });
 
@@ -287,7 +349,7 @@ async function duracion(archivo) {
   } catch { return 'desconocida'; }
 }
 
-async function procesarInterno({ carpeta, slug, nombre }) {
+async function procesarInterno({ carpeta, slug, nombre, reemplazarMemoria = false }) {
   // la autoprueba entra por aquí directamente: sin esto no ejercitaría ni la
   // cancelación ni el registro de subprocesos, que es justo lo que se quiere probar
   if (!trabajo) trabajo = { hijos: new Set(), cancelado: false, ac: new AbortController(), carpeta };
@@ -321,34 +383,54 @@ async function procesarInterno({ carpeta, slug, nombre }) {
     }
     let transcripcion = fs.readFileSync(base + '.txt', 'utf8');
 
+    // Sin esto, una grabación muda pasaba entera: mezclar() solo exige 1000 bytes
+    // y una hora de silencio en AAC pesa megabytes, así que se le pedía la minuta
+    // al modelo con la transcripción vacía. Cuesta minutos de motor y produce un
+    // documento que se guarda, se exporta y se anexa al expediente.
+    const utiles = transcripcion.replace(/\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim();
+    // 30, no 80: "Sí, cerramos en 250 mil. Firmamos el jueves." son 44 caracteres
+    // y es una reunión real. Lo que se rechaza es el silencio, no la brevedad.
+    if (utiles.length < 30) {
+      throw new Error('La transcripción está vacía: ' +
+        `${utiles.length} caracteres con voz. No se redacta una minuta de eso. ` +
+        'Si la reunión sí ocurrió, revisa qué micrófono se usó y los permisos de grabación.');
+    }
+
     // Si se grabó con la app hay dos pistas: se puede saber quién dijo cada cosa
     let atribuida = null;
     try {
       avisar('atribuyendo', 'Separando quién dijo cada cosa');
       const yaDialogo = path.join(carpeta, 'dialogo.txt');
-      if (fs.existsSync(yaDialogo) && fs.statSync(yaDialogo).size > 40) {
-        atribuida = fs.readFileSync(yaDialogo, 'utf8');
+      const previo = fs.existsSync(yaDialogo) ? fs.readFileSync(yaDialogo, 'utf8') : '';
+      if (previo.startsWith(VERSION_DIALOGO) && previo.length > VERSION_DIALOGO.length + 40) {
+        atribuida = previo.slice(VERSION_DIALOGO.length + 1);
       } else
       atribuida = await VOCES.atribuir({
         ffmpeg: BIN().ffmpeg, srt: base + '.srt',
         mic: path.join(carpeta, 'microfono.m4a'),
         sistema: path.join(carpeta, 'sistema.m4a'),
-        nombreUsuario: CONFIG.leer().usuario.nombre || 'Yo', nombreOtro: nombre
+        nombreUsuario: CONFIG.leer().usuario.nombre || 'Yo', nombreOtro: nombre,
+        registrar: (p) => { if (trabajo) trabajo.hijos.add(p); p.on('close', () => { if (trabajo) trabajo.hijos.delete(p); }); }
       });
       if (atribuida) {
-        fs.writeFileSync(path.join(carpeta, 'dialogo.txt'), atribuida);
+        ATOMICO.escribirAtomico(path.join(carpeta, 'dialogo.txt'), VERSION_DIALOGO + '\n' + atribuida);
         transcripcion = atribuida;
       }
     } catch (e) { /* si falla, seguimos con la transcripción plana */ }
 
     punto();
     avisar('redactando', `Escribiendo la minuta con ${MOTORES.activo().nombre}`);
-    const cli = R.clientes().find(c => c.slug === slug);
+    // por alias también: un cliente fusionado desde dos carpetas se quedaba sin
+    // expediente al redactar, en silencio
+    const cli = R.clientes().find(c => c.slug === slug || (c.alias || []).includes(slug));
     let dossier = null;
     if (cli && cli.dossier) { try { dossier = fs.readFileSync(cli.dossier, 'utf8'); } catch {} }
+    const dirMemoria = R.dirCanonica(slug);
+    const memoria = MEMORIA.leer(dirMemoria);
     const prompt = PROMPT.construir({
-      cliente: nombre, fecha: new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }),
-      duracion: dur, transcripcion, dossier, conHablantes: !!atribuida
+      cliente: nombre,
+      fecha: fechaDeCarpeta(carpeta).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }),
+      duracion: dur, transcripcion, dossier, memoria, conHablantes: !!atribuida
     });
     const motor = MOTORES.activo();
     if (!(await motor.disponible())) {
@@ -361,15 +443,17 @@ async function procesarInterno({ carpeta, slug, nombre }) {
     const destinoMinuta = path.join(carpeta, 'minuta.md');
     try {
       if (fs.existsSync(destinoMinuta) && fs.statSync(destinoMinuta).size > 0) {
-        fs.copyFileSync(destinoMinuta, path.join(carpeta, 'minuta-anterior.md'));
+        ATOMICO.escribirAtomico(path.join(carpeta, 'minuta-anterior.md'), fs.readFileSync(destinoMinuta));
       }
     } catch {}
-    fs.writeFileSync(destinoMinuta, minuta);
+    ATOMICO.escribirAtomico(destinoMinuta, minuta);
 
-    avisar('guardando', 'Guardando la reunión en el expediente del cliente');
-    const res = actualizarDossier({
-      dossier: cli && cli.dossier, cliente: nombre,
-      fecha: sello().slice(0, 10), minuta, carpeta
+    avisar('guardando', 'Guardando lo acordado en la memoria del cliente');
+    const res = MEMORIA.anotar({
+      dirCliente: dirMemoria, id: path.basename(carpeta),
+      reemplazar: !!reemplazarMemoria,
+      fecha: fechaDeCarpeta(carpeta).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }),
+      minuta, carpeta
     });
 
     avisar('listo', '');
@@ -410,41 +494,56 @@ ipcMain.handle('cancelar-proceso', () => {
 });
 
 // ---------- dossier ----------
-ipcMain.handle('actualizar-dossier', seguro((_e, d) => actualizarDossier(d)));
 
-// ---------- minuta / pdf ----------
+// ---------- pdf ----------
+// Un solo sitio para generar PDFs. Antes había dos copias y ninguna cerraba la
+// ventana offscreen si printToPDF fallaba: cada intento fallido dejaba una
+// BrowserWindow viva y un HTML en /tmp.
+async function generarPdf({ html, destino, pie }) {
+  const tmp = path.join(os.tmpdir(), `escriba-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.html`);
+  fs.writeFileSync(tmp, html);
+  const w = new BrowserWindow({ show: false, webPreferences: { offscreen: true } });
+  try {
+    await w.loadFile(tmp);
+    await new Promise(r => setTimeout(r, 900));   // dar tiempo a las fuentes
+    const buf = await w.webContents.printToPDF({
+      pageSize: 'Letter', printBackground: true,
+      margins: { marginType: 'custom', top: 0.7, bottom: 0.6, left: 0.7, right: 0.7 },
+      displayHeaderFooter: true, headerTemplate: '<div></div>',
+      footerTemplate: `<div style="width:100%;font-family:Inter,Helvetica,sans-serif;font-size:7.4pt;color:#98A2B3;padding:0 18mm;display:flex;justify-content:space-between"><span>${pie}</span><span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`
+    });
+    ATOMICO.escribirAtomico(destino, buf);
+    return destino;
+  } finally {
+    try { w.destroy(); } catch {}
+    try { fs.unlinkSync(tmp); } catch {}
+  }
+}
+
+// ---------- minuta ----------
 ipcMain.handle('guardar-minuta', seguro((_e, { carpeta, texto }) => {
   const destino = path.join(carpeta, 'minuta.md');
   // Guardar también deja copia de lo que había: sin esto, "Restaurar la versión
   // anterior" solo servía después de volver a redactar, no después de editar.
   try {
     const previo = fs.readFileSync(destino, 'utf8');
-    if (previo && previo !== texto) fs.writeFileSync(path.join(carpeta, 'minuta-anterior.md'), previo);
+    if (previo && previo !== texto) ATOMICO.escribirAtomico(path.join(carpeta, 'minuta-anterior.md'), previo);
   } catch {}
-  fs.writeFileSync(destino, texto);
+  ATOMICO.escribirAtomico(destino, texto);
   return { ok: true };
 }));
 
 ipcMain.handle('pdf', seguro(async (_e, { carpeta, cliente, fecha, texto }) => {
   // las notas internas nunca salen al PDF del cliente
-  const soloCliente = texto.split(/##\s*Notas internas/i)[0].trim();
+  // Falla cerrado: si no se ve dónde empiezan las notas internas, no se exporta.
+  const corte = MINUTA.paraCliente(texto);
+  if (!corte.ok) return { ok: false, error: corte.error };
+  const soloCliente = corte.texto;
   const html = PDF.envolver({ cliente, fecha, cuerpoHtml: MD.convertir(soloCliente),
                               carpetaCliente: path.dirname(carpeta) });
-  const tmp = path.join(os.tmpdir(), `minuta-${Date.now()}.html`);
-  fs.writeFileSync(tmp, html);
-  const w = new BrowserWindow({ show: false, webPreferences: { offscreen: true } });
-  await w.loadFile(tmp);
-  await new Promise(r => setTimeout(r, 900)); // dar tiempo a las fuentes
-  const buf = await w.webContents.printToPDF({
-    pageSize: 'Letter', printBackground: true,
-    margins: { marginType: 'custom', top: 0.7, bottom: 0.6, left: 0.7, right: 0.7 },
-    displayHeaderFooter: true, headerTemplate: '<div></div>',
-    footerTemplate: `<div style="width:100%;font-family:Inter,Helvetica,sans-serif;font-size:7.4pt;color:#98A2B3;padding:0 18mm;display:flex;justify-content:space-between"><span>Minuta · ${cliente}</span><span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`
-  });
-  w.destroy(); try { fs.unlinkSync(tmp); } catch {}
-  const destino = path.join(carpeta, 'minuta.pdf');
-  fs.writeFileSync(destino, buf);
-  return { ok: true, ruta: destino };
+  const ruta = await generarPdf({ html, destino: path.join(carpeta, 'minuta.pdf'),
+                                  pie: `Minuta · ${cliente}` });
+  return { ok: true, ruta };
 }));
 
 // Busca el término en las transcripciones y minutas de todas las reuniones.
@@ -503,7 +602,9 @@ ipcMain.handle('exportar-historial', seguro(async (_e, { slug, cliente }) => {
   }
   md += '# Reuniones, una por una\n\n';
   for (const r of rs) {
-    const publica = r.minuta.split(/##\s*Notas internas/i)[0].trim();
+    const corte = MINUTA.paraCliente(r.minuta);
+    if (!corte.ok) return { ok: false, error: `${fechaLegible(r.id)}: ${corte.error}` };
+    const publica = corte.texto;
     // quitar el encabezado propio de cada minuta y la línea de contacto
     // fuera el encabezado propio de cada minuta y la línea de contacto repetida
     const firma = CONFIG.leer().usuario.contacto;
@@ -522,22 +623,11 @@ ipcMain.handle('exportar-historial', seguro(async (_e, { slug, cliente }) => {
     eyebrow: 'Expediente del cliente', titulo: 'Historial de reuniones',
     carpetaCliente: dirCliente
   });
-  const tmp = path.join(os.tmpdir(), `hist-${Date.now()}.html`);
-  fs.writeFileSync(tmp, html);
-  const w = new BrowserWindow({ show: false, webPreferences: { offscreen: true } });
-  await w.loadFile(tmp);
-  await new Promise(r => setTimeout(r, 900));
-  const buf = await w.webContents.printToPDF({
-    pageSize: 'Letter', printBackground: true,
-    margins: { marginType: 'custom', top: 0.7, bottom: 0.6, left: 0.7, right: 0.7 },
-    displayHeaderFooter: true, headerTemplate: '<div></div>',
-    footerTemplate: `<div style="width:100%;font-family:Inter,Helvetica,sans-serif;font-size:7.4pt;color:#98A2B3;padding:0 18mm;display:flex;justify-content:space-between"><span>Expediente · ${cliente}</span><span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`
+  const ruta = await generarPdf({
+    html, destino: path.join(dirCliente, `expediente-${cliente.toLowerCase().replace(/\s+/g, '-')}.pdf`),
+    pie: `Expediente · ${cliente}`
   });
-  w.destroy(); try { fs.unlinkSync(tmp); } catch {}
-  const destino = path.join(dirCliente, `expediente-${cliente.toLowerCase().replace(/\s+/g, '-')}.pdf`);
-  fs.mkdirSync(dirCliente, { recursive: true });
-  fs.writeFileSync(destino, buf);
-  return { ok: true, ruta: destino, reuniones: rs.length, compromisos: compromisos.length };
+  return { ok: true, ruta, reuniones: rs.length, compromisos: compromisos.length };
 }));
 
 // Borrar una reunión. Va a la Papelera, no a rm -rf: una grabación de una hora
@@ -556,7 +646,13 @@ ipcMain.handle('eliminar-reunion', seguro(async (_e, { carpeta, slug }) => {
   // Primero la Papelera y después el expediente: al revés, si el borrado falla,
   // la reunión sigue ahí pero su registro en el expediente ya se perdió.
   await shell.trashItem(objetivo);
-  const limpiado = quitarDelDossier(cli && cli.dossier, objetivo);
+  // la memoria propia; el expediente del usuario ya no se toca, salvo para
+  // limpiar bloques que versiones anteriores llegaron a escribir en él
+  // los dos, sin cortocircuito: el `||` de antes hacía que, si la memoria tenía
+  // el bloque, el expediente viejo del usuario nunca se limpiara
+  const limpiadoMemoria = MEMORIA.quitar(R.dirCanonica(slug), path.basename(objetivo));
+  const limpiadoDossier = quitarDelDossier(cli && cli.dossier, objetivo);
+  const limpiado = limpiadoMemoria || limpiadoDossier;
   return { ok: true, dossierLimpiado: limpiado };
 }));
 
@@ -572,7 +668,9 @@ ipcMain.handle('elegir-carpeta', async (_e, actual) => {
 
 // Copiar la minuta lista para pegar en un correo. Las notas internas nunca van.
 ipcMain.handle('copiar-minuta', seguro((_e, texto) => {
-  clipboard.writeText(String(texto || '').split(/##\s*Notas internas/i)[0].trim());
+  const corte = MINUTA.paraCliente(texto);
+  if (!corte.ok) return { ok: false, error: corte.error };
+  clipboard.writeText(corte.texto);
   return { ok: true };
 }));
 
@@ -607,11 +705,57 @@ ipcMain.handle('abrir-permisos', seguro(async () => {
 }));
 
 ipcMain.handle('copiar-texto', seguro((_e, texto) => { clipboard.writeText(String(texto || '')); return { ok: true }; }));
-ipcMain.handle('compromisos', seguro((_e, { carpeta, minuta }) => ({
-  ok: true, lista: MINUTA.conEstado(minuta, carpeta), hallazgos: MINUTA.hallazgos(minuta)
-})));
+ipcMain.handle('compromisos', seguro((_e, { carpeta, minuta }) => {
+  // el corte lo hace lib/minuta.js, no el renderer: una sola definición de la
+  // frontera para la vista, el PDF, el portapapeles y el expediente
+  const { cliente, internas, encontrado } = MINUTA.separar(minuta);
+  return { ok: true, lista: MINUTA.conEstado(minuta, carpeta), hallazgos: MINUTA.hallazgos(minuta),
+           cliente, internas, encontrado };
+}));
 ipcMain.handle('compromiso-marcar', seguro((_e, { carpeta, texto, hecho }) => {
   MINUTA.marcar(carpeta, texto, hecho); return { ok: true };
+}));
+
+// Antes de la reunión: qué está pendiente, qué preguntar y qué llevar listo.
+ipcMain.handle('preparar', seguro(async (_e, { slug, nombre }) => {
+  const cli = R.clientes().find(c => c.slug === slug || (c.alias || []).includes(slug));
+  const dirCliente = R.dirCanonica(slug);
+  const rs = R.reuniones(slug);
+  let dossier = null;
+  if (cli && cli.dossier) { try { dossier = fs.readFileSync(cli.dossier, 'utf8'); } catch {} }
+  const motor = MOTORES.activo();
+  if (!(await motor.disponible())) {
+    return { ok: false, error: `El motor "${motor.nombre}" no está disponible. Revísalo en Ajustes.` };
+  }
+  const ultima = rs.find(r => r.minuta);
+  const prompt = PREPARACION.construir({
+    cliente: nombre, memoria: MEMORIA.leer(dirCliente), dossier,
+    pendientes: MEMORIA.pendientes(rs),
+    ultimaFecha: ultima ? fechaDeCarpeta(ultima.carpeta).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : null,
+  });
+  const texto = await motor.redactar(prompt);
+  if (!texto || texto.trim().length < 40) return { ok: false, error: 'El motor no devolvió nada útil.' };
+  fs.mkdirSync(dirCliente, { recursive: true });
+  ATOMICO.escribirAtomico(path.join(dirCliente, 'preparacion.md'), texto);
+  return { ok: true, texto };
+}));
+
+ipcMain.handle('preparacion-leer', seguro((_e, { slug }) => {
+  const dir = R.dirCanonica(slug);
+  try { return { ok: true, texto: fs.readFileSync(path.join(dir, 'preparacion.md'), 'utf8') }; }
+  catch { return { ok: true, texto: '' }; }
+}));
+
+ipcMain.handle('preparacion-pdf', seguro(async (_e, { slug, nombre, texto }) => {
+  const dir = R.dirCanonica(slug);
+  const html = PDF.envolver({
+    cliente: nombre, fecha: new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }),
+    cuerpoHtml: MD.convertir(texto), carpetaCliente: dir,
+    eyebrow: 'Preparación · uso interno', titulo: 'Antes de la reunión',
+  });
+  const ruta = await generarPdf({ html, destino: path.join(dir, 'preparacion.pdf'),
+                                  pie: `Preparación · ${nombre} · no enviar` });
+  return { ok: true, ruta };
 }));
 
 ipcMain.handle('abrir', (_e, ruta) => { shell.openPath(ruta); });
@@ -624,7 +768,7 @@ ipcMain.handle('importar', async () => {
   return r.canceled ? null : r.filePaths[0];
 });
 ipcMain.handle('importar-a-carpeta', seguro(async (_e, { slug, archivo }) => {
-  const carpeta = path.join(R.BASE(), slug, sello());
+  const carpeta = path.join(R.BASE(), R.exigirSlug(slug), sello());
   fs.mkdirSync(carpeta, { recursive: true });
   await correr(BIN().ffmpeg, ['-nostdin','-loglevel','error','-y','-i',archivo,'-c:a','aac','-b:a','96k', path.join(carpeta,'mezcla.m4a')]);
   return { carpeta };
@@ -659,6 +803,7 @@ function construirMenu() {
         { label: 'Copiar la minuta', accelerator: 'Shift+Command+C', click: alRenderer('copiar') },
         { type: 'separator' },
         { label: 'Expediente del cliente', accelerator: 'Shift+Command+E', click: alRenderer('expediente') },
+        { label: 'Preparar la reunión', accelerator: 'Command+P', click: alRenderer('preparar') },
       ],
     },
     {
@@ -719,10 +864,36 @@ function registrarAtajo() {
 if (!app.requestSingleInstanceLock()) { app.quit(); }
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 
+// Una vez por arranque, sobre datos que ya existían. Idempotente.
+async function migrarAlArrancar() {
+  const aviso = [];
+  try {
+    const n = MIGRACION.memoriaInicial();
+    if (n) aviso.push(`${n} ${n === 1 ? 'reunión anterior anotada' : 'reuniones anteriores anotadas'} en la memoria de sus clientes.`);
+  } catch (e) { console.error('migración de memoria:', e.message); }
+  try {
+    // se renombran, no se borran: por si alguien quiere ver qué decía
+    const viejos = MIGRACION.dialogosObsoletos(VERSION_DIALOGO);
+    for (const f of viejos) { try { fs.renameSync(f, f.replace(/dialogo\.txt$/, 'dialogo-obsoleto.txt')); } catch {} }
+    if (viejos.length) aviso.push(`${viejos.length} ${viejos.length === 1 ? 'diálogo se recalculará' : 'diálogos se recalcularán'} con el criterio nuevo al volver a redactar.`);
+  } catch (e) { console.error('diálogos obsoletos:', e.message); }
+  try {
+    const vacias = MIGRACION.carpetasVacias();
+    for (const v of vacias) { try { await shell.trashItem(v); } catch {} }
+    if (vacias.length) aviso.push(`Se retiraron ${vacias.length} ${vacias.length === 1 ? 'grabación vacía' : 'grabaciones vacías'} (están en la Papelera).`);
+  } catch (e) { console.error('limpieza de carpetas vacías:', e.message); }
+  if (aviso.length && win) {
+    win.webContents.once('did-finish-load', () => setTimeout(() => {
+      if (win && !win.isDestroyed()) win.webContents.send('aviso-arranque', { texto: aviso.join(' ') });
+    }, 900));
+  }
+}
+
 app.whenReady().then(async () => {
   crearVentana();
   construirMenu();
   registrarAtajo();
+  migrarAlArrancar();
   // Autoprueba: si existe el centinela, procesa esa carpeta y escribe el resultado.
   // Sirve para verificar que los subprocesos (whisper, claude) funcionan cuando la
   // app se abre desde el Finder y no desde la terminal.

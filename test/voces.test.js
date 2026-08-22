@@ -129,3 +129,88 @@ test('los umbrales son los que dice el módulo', () => {
   assert.strictEqual(V.UMBRAL_DB, -55);
   assert.strictEqual(V.FRACCION_MINIMA, 0.01);
 });
+
+// ---------- pistaConVoz: ¿es un segundo participante, o media? ----------
+// pistaAudible mide señal, no voz, y ya falló en producción: en una reunión
+// presencial el Mac reprodujo media en tres islas, la pista del sistema pasó el
+// 1 %, y dos turnos se atribuyeron a un cliente que no estaba. Ninguna métrica
+// de forma de onda separa voz de media (los vídeos contienen voz); lo que
+// separa es la estructura temporal: un participante habla repartido.
+const DT = 0.0213;   // el paso REAL de la envolvente (~21 ms), no los 64 ms que decía el código
+const env = (segundos, fn, dt = DT) => {
+  const n = Math.round(segundos / dt);
+  return Array.from({ length: n }, (_, i) => ({ t: i * dt, db: fn(i * dt) }));
+};
+const srtCada = (segundos, paso = 4) => {
+  const out = []; for (let t = 0; t < segundos; t += paso) out.push({ desde: t, hasta: t + paso - 0.5, texto: 'x' });
+  return out;
+};
+
+test('una voz repartida por toda la reunión tiene dispersión ~1', () => {
+  const voz = env(600, t => (Math.floor(t) % 3 === 0 ? -22 : -70));
+  assert.ok(V.dispersion(voz) > 0.9);
+});
+
+test('el silencio digital tiene dispersión 0', () => {
+  assert.strictEqual(V.dispersion(env(600, () => -120)), 0);
+});
+
+// Reproducción sintética del fallo real: 47 min, tres ráfagas de ~25 s.
+test('media en tres islas NO cuenta como participante (el caso real)', () => {
+  const dur = 47 * 60;
+  const isla = t => (t > 1032 && t < 1057) || (t > 2628 && t < 2653) || (t > 2718 && t < 2743);
+  const sis = env(dur, t => (isla(t) ? -20 : -120));
+  const mic = env(dur, t => (Math.floor(t) % 3 === 0 ? -25 : -60));
+  assert.strictEqual(V.pistaAudible(sis), true, 'pistaAudible sí la daba por buena: ese era el bug');
+  assert.ok(V.dispersion(sis) < 0.25, 'dispersión ' + V.dispersion(sis).toFixed(3));
+  assert.strictEqual(V.pistaConVoz(sis, mic, srtCada(dur)), false);
+});
+
+test('el otro lado de una videollamada SÍ cuenta, aunque hable poco', () => {
+  const dur = 1800;
+  // habla ~1 de cada 4 segmentos, repartido
+  const sis = env(dur, t => (Math.floor(t / 4) % 4 === 0 ? -24 : -120));
+  const mic = env(dur, t => (Math.floor(t / 4) % 4 !== 0 ? -24 : -70));
+  assert.strictEqual(V.pistaConVoz(sis, mic, srtCada(dur)), true);
+});
+
+test('música continua que gana TODOS los segmentos no cuenta', () => {
+  const dur = 1200;
+  const sis = env(dur, () => -15);          // constante y fuerte
+  const mic = env(dur, () => -40);
+  assert.strictEqual(V.pistaConVoz(sis, mic, srtCada(dur)), false, 'gana el 100 %: eso no es un interlocutor');
+});
+
+test('el veredicto no depende del paso de la envolvente', () => {
+  const dur = 1200, f = t => (Math.floor(t) % 3 === 0 ? -22 : -70);
+  const fino = env(dur, f, 0.0213), grueso = env(dur, f, 0.064);
+  assert.strictEqual(V.dispersion(fino) > 0.9, V.dispersion(grueso) > 0.9);
+});
+
+test('una grabación de 9 segundos no revienta', () => {
+  const sis = env(9, () => -120), mic = env(9, () => -25);
+  assert.strictEqual(V.pistaConVoz(sis, mic, srtCada(9, 3)), false);
+  assert.strictEqual(V.dispersion([]), 0);
+  assert.strictEqual(V.dispersion([{ t: 0, db: -20 }]), 0);
+});
+
+test('los umbrales son los que dice el módulo', () => {
+  assert.strictEqual(V.DISPERSION_MINIMA, 0.25);
+  assert.deepStrictEqual(V.BANDA_SEGMENTOS, [0.10, 0.90]);
+});
+
+// Este caso es el que SOLO la dispersión atrapa: dos islas de media de 3 min
+// en media hora (140 s cada una). Dentro gana todos los segmentos y la fracción total
+// (~0.16) cae dentro de la banda [0.10, 0.90]; lo que la descarta es que ocupa
+// 2 de 12 bloques. Límite honesto: islas aún más largas suben la dispersión
+// por encima de 0.25 y son indistinguibles de un participante real.
+test('islas que ganan bastantes segmentos siguen sin contar (solo la dispersión lo ve)', () => {
+  const dur = 1800;
+  const isla = t => (t >= 200 && t < 340) || (t >= 1100 && t < 1240);
+  const sis = env(dur, t => (isla(t) ? -15 : -120));
+  const mic = env(dur, t => (isla(t) ? -70 : -25));
+  const f = V.fraccionSegmentosGanados(sis, mic, srtCada(dur));
+  assert.ok(f >= 0.10 && f <= 0.90, 'debe caer en la banda para que la prueba sea de dispersión: ' + f.toFixed(2));
+  assert.ok(V.dispersion(sis) < 0.25, 'dispersión ' + V.dispersion(sis).toFixed(3));
+  assert.strictEqual(V.pistaConVoz(sis, mic, srtCada(dur)), false);
+});

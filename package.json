@@ -1,12 +1,12 @@
 {
   "name": "escriba",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Graba tus reuniones, transcr\u00edbelas en tu propia Mac y convierte lo hablado en una minuta con acuerdos y pendientes.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "nativo": "swiftc -O nativo/CapturaSistema.swift -o nativo/capturasistema",
-    "dist": "npm run nativo && electron-builder --mac --arm64",
+    "dist": "pnpm run nativo && electron-builder --mac --arm64",
     "test": "node --test \"test/*.test.js\""
   },
   "license": "MIT",
@@ -79,5 +79,6 @@
       ]
     },
     "afterPack": "build/firmar.js"
-  }
+  },
+  "packageManager": "pnpm@11.5.0"
 }

@@ -36,6 +36,9 @@ final class CapturaSistema: NSObject, SCStreamOutput, SCStreamDelegate {
     private var archivoMic: AVAudioFile?
     private let ruta: URL
     private var microfonoID: String?
+    // Se llama si la captura muere sola: el proceso tiene que terminar, no
+    // quedarse vivo mientras la app sigue diciendo "Grabando".
+    var alMorir: (() -> Void)?
     private var muestrasEscritas: Int64 = 0
     private var muestrasMic: Int64 = 0
     private var picoSis: Float = 0
@@ -110,7 +113,14 @@ final class CapturaSistema: NSObject, SCStreamOutput, SCStreamDelegate {
         FileHandle.standardError.write("captura iniciada\n".data(using: .utf8)!)
     }
 
+    // Puede llegar dos veces casi a la vez (SIGINT y didStopWithError) mientras
+    // las colas de audio siguen escribiendo. El flag evita cerrar dos veces y
+    // el stop del stream corta las llamadas de salida antes de soltar archivos.
+    private var deteniendo = false
+    private let colaCierre = DispatchQueue(label: "cierre")
     func detener() async {
+        let primera: Bool = colaCierre.sync { if deteniendo { return false }; deteniendo = true; return true }
+        guard primera else { return }
         try? await stream?.stopCapture()
         archivo = nil
         archivoMic = nil
@@ -232,8 +242,18 @@ final class CapturaSistema: NSObject, SCStreamOutput, SCStreamDelegate {
         }
     }
 
+    // Antes esto solo escribía una línea que Node no reconocía, y el proceso
+    // seguía vivo bloqueado en sem.wait(). Como dejaban de llegar líneas NIVEL,
+    // los medidores se congelaban en el último valor en vez de caer a cero y el
+    // detector de micrófono mudo tampoco saltaba: se podía grabar una reunión
+    // entera con la interfaz diciendo que todo iba bien.
+    // Dispara al desconectar un monitor externo (el filtro va atado a
+    // displays.first) o al desaparecer el micrófono del iPhone.
     func stream(_ stream: SCStream, didStopWithError error: Error) {
-        FileHandle.standardError.write("stream detenido con error: \(error.localizedDescription)\n".data(using: .utf8)!)
+        FileHandle.standardError.write(
+            "FALLO_ESCRITURA La grabación se detuvo sola: \(error.localizedDescription)\n"
+            .data(using: .utf8)!)
+        Task { await detener(); alMorir?() }
     }
 }
 
@@ -264,6 +284,7 @@ let segundos = args.count >= 2 ? Double(args[1]) ?? 0 : 0
 if #available(macOS 13.0, *) {
     let cap = CapturaSistema(ruta: salida, microfonoID: microfonoElegido)
     let sem = DispatchSemaphore(value: 0)
+    cap.alMorir = { sem.signal() }
 
     // Manejar SIGINT y SIGTERM: el script lanzador usa SIGTERM porque un `trap` de
     // bash sobre INT se hereda como SIG_IGN y dejaría sordo al manejador.

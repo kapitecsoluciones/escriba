@@ -14,5 +14,5 @@ from the folder you configure.
 API keys are stored in the macOS Keychain (`security add-generic-password`),
 never in a file inside the project.
 
-The app is not notarized. It runs unsigned on your machine by design; if you
+The app is not notarized. It is not notarized. The `.dmg` the author publishes is signed in `afterPack` (`build/firmar.js`) with a self-issued certificate so that the Screen Recording permission survives updates; electron-builder's own signing is disabled (`identity: null`); if you
 distribute a build, sign it yourself.

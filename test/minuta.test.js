@@ -105,3 +105,88 @@ test('una carpeta sin archivo de estado no revienta', () => {
   assert.deepStrictEqual(M.leerHechos('/tmp/no/existe/nada'), {});
   assert.strictEqual(M.conEstado(MINUTA, '/tmp/no/existe/nada')[0].hecho, false);
 });
+
+// ---------- la frontera de confidencialidad ----------
+// Todo lo que sale hacia el cliente se corta aquí. La primera versión usaba un
+// `split(/##\s*Notas internas/i)`: con `**Notas internas**` no cortaba y los
+// riesgos y lo dicho de terceros salían en el PDF. La segunda cortaba con
+// cualquier línea que EMPEZARA por "notas internas", y partía minutas
+// legítimas por la mitad sin avisar. Por eso estas pruebas tienen dos mitades:
+// lo que debe cortar Y lo que no debe tocar.
+const FORMAS = [
+  '## Notas internas (no enviar)', '### Notas internas', '##Notas internas',
+  '## NOTAS INTERNAS', '**Notas internas (no enviar)**', '# Notas internas',
+  '## _Notas internas_', '**_Notas internas_**', '#### notas internas:',
+  '## Notas Internas — no enviar',
+  // las que el modelo escribe cuando se le pidió una lista numerada, o adorna
+  '## 4. Notas internas (no enviar)', '## 📝 Notas internas', '### 🔒 Notas internas',
+  '> ## Notas internas', '## [Interno] Notas internas', '## (uso interno) Notas internas',
+  '**Notas internas:**',
+];
+for (const forma of FORMAS) {
+  test(`corta las notas internas tituladas ${JSON.stringify(forma)}`, () => {
+    const m = `Lo acordado con el cliente.\n\n${forma}\n\n- Lo que NO se dijo: el precio`;
+    const r = M.paraCliente(m);
+    assert.strictEqual(r.ok, true, `no debe BLOQUEAR: ${r.error || ''}`);
+    assert.doesNotMatch(r.texto, /NO se dijo|precio/, 'las notas internas no pueden salir hacia el cliente');
+    assert.match(r.texto, /Lo acordado con el cliente/);
+  });
+}
+
+// Una frase que empieza por "notas internas" NO es un título. Cortar aquí
+// escondía la mitad de la minuta sin decirlo: peor que el fallo original.
+const FRASES_NORMALES = [
+  'Acordamos X.\n\nNotas internas de Acme: el equipo revisará el anexo.\n\nSeguimos el jueves.',
+  'Acordamos X.\n\n  Notas internas del cliente ya fueron entregadas.\n\nY el precio queda igual.',
+  '**Acme · 21 ago · 45 min**\n\nSe habló de las\nnotas internas del proveedor y del precio.',
+];
+for (const m of FRASES_NORMALES) {
+  test(`no corta una frase normal: ${JSON.stringify(m.slice(0, 40))}…`, () => {
+    const r = M.paraCliente(m);
+    assert.strictEqual(r.ok, true);
+    assert.match(r.texto, /jueves|precio/, 'la minuta tiene que salir ENTERA');
+  });
+}
+
+// Palabras sueltas en prosa no son señal de notas internas: bloqueaban minutas
+// limpias sin ninguna salida para el usuario.
+test('no bloquea prosa que menciona oportunidades o riesgos', () => {
+  for (const m of ['Se revisaron las oportunidades comerciales del trimestre con el cliente.',
+                   'Acordamos revisar riesgos o señales de saturación en el servidor.']) {
+    assert.strictEqual(M.paraCliente(m).ok, true, m);
+  }
+});
+
+// Falla cerrado solo con una señal inequívoca: un ENCABEZADO con el texto que
+// pide el prompt, sin el título de la sección delante.
+test('si hay un encabezado "Lo que NO se dijo" sin título de sección, NO exporta', () => {
+  const r = M.paraCliente('Cuerpo.\n\n## Uso interno\n\n### Lo que NO se dijo\n- el precio');
+  assert.strictEqual(r.ok, false);
+  assert.match(r.error, /no se exporta|no se ve/i);
+});
+
+test('el guion bajo alrededor del título no rompe el corte', () => {
+  const r = M.separar('cuerpo\n\n## _Notas internas_\n\nsecreto');
+  assert.strictEqual(r.encontrado, true);
+  assert.strictEqual(r.internas, 'secreto');
+});
+
+// La mirada adelante: "internacionales" no es "internas".
+test('"Notas internacionales" como encabezado no corta', () => {
+  assert.strictEqual(M.separar('## Notas internacionales\n\ncuerpo').encontrado, false);
+  assert.strictEqual(M.separar('## Notas internas\n\ncuerpo').encontrado, true);
+});
+
+test('una minuta sin notas internas se exporta entera', () => {
+  const r = M.paraCliente('Solo lo que se acordó con el cliente.');
+  assert.strictEqual(r.ok, true);
+  assert.match(r.texto, /Solo lo que se acordó/);
+});
+
+test('los compromisos y los hallazgos usan el mismo corte', () => {
+  const m = 'Cuerpo\n\n| Compromiso | Quién |\n|---|---|\n| Enviar precio | Ana |\n\n' +
+            '**Notas internas**\n\n### Lo que NO se dijo\n- nada del contrato\n\n' +
+            '| Riesgo interno | Alto |';
+  assert.deepStrictEqual(M.extraer(m).map(c => c.texto), ['Enviar precio']);
+  assert.deepStrictEqual(M.hallazgos(m), ['nada del contrato']);
+});

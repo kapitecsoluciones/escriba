@@ -12,7 +12,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/license-MIT-black" alt="MIT">
-  <img src="https://img.shields.io/badge/macOS-13%2B-black" alt="macOS 13+">
+  <img src="https://img.shields.io/badge/macOS-15%2B-black" alt="macOS 15+">
   <img src="https://img.shields.io/badge/Apple%20Silicon-arm64-black" alt="arm64">
   <img src="https://img.shields.io/github/v/release/kapitecsoluciones/escriba?color=black" alt="release">
   <a href="README.es.md"><img src="https://img.shields.io/badge/léeme-en%20español-B58A3E" alt="Español"></a>
@@ -100,9 +100,14 @@ and drag it to Applications.
 The app is **not notarized**, so the first launch needs right-click → *Open*.
 Once.
 
-**Requirements:** macOS 13+, Apple Silicon, [Homebrew](https://brew.sh) for
-`ffmpeg` and `whisper-cpp`. The app checks all of it on first run and installs
-what is missing.
+**Requirements:** macOS 15+ for microphone capture (13+ works for imported
+audio), Apple Silicon, and [Homebrew](https://brew.sh) — install that first, it
+is the one thing the app cannot install for you. From there Settings installs
+`ffmpeg`, `whisper-cpp` and the 1.5 GB transcription model for you.
+
+You also need something to write the minute with: the **Claude Code CLI**
+(the default), an API key of your own, or **Ollama** running locally. Settings
+lets you pick and configure any of the three.
 
 ## In-person meetings
 
@@ -143,7 +148,7 @@ folder.
 npm test        # node --test "test/*.test.js"
 ```
 
-67 tests over `lib/`, no dependencies beyond Node itself. They cover the
+163 tests over `lib/`, no dependencies beyond Node itself. They cover the
 Markdown converter's three former hang cases, the 2 dB margin that decides who
 said what, config merging, the exact heading the internal-notes filter depends
 on, and PDF escaping. Each was checked by breaking the code on purpose — a

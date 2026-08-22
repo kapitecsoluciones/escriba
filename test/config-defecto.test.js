@@ -22,3 +22,15 @@ test('un config.json corrupto no revienta: se cae a los valores por defecto', ()
 test('sin nombre, la app se considera sin configurar', () => {
   assert.strictEqual(CONFIG.configurado(), false);
 });
+
+// Antes el fallback era silencioso: la app arrancaba con valores por defecto,
+// la carpeta de reuniones apuntaba a otro sitio y todos los clientes
+// desaparecían sin explicación. Ahora el original se aparta y se avisa.
+test('el config corrupto se aparta en vez de perderse, y la app puede decirlo', () => {
+  CONFIG.leer();
+  const roto = CONFIG.corrupcion();
+  assert.ok(roto, 'la app debía enterarse');
+  const original = path.join(HOGAR, '.config', 'escriba', 'config.json');
+  assert.strictEqual(fs.existsSync(original), false, 'el dañado no sigue en su sitio');
+  assert.strictEqual(fs.readFileSync(roto.respaldo, 'utf8'), '{ esto no es json', 'se conserva tal cual');
+});

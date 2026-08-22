@@ -294,11 +294,17 @@ textarea.editor:focus{border-color:var(--azul)}
 
 .compromisos .comp{display:flex;align-items:flex-start;gap:10px;padding:6px 0;border-top:1px solid var(--rule)}
 .compromisos .comp:first-of-type{border-top:none;padding-top:0}
-.compromisos .marca{flex:none;width:19px;height:19px;margin-top:1px;border-radius:6px;
+/* Se llamaba .marca y chocaba con la .marca de la barra lateral, que trae
+   padding:38px 18px 14px y -webkit-app-region:drag. La casilla de 19x19 se
+   pintaba como un bloque de ~39x55 px DENTRO de una región de arrastre de
+   ventana, así que no se podía pulsar con el ratón: por eso no existe ni un
+   solo compromisos.json en uso real. Tercera colisión de nombres de clase en
+   este archivo; de ahí que ahora se llame .casilla. */
+.compromisos .casilla{flex:none;width:19px;height:19px;margin-top:1px;border-radius:6px;
   border:1.5px solid var(--rule-fuerte);background:var(--paper);font-size:12px;
   line-height:1;color:var(--ink-contra);transition:.12s}
-.compromisos .marca:hover{border-color:var(--gold)}
-.compromisos .comp.hecho .marca{background:var(--gold);border-color:var(--gold)}
+.compromisos .casilla:hover{border-color:var(--gold)}
+.compromisos .comp.hecho .casilla{background:var(--gold);border-color:var(--gold)}
 .compromisos .txt{flex:1;min-width:0}
 .compromisos .txt .t{line-height:1.42;font-size:13px}
 .compromisos .txt .m{font-size:11.5px;color:var(--muted);margin-top:1px}

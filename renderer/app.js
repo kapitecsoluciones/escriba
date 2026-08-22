@@ -218,7 +218,7 @@ async function elegirCliente(c){
   $('#titulo').textContent = c.nombre;
   if(!procesando && !grabando){
     $('#btnGrabar').disabled = false; $('#btnImportar').disabled = false;
-    $('#btnExpediente').disabled = false;
+    $('#btnExpediente').disabled = false; $('#btnPreparar').disabled = false;
   }
   await cargarReuniones();
 }
@@ -295,13 +295,20 @@ function bloqueCompromisos(r){
   caja.appendChild(el('div','et', `Compromisos${hechos?` · ${hechos} de ${todos.length} hechos`:''}`));
   lista.forEach(c=>{
     const fila = el('div','comp'+(c.hecho?' hecho':''));
-    const chk = el('button','marca', c.hecho?'✓':'');
+    const chk = el('button','casilla', c.hecho?'✓':'');
     chk.title = c.hecho ? 'Marcar como pendiente' : 'Marcar como hecho';
     chk.onclick = async () => {
       const nuevo = !c.hecho;
       const res = await window.api.marcarCompromiso({carpeta:r.carpeta, texto:c.texto, hecho:nuevo});
       if(res && res.ok === false) return estado('error','No se pudo guardar', res.error);
-      c.hecho = nuevo; pintarDetalle();
+      // repintar entero reconstruía el <audio> y la reproducción volvía a cero
+      // justo cuando estabas verificando una cita
+      c.hecho = nuevo;
+      fila.classList.toggle('hecho', nuevo);
+      chk.textContent = nuevo ? '✓' : '';
+      const et = caja.querySelector('.et');
+      const hechos = lista.filter(x=>x.hecho).length;
+      if(et) et.textContent = `Compromisos${hechos?` · ${hechos} de ${todos.length} hechos`:''}`;
     };
     const cuerpo = el('div','txt');
     cuerpo.appendChild(el('div','t', esc(c.texto)));
@@ -365,7 +372,7 @@ function menuMas(r){
     const ok = await confirmar({ titulo: 'Volver a redactar la minuta',
       texto: 'La IA escribirá una minuta nueva sobre la actual. Se guardará una copia de la versión de ahora por si quieres volver.',
       aceptar: 'Redactar de nuevo' });
-    if(ok) procesar(r.carpeta);
+    if(ok) procesar(r.carpeta, {reemplazarMemoria:true});
   });
   if(r.anterior) item('Restaurar la versión anterior', async ()=>{
     const ok = await confirmar({ titulo: 'Restaurar la versión anterior',
@@ -459,13 +466,18 @@ function pintarDetalle(){
     }; });
     d.appendChild(cont); return;
   }
-  const partes = r.minuta.split(/##\s*Notas internas[^\n]*/i);
+  // El corte viene del proceso principal (lib/minuta.js). Mientras carga se pinta
+  // la minuta entera; en cuanto llega, se separa. Duplicar aquí el regex es lo
+  // que ya hizo daño con el conversor de Markdown.
+  const x = r.extras || {};
+  const cuerpo   = x.encontrado ? x.cliente  : r.minuta;
+  const internas = x.encontrado ? x.internas : '';
   const comp = bloqueCompromisos(r); if(comp) d.appendChild(comp);
   const hall = bloqueHallazgos(r);   if(hall) d.appendChild(hall);
   if(r.tieneAudio) d.appendChild(reproductor(r));
-  d.appendChild(el('div','minuta', md2html(partes[0])));
-  if(partes[1]){
-    const n = el('div','notas', `<div class="et">Notas internas · no se envían al cliente</div>${md2html(partes[1])}`);
+  d.appendChild(el('div','minuta', md2html(cuerpo)));
+  if(internas){
+    const n = el('div','notas', `<div class="et">Notas internas · no se envían al cliente</div>${md2html(internas)}`);
     d.appendChild(n);
   }
 }
@@ -495,6 +507,49 @@ async function exportarPdf(){
   }
   else estado('error','No se pudo generar el PDF', res.error || '');
 }
+
+// ---------- preparación ----------
+// La app tenía delante lo que quedó pendiente y solo lo usaba DESPUÉS, dentro
+// del prompt de la minuta. El usuario preparaba a mano, fuera de Escriba, y luego la
+// propia minuta le reprochaba las preguntas que no hizo.
+function mostrarPreparacion(texto){
+  reunionActual = null; editando = false; borrador = null;
+  pintarClientes();
+  const d = $('#detalle'); d.innerHTML='';
+  const barra = el('div','acciones'); barra.style.cssText='margin-bottom:14px;gap:8px';
+  const add=(t,c,fn)=>{const b=el('button','btn'+(c?' '+c:''),t);b.onclick=fn;barra.appendChild(b);return b};
+  add('Copiar','primario', async ()=>{ await window.api.copiarTexto(texto); aviso('Preparación copiada.'); });
+  add('Exportar PDF','', async ()=>{
+    const r = await window.api.preparacionPdf({slug:actual.slug, nombre:actual.nombre, texto});
+    if(r && r.ok===false) return estado('error','No se pudo generar el PDF', r.error);
+    aviso('PDF listo.', [
+      {texto:'Compartir', fn:()=>window.api.compartir({archivo:r.ruta})},
+      {texto:'Abrir', fn:()=>window.api.abrir(r.ruta)},
+    ]);
+  });
+  add('Rehacer','', ()=>prepararReunion(true));
+  d.appendChild(barra);
+  const aviso1 = el('div','tarjeta hallazgos');
+  aviso1.appendChild(el('div','et','Preparación · uso interno, no se envía al cliente'));
+  d.appendChild(aviso1);
+  d.appendChild(el('div','minuta', md2html(texto)));
+}
+
+async function prepararReunion(rehacer){
+  if(!actual) return;
+  if(!rehacer){
+    const guardada = await window.api.preparacionLeer({slug:actual.slug});
+    if(guardada && guardada.ok && guardada.texto) return mostrarPreparacion(guardada.texto);
+  }
+  estado('spin','Preparando la reunión…', `Revisando lo pendiente de ${actual.nombre}`);
+  ocupado(true);
+  const r = await window.api.preparar({slug:actual.slug, nombre:actual.nombre});
+  ocupado(false); quitarEstado();
+  if(!r || r.ok===false) return estado('error','No se pudo preparar', (r&&r.error)||'');
+  mostrarPreparacion(r.texto);
+}
+
+$('#btnPreparar').onclick = () => prepararReunion(false);
 
 // ---------- grabación ----------
 $('#btnGrabar').onclick = async () => {
@@ -530,7 +585,13 @@ $('#btnGrabar').onclick = async () => {
     $('#btnGrabar').disabled = true;
     const res = await window.api.grabarDetener();
     if(res.ok) await procesar(res.carpeta);
-    else { $('#btnGrabar').disabled = false; $('#btnImportar').disabled = false; }
+    else {
+      // Antes esta rama no decía nada: el botón volvía a "Grabar reunión" y el
+      // usuario daba por hecho que la reunión se había procesado.
+      quitarEstado();
+      estado('error','La grabación no se guardó', res.error);
+      $('#btnGrabar').disabled = false; $('#btnImportar').disabled = false;
+    }
   }
 };
 
@@ -556,27 +617,30 @@ $('#btnImportar').onclick = async () => {
 // desde tres de las cuatro entradas y las dos se pisaban.
 function ocupado(v){
   procesando = v;
-  for(const id of ['#btnGrabar','#btnImportar','#btnExpediente']){
+  for(const id of ['#btnGrabar','#btnImportar','#btnExpediente','#btnPreparar']){
     const b = $(id); if(b) b.disabled = v || !actual;
   }
 }
 
 let procesandoPara = null;
-async function procesar(carpeta){
+async function procesar(carpeta, extra={}){
   procesandoPara = actual ? actual.nombre : null;
   ocupado(true);
-  const res = await window.api.procesar({carpeta, slug:actual.slug, nombre:actual.nombre});
+  const res = await window.api.procesar({carpeta, slug:actual.slug, nombre:actual.nombre, ...extra});
   ocupado(false); procesandoPara = null;
   if(res.cancelado){ quitarEstado(); aviso('Procesamiento cancelado'); await cargarReuniones(); return; }
   if(!res.ok){ estado('error','No se pudo procesar', res.error); return; }
   quitarEstado();
   const rs = await cargarReuniones();
-  const nueva = (rs||[]).find(r=>r.carpeta===carpeta) || (rs||[])[0] || null;
-  // por verReunion, no a mano: es lo que carga los compromisos y los hallazgos
-  if(nueva) await verReunion(nueva); else { reunionActual = null; pintarDetalle(); }
+  // Solo la reunión que acabamos de procesar. Antes, si cambiabas de cliente
+  // mientras corría, el `|| rs[0]` abría la reunión más reciente del cliente que
+  // estuvieras mirando justo tras el aviso "Minuta lista", y parecía la nueva.
+  const nueva = (rs||[]).find(r=>r.carpeta===carpeta) || null;
+  if(nueva) await verReunion(nueva);
+  else { reunionActual = null; pintarDetalle(); aviso('Minuta lista en ' + (procesandoPara||'el otro cliente') + '.'); }
   // Si la reunión no quedó anotada en el expediente, el usuario no se enteraba.
-  if(res.dossier && res.dossier.ok === false && res.dossier.motivo === 'sin dossier'){
-    aviso('Minuta lista. Este cliente no tiene expediente configurado.');
+  if(res.dossier && res.dossier.ok === false && res.dossier.motivo !== 'ya registrada'){
+    aviso('Minuta lista, pero no se pudo anotar en la memoria del cliente: ' + res.dossier.motivo + '.');
   }
 }
 
@@ -606,7 +670,10 @@ function quitarAvisoMudo(){ const a=document.getElementById('avisoMudo'); if(a) 
 // decir qué hacer y llevar al interruptor.
 function explicar(texto){
   const t = String(texto || '');
-  if(/declined TCC|not authorized|TCCs|permission/i.test(t))
+  // El texto viene de error.localizedDescription del sistema, así que en un Mac
+  // en español llega traducido y el patrón en inglés no casaba: se quedaba sin
+  // el botón "Abrir Ajustes" justo en el caso más probable del público objetivo.
+  if(/declined TCC|not authorized|TCCs|permission|permiso|deneg|autoriza|no está autorizado/i.test(t))
     return { texto: 'macOS no está dando permiso para grabar la pantalla y el audio del sistema.',
              permisos: true };
   if(/no space|espacio/i.test(t)) return { texto: 'No queda espacio en el disco.' };
@@ -640,6 +707,15 @@ window.api.onCapturaAviso(({tipo, texto, mb})=>{
     if(m){ const et = m.querySelector('.et'); if(et) et.title = 'Grabando con: ' + texto; }
     const e = $('#estado'); const sub = e && e.querySelector('.sub');
     if(sub) sub.textContent = 'Micrófono: ' + texto;
+    return;
+  }
+  if(tipo==='sin-microfono'){
+    const e=$('#estado'); if(!e || document.getElementById('avisoSinMic')) return;
+    const a=el('div','aviso-mudo',
+      `Este Mac (macOS ${esc(texto)}) no puede grabar el micrófono: hace falta macOS 15. `+
+      `Solo se está grabando el audio del sistema.`);
+    a.id='avisoSinMic'; a.style.color='var(--rojo)';
+    e.parentNode.insertBefore(a, e.nextSibling);
     return;
   }
   if(tipo==='microfono-ausente'){
@@ -680,7 +756,7 @@ function estado(tipo, txt, sub, op={}){
   $('#barraEstado').appendChild(e);
 }
 function quitarEstado(){ const e=$('#estado'); if(e) e.remove();
-  for(const id of ['avisoMudo','avisoFallo','avisoDisco','avisoMicro']){ const a=document.getElementById(id); if(a) a.remove(); } }
+  for(const id of ['avisoMudo','avisoFallo','avisoDisco','avisoMicro','avisoSinMic']){ const a=document.getElementById(id); if(a) a.remove(); } }
 
 // Mensaje breve que se va solo. Puede traer acciones: es lo que convierte
 // "ya existe el PDF" en "ya se lo puedo mandar", sin ir a buscarlo al Finder.
@@ -760,6 +836,7 @@ window.api.onMenu(({accion})=>{
   if(accion==='grabar')         return pulsar('#btnGrabar');
   if(accion==='importar')       return pulsar('#btnImportar');
   if(accion==='expediente')     return pulsar('#btnExpediente');
+  if(accion==='preparar')       return pulsar('#btnPreparar');
   if(accion==='pdf')            { if(reunionActual && reunionActual.minuta && !editando) exportarPdf(); return; }
   if(accion==='copiar'){
     if(!reunionActual || !reunionActual.minuta) return;
@@ -793,5 +870,6 @@ window.onbeforeunload = (e) => {
   return false;
 };
 
+window.api.onAvisoArranque(({texto}) => { cargarClientes(); aviso(texto); });
 window.recargarClientes = cargarClientes;
 cargarClientes();

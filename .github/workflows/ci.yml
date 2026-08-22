@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   privacidad:
@@ -74,3 +75,82 @@ jobs:
           echo "$salida"
           if [ "$codigo" != "2" ]; then echo "::error::se esperaba código 2, llegó $codigo"; exit 1; fi
           echo "$salida" | grep -q "Uso: CapturaSistema" || { echo "::error::no imprimió el uso"; exit 1; }
+
+  dmg:
+    name: DMG builds (ad-hoc signed, verification only)
+    # Minutos de runner macOS: no en cada PR. Lo que comprueba —que el
+    # empaquetado sigue en pie— no cambia con cada commit.
+    if: github.event_name != 'pull_request'
+    # macos-15 fijo: arm64 nativo y SDK de macOS 15, que CapturaSistema.swift
+    # necesita. macos-latest se movería a 26 sin que nadie toque este archivo.
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      # pnpm ANTES que setup-node: cache: 'pnpm' necesita el binario
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: 'pnpm' }
+      - name: Cache the Electron downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/electron
+            ~/Library/Caches/electron-builder
+          key: electron-macos-15-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: electron-macos-15-
+      - run: pnpm install --frozen-lockfile
+      # A nativo/capturasistema, que es lo que lee extraResources. El job
+      # `nativo` compila a /tmp y electron-builder no lo ve.
+      - name: Compile the capture helper
+        run: pnpm run nativo
+      - name: Build the DMG
+        env:
+          # En CI no existe el certificado de Escriba: build/firmar.js cae a
+          # ad-hoc, que es lo que queremos aquí. Esto impide además que
+          # electron-builder salga a buscar una identidad por su cuenta.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: pnpm exec electron-builder --mac --arm64
+      - name: The DMG exists and is not a stub
+        run: |
+          v=$(node -p "require('./package.json').version"); dmg="dist/Escriba-${v}-arm64.dmg"
+          [ -f "$dmg" ] || { echo "::error::no se generó $dmg"; ls -la dist; exit 1; }
+          b=$(stat -f%z "$dmg"); [ "$b" -ge 50000000 ] || { echo "::error::$dmg pesa solo $b bytes"; exit 1; }
+          echo "$dmg — $((b/1000000)) MB"
+      - name: The capture helper travelled inside the .app, and is arm64
+        run: |
+          bin="dist/mac-arm64/Escriba.app/Contents/Resources/capturasistema"
+          [ -x "$bin" ] || { echo "::error::falta $bin"; exit 1; }
+          file "$bin" | grep -q arm64 || { echo "::error::no es arm64"; exit 1; }
+      - name: The bundle identifier is pro.kapitec.escriba
+        # comprueba el Info.plist, NO la firma: Identifier= sale igual en ad-hoc
+        run: codesign -dv dist/mac-arm64/Escriba.app 2>&1 | grep -qx 'Identifier=pro.kapitec.escriba'
+      - name: This build is ad-hoc signed, and must stay that way
+        # El certificado propio existe para que el permiso de Grabación de
+        # Pantalla sobreviva a las actualizaciones, y vive solo en la Mac del
+        # autor. Si algún día alguien conecta un .p12 aquí, este paso se pone
+        # rojo: que sea una decisión consciente, no un efecto secundario.
+        run: |
+          req=$(codesign -d -r- dist/mac-arm64/Escriba.app 2>/dev/null); echo "$req"
+          if echo "$req" | grep -q 'certificate root'; then
+            echo "::error::firmado con certificado. CI solo produce builds ad-hoc de verificación."; exit 1; fi
+          codesign -dv dist/mac-arm64/Escriba.app 2>&1 | grep -q 'Signature=adhoc' || { echo "::error::se esperaba ad-hoc"; exit 1; }
+          codesign --verify --strict --verbose=2 dist/mac-arm64/Escriba.app
+      - name: The app.asar carries the current lib/
+        # El .dmg de 0.6.1 se empaquetó ANTES de que existiera lib/memoria.js.
+        run: |
+          lista=$(pnpm dlx @electron/asar list dist/mac-arm64/Escriba.app/Contents/Resources/app.asar)
+          fallo=0
+          for f in /main.js /preload.js /lib/memoria.js /lib/preparacion.js /lib/atomico.js /lib/migracion.js /lib/minuta.js /renderer/app.js; do
+            echo "$lista" | grep -qx -- "$f" || { echo "::error::falta $f en el app.asar"; fallo=1; }
+          done
+          exit $fallo
+      - uses: actions/upload-artifact@v4
+        with:
+          # El nombre es la advertencia: instalar esto rompe el permiso de
+          # grabación en la siguiente actualización. El .dmg real se publica a
+          # mano desde la Mac del autor.
+          name: escriba-dmg-sin-firmar-verificacion
+          path: dist/*.dmg
+          if-no-files-found: error
+          retention-days: 7

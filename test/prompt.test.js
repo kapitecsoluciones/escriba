@@ -24,17 +24,36 @@ test('sin dossier no inventa contexto del cliente', () => {
   assert.doesNotMatch(p, /Contexto acumulado/);
 });
 
-test('con dossier lo incluye entre etiquetas', () => {
+test('con expediente lo incluye entre etiquetas', () => {
   const p = PROMPT.construir({ ...BASE, dossier: 'Acme lleva dos años con nosotros.' });
-  assert.match(p, /<dossier>/);
+  assert.match(p, /<expediente>/);
   assert.match(p, /Acme lleva dos años con nosotros\./);
 });
 
-test('un dossier enorme se recorta a 60 000 caracteres', () => {
-  const gigante = 'a'.repeat(90000);
+// Cortar por los primeros 60.000 tiraba justo la parte reciente. El bloque que
+// Escriba escribía quedaba fuera de la ventana con UNA sola reunión.
+test('un expediente enorme conserva el final, no solo el principio', () => {
+  const gigante = 'INICIO' + 'a'.repeat(90000) + 'ESTADO DE HOY';
   const p = PROMPT.construir({ ...BASE, dossier: gigante });
-  const dentro = p.split('<dossier>')[1].split('</dossier>')[0];
-  assert.strictEqual(dentro.trim().length, 60000);
+  const dentro = p.split('<expediente>')[1].split('</expediente>')[0];
+  assert.match(dentro, /INICIO/, 'debe conservar el principio');
+  assert.match(dentro, /ESTADO DE HOY/, 'y sobre todo el final');
+  assert.match(dentro, /recortado/);
+  assert.ok(dentro.length < 61000);
+});
+
+// --- la memoria propia de Escriba ---
+test('sin memoria, se le dice al modelo que no suponga historial', () => {
+  const p = PROMPT.construir(BASE);
+  assert.doesNotMatch(p, /<memoria>/);
+  assert.match(p, /no supongas historial que no tienes/i);
+});
+
+test('con memoria, se le pide comprobar qué pendiente se retomó', () => {
+  const p = PROMPT.construir({ ...BASE, memoria: '## 20 de agosto — Reunión\n- [ ] Mandar precio' });
+  assert.match(p, /<memoria>/);
+  assert.match(p, /Mandar precio/);
+  assert.match(p, /volvió a quedar\s*\n?\s*sin resolver/i);
 });
 
 test('el nombre del cliente y la fecha llegan al prompt', () => {

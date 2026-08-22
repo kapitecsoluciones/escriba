@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('api', {
   guardarLlave:    (d)     => ipcRenderer.invoke('guardar-llave', d),
   diagnostico:     ()      => ipcRenderer.invoke('diagnostico'),
   micros:          ()      => ipcRenderer.invoke('micros'),
+  soportaMicrofono:()      => ipcRenderer.invoke('soporta-microfono'),
   descargarModelo: ()      => ipcRenderer.invoke('descargar-modelo'),
   instalarDep:     (f)     => ipcRenderer.invoke('instalar-dependencia', f),
   onDescarga:      (cb)    => ipcRenderer.on('descarga', (_e, d) => cb(d)),
@@ -32,6 +33,9 @@ contextBridge.exposeInMainWorld('api', {
   guardarComo:     (d)     => ipcRenderer.invoke('guardar-como', d),
   compartir:       (d)     => ipcRenderer.invoke('compartir', d),
   abrirPermisos:   ()      => ipcRenderer.invoke('abrir-permisos'),
+  preparar:        (d)     => ipcRenderer.invoke('preparar', d),
+  preparacionLeer: (d)     => ipcRenderer.invoke('preparacion-leer', d),
+  preparacionPdf:  (d)     => ipcRenderer.invoke('preparacion-pdf', d),
   abrir:           (r)     => ipcRenderer.invoke('abrir', r),
   revelar:         (r)     => ipcRenderer.invoke('revelar', r),
   importar:        ()      => ipcRenderer.invoke('importar'),
@@ -44,4 +48,5 @@ contextBridge.exposeInMainWorld('api', {
   clienteActivo:   (c)     => ipcRenderer.invoke('cliente-activo', c),
   onAtajo:         (cb)    => ipcRenderer.on('atajo', (_e, d) => cb(d)),
   onMenu:          (cb)    => ipcRenderer.on('menu', (_e, d) => cb(d)),
+  onAvisoArranque: (cb)    => ipcRenderer.on('aviso-arranque', (_e, d) => cb(d)),
 });

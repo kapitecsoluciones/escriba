@@ -34,3 +34,9 @@ test('lo guardado se puede volver a leer del disco', () => {
   const escrito = JSON.parse(fs.readFileSync(path.join(HOGAR, '.config', 'escriba', 'config.json'), 'utf8'));
   assert.strictEqual(escrito.usuario.empresa, 'Acme');
 });
+
+// Que NO exista config todavía es el primer arranque, no una corrupción.
+// Si la detección se activara con cualquier error, avisaría a cada usuario nuevo.
+test('no tener config todavía no es tener el config roto', () => {
+  assert.strictEqual(CONFIG.corrupcion(), null);
+});

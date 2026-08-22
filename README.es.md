@@ -32,7 +32,7 @@ posponer y las oportunidades que aparecieron.
 
 ## Qué necesitas
 
-- macOS 13 o más nuevo, Apple Silicon
+- macOS 15 o más nuevo (13 sirve solo para audio importado: sin 15 no se graba el micrófono), Apple Silicon
 - [Homebrew](https://brew.sh) para `ffmpeg` y `whisper-cpp`
 - Un motor de redacción: Claude Code, una llave de API, u Ollama
 
@@ -77,7 +77,7 @@ reunión la manda a la Papelera, no la destruye.
 npm test
 ```
 
-67 pruebas sobre `lib/`, sin instalar nada más que Node. Cubren los tres casos
+163 pruebas sobre `lib/`, sin instalar nada más que Node. Cubren los tres casos
 que colgaban el conversor de Markdown, el margen de 2 dB que decide quién dijo
 qué, la fusión de configuración, el encabezado exacto del que depende el filtro
 de notas internas, y el escapado del PDF. Cada bloque se comprobó rompiendo el
@@ -116,11 +116,12 @@ El audio nunca sale con ninguno. Si le indicas una carpeta de expedientes, el
 contenido del expediente del cliente va dentro del prompt: elige el motor
 sabiendo eso.
 
-## Por qué ffmpeg no viene incluido
+## Por qué ffmpeg y whisper no vienen incluidos
 
-ffmpeg tiene licencia GPL. Meterlo dentro de una app con licencia MIT obligaría
-a que toda la app fuera GPL, así que Escriba lo instala con Homebrew. whisper.cpp
-sí es MIT, y por eso ese sí viaja dentro.
+ffmpeg tiene licencia GPL: meterlo dentro de una app MIT obligaría a que toda la
+app fuera GPL. whisper.cpp sí es MIT, pero son cientos de megas de binario y de
+modelo, así que tampoco viaja dentro. Los dos se instalan con Homebrew desde
+Ajustes. Lo único que sí va empaquetado es el grabador de audio propio.
 
 ## Licencia
 

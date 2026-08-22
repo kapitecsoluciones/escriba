@@ -116,3 +116,46 @@ test('los datos del cliente no se cuentan como reunión', () => {
   assert.strictEqual(rs.length, 1, 'el .cliente.json es un archivo, no una reunión');
   assert.strictEqual(rs[0].id, '2026-01-15_1000');
 });
+
+// ---------- slug vacío: podía borrar la carpeta de OTRO cliente ----------
+// Un nombre sin letras latinas dejaba el slug vacío, y `path.join(BASE(), '')`
+// es la carpeta raíz: `reuniones('')` devolvía las carpetas de los demás
+// clientes como si fueran reuniones, y "Borrar esta reunión" mandaba a la
+// Papelera la carpeta completa de otro cliente. El guardia de ruta no protegía
+// porque esas carpetas sí están dentro de la base.
+test('un nombre sin letras latinas produce un slug usable, no vacío', () => {
+  for (const n of ['###', '北京', '🙂', '¿?', '—']) {
+    const slug = R.aSlug(n);
+    assert.ok(slug.length > 0, `${n} dejó el slug vacío`);
+    assert.match(slug, /^[a-z0-9-]+$/);
+  }
+});
+
+test('el slug de un nombre normal sigue siendo legible', () => {
+  assert.strictEqual(R.aSlug('Acme'), 'acme');
+  assert.strictEqual(R.aSlug('Café Ñandú S.A.'), 'cafe-nandu-s-a');
+});
+
+test('el mismo nombre da siempre el mismo slug', () => {
+  assert.strictEqual(R.aSlug('北京'), R.aSlug('北京'));
+  assert.notStrictEqual(R.aSlug('北京'), R.aSlug('東京'));
+});
+
+test('un cliente sin letras latinas se crea y aparece con su nombre', () => {
+  const c = R.crearCliente('北京');
+  assert.ok(c.slug.length > 0);
+  assert.ok(R.clientes().some(x => x.nombre === '北京'));
+  assert.ok(!fs.existsSync(path.join(REUNIONES, '.cliente.json')),
+    'nunca debe escribirse en la raíz de la carpeta de reuniones');
+});
+
+test('reuniones("") no puede devolver carpetas de clientes', () => {
+  assert.deepStrictEqual(R.reuniones(''), []);
+  assert.deepStrictEqual(R.reuniones(null), []);
+  assert.deepStrictEqual(R.reuniones(undefined), []);
+});
+
+test('un nombre en blanco se rechaza', () => {
+  assert.throws(() => R.crearCliente('   '), /nombre/i);
+  assert.throws(() => R.crearCliente(''), /nombre/i);
+});

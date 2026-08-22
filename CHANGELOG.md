@@ -1,5 +1,96 @@
 # Changelog
 
+## 0.7.0 — 2026-08-21
+
+Una revisión a fondo del código, del ciclo de uso y de los datos que la app ya
+había generado. Lo que salió pesa más que cualquier mejora visual, y parte de
+ello era mío.
+
+**Tres cosas que podían dañar lo que se envía al cliente**
+
+- **Las notas internas se filtraban al PDF** si el modelo titulaba la sección
+  con `**Notas internas**`, `# Notas internas` o `## 4. Notas internas` en vez
+  de exactamente `## Notas internas`. El corte era un solo `split` sobre texto
+  escrito por un LLM. Ahora se ancla a un título (encabezado de cualquier
+  nivel, con numeración, emoji o prefijo; o una línea que sea solo el título en
+  negrita), y **falla cerrado**: si ve una señal inequívoca de notas internas
+  sin título delante, no exporta. Verificado sobre el PDF real con 17 formas de
+  título. Y una frase que *empieza* por "notas internas" ya no parte la minuta
+  por la mitad: eso pasó en una versión intermedia de este mismo arreglo.
+- **Un cliente sin letras latinas podía borrar la carpeta de otro.** `"北京"`
+  o `"###"` dejaban el identificador de carpeta vacío, y con él la lista de
+  "reuniones" eran las carpetas de los demás clientes. *Borrar esta reunión*
+  las mandaba a la Papelera. El identificador ya nunca queda vacío.
+- **En una reunión presencial, media reproducida en el Mac contaba como el
+  otro participante.** Pasó de verdad: tres ráfagas de audio en 47 minutos y
+  dos turnos atribuidos a un cliente que no estaba, con el PDF ya generado. Se
+  midieron 14 fuentes con `astats` y `aspectralstats` y ninguna métrica de
+  forma de onda separa voz de media (los vídeos contienen voz). Lo que separa
+  es la estructura: un participante habla repartido por toda la reunión; la
+  media suena en islas. Dos puertas nuevas sobre la pista del sistema —
+  dispersión en el tiempo y fracción de segmentos que gana — en AND; cualquier
+  duda cae del lado de *no atribuir*. Los diálogos cacheados con el criterio
+  viejo se invalidan.
+
+**El motor de redacción leía el disco por su cuenta**
+
+La CLI de Claude heredaba el directorio de trabajo de la app y, dentro de la
+carpeta personal, cargaba la memoria de Claude Code y salía a leer documentos
+del Escritorio con sus propias herramientas. Una minuta citó un "dossier" que
+no existía. Ahora corre en una carpeta vacía fuera de la carpeta personal, sin
+herramientas y sin servidores MCP. Verificado: no sabe nada que no esté en el
+prompt. Y si esa carpeta no se puede crear, no se redacta — nunca un fallback
+a un directorio ajeno.
+
+**La memoria de Escriba nunca había cerrado el círculo**
+
+El prompt leía los primeros 60.000 caracteres del expediente y Escriba escribía
+al final: exactamente donde el lector no miraba. Con una sola reunión, el
+bloque ya quedaba fuera. Y lo que escribía descartaba las tablas de
+compromisos. Ahora Escriba lleva su propia `memoria.md` por cliente —acuerdos,
+compromisos con su estado y lo que quedó sin resolver—, el expediente del
+usuario pasa a **solo lectura**, y al arrancar se anotan las minutas que ya
+existían. *Volver a redactar* y editar a mano actualizan el bloque.
+
+**Preparar la reunión**
+
+Botón **Preparar** (⌘P): con la memoria, los compromisos abiertos y el
+expediente, genera qué está pendiente, qué preguntar y qué llevar listo. Es la
+mitad del ciclo que faltaba: la app solo usaba ese material *después* de la
+reunión.
+
+**Ya no se pierden archivos a medias**
+
+Todas las escrituras que importan (`minuta.md`, `config.json`, la memoria, los
+compromisos) son atómicas: temporal en el mismo directorio, `fsync`, `rename`.
+Un `config.json` corrupto ya no hace desaparecer a todos los clientes en
+silencio: se aparta a `config.json.roto` y Ajustes lo dice.
+
+**Y lo demás**
+
+- Las grabaciones que no arrancaron dejaban carpetas vacías etiquetadas "Solo
+  audio". Ya no se crean, y las existentes van a la Papelera al arrancar, con
+  aviso.
+- La casilla de compromisos **no se podía pulsar con el ratón**: una colisión
+  de clase CSS la pintaba de 39×55 px dentro de una región de arrastre de
+  ventana. Un `.click()` por código la atravesaba, así que las pruebas
+  anteriores la dieron por buena.
+- Dos grabaciones en el mismo minuto compartían carpeta y se pisaban.
+- Si la captura moría sola, la app seguía diciendo "Grabando".
+- Cancelar no mataba los `ffmpeg` de la atribución de voces.
+- La fecha de la minuta era la de procesamiento, no la de la reunión.
+- Sin macOS 15 no se graba el micrófono: ahora se avisa, y el requisito es
+  el correcto en el sitio y los README.
+- Sin Claude Code, Ajustes no dejaba elegir ningún motor: los tres radios
+  salían deshabilitados y la caja de la llave solo se abría desde uno de ellos.
+- El CI construye el `.dmg` y verifica que lleva el grabador, los módulos
+  nuevos, y **que está firmado ad-hoc**: el certificado que hace sobrevivir el
+  permiso de grabación se queda en la Mac del autor, a propósito.
+- 163 pruebas. Cada grupo nuevo se verificó reintroduciendo su bug.
+
+**Lo que queda sin resolver, y se dice:** una videollamada real con música de
+fondo pasa las dos puertas de voz. Ninguna métrica de forma de onda lo separa.
+
 ## 0.6.1 — 2026-08-21
 
 Salió de usar la app en una reunión de verdad y no poder mandar la minuta.
@@ -13,7 +104,7 @@ sitio al que nadie navegue, así que en la práctica el PDF no existía.
 - Al exportar, ahora aparece **PDF listo** con tres cosas que hacer:
   **Compartir** (hoja de macOS: Mail, Mensajes, WhatsApp, AirDrop),
   **Guardar copia…** (con un nombre reconocible, tipo
-  *Minuta - Julio Patricio - 21 de agosto de 2026.pdf*) y **Abrir**.
+  *Minuta - Acme - 21 de agosto de 2026.pdf*) y **Abrir**.
 - Las tres están también en el menú **Más** para un PDF ya generado.
 
 **El permiso de grabación ya no se pierde en cada actualización**

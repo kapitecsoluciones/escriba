@@ -94,3 +94,24 @@ test('comparte escala con la app', () => {
   assert.match(html, /\nh2\{[^}]*font-size:12\.75pt/);
   assert.match(html, /h1:not\(\.doctitle\)\{[^}]*font-size:15\.75pt/);
 });
+
+// El acento iba al CSS del documento tal cual venía de config.json.
+test('el acento solo entra al PDF como #RRGGBB; un valor raro cae al de fábrica y #RGB se expande', () => {
+  CONFIG.guardar({ marca: { acento: '#fff} body{display:none} x{' } });
+  let html = PDF.envolver({ cliente: 'Acme', fecha: 'hoy', cuerpoHtml: '' });
+  assert.doesNotMatch(html, /display:none\} x\{/);
+  assert.match(html, /--gold:#B58A3E;/);
+  CONFIG.guardar({ marca: { acento: '#fff' } });
+  html = PDF.envolver({ cliente: 'Acme', fecha: 'hoy', cuerpoHtml: '' });
+  assert.match(html, /--gold:#FFFFFF;/);
+  assert.match(html, /--gold-texto:#b8b8b8;/);
+  CONFIG.guardar({ marca: { acento: '#B58A3E' } });
+});
+
+test('config con "marca": null no tumba el PDF', () => {
+  CONFIG.guardar({ marca: null });
+  const html = PDF.envolver({ cliente: 'Acme', fecha: 'hoy', cuerpoHtml: '' });
+  assert.match(html, /--gold:#B58A3E;/);
+  assert.doesNotMatch(html, /<img src="data:/);
+  CONFIG.guardar({ marca: { logo: '', acento: '#B58A3E' } });
+});

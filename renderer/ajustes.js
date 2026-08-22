@@ -2,6 +2,10 @@
 (() => {
   const $$ = s => document.querySelector(s);
   const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  // copias de lib/pdf.js (el renderer no puede requerir lib): solo #RRGGBB o #RGB, y el tono de texto
+  const normalizarAcento = (v) => { const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(v || '').trim()); if (!m) return null;
+    const h = m[1].length === 3 ? m[1].split('').map(c => c + c).join('') : m[1]; return '#' + h.toUpperCase(); };
+  const oscurecer = (hex) => '#' + [1, 3, 5].map(i => Math.round(parseInt(hex.slice(i, i + 2), 16) * 0.72).toString(16).padStart(2, '0')).join('');
 
   async function pintar() {
     const cfg = await window.api.configLeer();
@@ -52,6 +56,18 @@
       <div class="campo">
         <label>Línea de contacto para el pie de la minuta</label>
         <input type="text" id="aContacto" value="${esc(cfg.usuario.contacto)}" placeholder="Nombre · correo · teléfono">
+      </div>
+
+      <div class="et seccion">Tu marca</div>
+      <div class="campo">
+        <label>Así sale el encabezado del PDF que recibe el cliente</label>
+        <div class="marca-vista" id="marcaVista"></div>
+        <div class="marca-botones">
+          <button class="btn" id="btnLogo">Elegir logo…</button>
+          <button class="btn" id="btnQuitarLogo" hidden>Quitar el logo</button>
+          <label class="marca-acento" title="El color de las líneas y los rótulos del PDF"><input type="color" id="aAcento" value="${normalizarAcento((cfg.marca || {}).acento) || '#B58A3E'}"> Color de acento</label>
+        </div>
+        <div class="ayuda">PNG, JPG, WebP o SVG, hasta 2 MB. Se copia a tu configuración, así que puedes mover el original. Sin logo va el nombre de tu empresa. Lo de esta sección se aplica al momento, sin pulsar Guardar.</div>
       </div>
 
       <div class="et seccion">Con qué se graba</div>
@@ -118,6 +134,43 @@
       <div style="display:flex;gap:8px;margin-top:22px">
         <button class="btn primario" id="btnGuardar">Guardar</button>
       </div>`;
+
+    // La vista previa dibuja lo mismo que lib/pdf.js: el logo propio (o el
+    // nombre) a la izquierda, «Para · cliente» a la derecha, el acento en la
+    // barra y el rótulo. El logo se pide UNA vez (y al cambiarlo): arrastrar
+    // el selector de color dispara decenas de eventos por segundo, y pedir un
+    // logo de 2 MB en base64 por IPC en cada uno congelaba el panel.
+    let vistaMarca = null;
+    const pintarMarca = () => {
+      const caja = $$('#marcaVista'); if (!caja) return;
+      const v = vistaMarca || { logo: null, emisor: '', acento: '#B58A3E' };
+      const acento = normalizarAcento($$('#aAcento').value) || v.acento;
+      caja.style.setProperty('--acento', acento);
+      caja.style.setProperty('--acento-texto', oscurecer(acento));
+      caja.innerHTML = `<div class="marca-vista-cab">
+          ${v.logo ? `<img src="${v.logo}" alt="">` : `<div class="marca-vista-emisor">${esc($$('#aEmpresa').value.trim() || $$('#aNombre').value.trim() || v.emisor || 'Tu empresa')}</div>`}
+          <div class="marca-vista-para">Para<b>Cliente</b></div></div>
+        <div class="marca-vista-ojo">Minuta de reunión</div>
+        <div class="marca-vista-titulo">Acuerdos y siguientes pasos</div>
+        <div class="marca-vista-barra"></div>`;
+      $$('#btnQuitarLogo').hidden = !v.logo;
+    };
+    const cargarMarca = async () => {
+      const v = await window.api.marcaVista().catch(() => null);
+      vistaMarca = v && v.ok !== false ? v : null;
+      pintarMarca();
+    };
+    cargarMarca();
+    $$('#aAcento').oninput = pintarMarca;
+    // el acento se guarda al elegirlo, igual que el logo: cerrar con Escape no lo descarta
+    $$('#aAcento').onchange = () => { const a = normalizarAcento($$('#aAcento').value); if (a) window.api.configGuardar({ marca: { acento: a } }); };
+    $$('#aEmpresa').oninput = pintarMarca; $$('#aNombre').oninput = pintarMarca;
+    $$('#btnLogo').onclick = async () => {
+      const r = await window.api.marcaElegirLogo();
+      if (r && r.ok === false) { $$('#btnLogo').textContent = r.error; setTimeout(() => { $$('#btnLogo').textContent = 'Elegir logo…'; }, 4000); }
+      cargarMarca();
+    };
+    $$('#btnQuitarLogo').onclick = async () => { await window.api.marcaQuitarLogo(); cargarMarca(); };
 
     c.querySelectorAll('input[name=motor]').forEach(r => r.onchange = () => {
       c.querySelectorAll('.motor').forEach(m => m.classList.toggle('sel', m.querySelector('input').checked));
@@ -190,6 +243,7 @@
       grabacion: { microfono: $$('#aMicrofono') ? $$('#aMicrofono').value : '',
                    microfonoPresencial: $$('#aMicrofonoPresencial') ? $$('#aMicrofonoPresencial').value : '' },
       motor: { tipo: $$('input[name=motor]:checked').value, proveedor: $$('#aProveedor') ? $$('#aProveedor').value : 'anthropic' },
+      marca: { acento: normalizarAcento($$('#aAcento').value) || '#B58A3E' },
     });
     if (cerrar) { cerrarAjustes(); if (window.recargarClientes) window.recargarClientes(); }
   }

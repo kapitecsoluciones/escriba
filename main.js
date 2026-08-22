@@ -13,6 +13,7 @@ const MOTORES = require('./lib/motores');
 const { quitarDelDossier } = require('./lib/dossier');
 const MEMORIA = require('./lib/memoria');
 const INDICE = require('./lib/indice');
+const MARCA = require('./lib/marca');
 const ATOMICO = require('./lib/atomico');
 const MIGRACION = require('./lib/migracion');
 const PREPARACION = require('./lib/preparacion');
@@ -149,6 +150,15 @@ function correr(cmd, args, opts = {}) {
 ipcMain.handle('clientes', () => INDICE.clientes());
 ipcMain.handle('config-leer', () => CONFIG.leer());
 ipcMain.handle('config-guardar', (_e, parcial) => CONFIG.guardar(parcial));
+// La marca del PDF: existía en config y Ajustes no tenía campo para ella.
+ipcMain.handle('marca-vista', seguro(() => MARCA.vista()));
+ipcMain.handle('marca-quitar-logo', seguro(() => MARCA.quitarLogo()));
+ipcMain.handle('marca-elegir-logo', seguro(async () => {
+  const r = await dialog.showOpenDialog(win, { title: 'Elige tu logo', properties: ['openFile'],
+    filters: [{ name: 'Imágenes', extensions: ['png', 'jpg', 'jpeg', 'webp', 'svg'] }] });
+  if (r.canceled || !r.filePaths[0]) return { ok: true, cancelado: true };
+  return MARCA.instalarLogo(r.filePaths[0]);
+}));
 ipcMain.handle('motores-estado', () => MOTORES.estado());
 ipcMain.handle('motor-probar', async (_e, id) => MOTORES.porId(id).probar());
 ipcMain.handle('guardar-llave', async (_e, { proveedor, llave }) => {

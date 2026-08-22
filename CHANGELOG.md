@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.8.2 — 2026-08-22
+
+**Tu marca, desde Ajustes.** El logo propio y el color de acento del PDF
+existían en la configuración y `lib/pdf.js` los usaba, pero Ajustes no tenía
+campo para ellos: solo se podían poner editando `config.json` a mano, así que
+en la práctica nadie los ponía y las minutas salían con el nombre en
+tipografía.
+
+- Sección **Tu marca** con una vista previa del encabezado tal como sale en el
+  PDF (tu logo o tu nombre a la izquierda, «Para · cliente» a la derecha, el
+  acento en la barra y el rótulo), que responde en vivo al color y al nombre.
+- **Elegir logo…** acepta PNG, JPG, WebP o SVG de hasta 2 MB y **lo copia** a
+  la configuración: mover o borrar el original ya no deja el PDF sin logo.
+- El acento se valida (`#RRGGBB`); un valor raro no llega al CSS del documento.
+
 ## 0.8.1 — 2026-08-22
 
 - **El logo, dentro de la app.** El glifo del icono (voz → texto) va ahora junto

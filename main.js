@@ -230,14 +230,27 @@ ipcMain.handle('expedientes', () => R.expedientes());
 ipcMain.handle('enlazar-expediente', seguro((_e, { slug, archivo }) => R.enlazarExpediente(slug, archivo || null)));
 
 // ---------- grabación ----------
-ipcMain.handle('grabar-iniciar', async (_e, slug) => {
+// El micrófono que toca según el modo. Cambiarlo a mano en Ajustes para cada
+// tipo de reunión era un viaje que nadie hacía: la de hoy se grabó con el micro
+// del Mac teniendo el iPhone al lado.
+function microParaModo(modo) {
+  const g = CONFIG.leer().grabacion || {};
+  return modo === 'presencial' ? (g.microfonoPresencial || '') : (g.microfono || '');
+}
+
+ipcMain.handle('grabar-iniciar', async (_e, slug, opciones = {}) => {
   if (captura) return { ok: false, error: 'Ya hay una grabación en curso' };
   if (!BIN().captura) return { ok: false, error: 'No se encontró el capturador de audio. Reinstala la app.' };
   carpetaActual = path.join(R.BASE(), R.exigirSlug(slug), sello());
   fs.mkdirSync(carpetaActual, { recursive: true });
-  const micro = (CONFIG.leer().grabacion || {}).microfono || '';
+  const modo = opciones.modo === 'presencial' ? 'presencial' : 'llamada';
+  CONFIG.guardar({ grabacion: { modo } });   // se recuerda para la próxima
+  const micro = microParaModo(modo);
   const argsCaptura = [path.join(carpetaActual, 'sistema.m4a')];
   if (micro) argsCaptura.push('--mic', micro);
+  // El modo queda con la reunión: al procesar, el prompt sabe qué esperar sin
+  // tener que adivinarlo por las pistas.
+  try { ATOMICO.escribirAtomico(path.join(carpetaActual, '.reunion.json'), JSON.stringify({ modo }, null, 2)); } catch {}
   captura = spawn(BIN().captura, argsCaptura);
   let resto = '';
   captura.stderr.on('data', (b) => {
@@ -427,8 +440,10 @@ async function procesarInterno({ carpeta, slug, nombre, reemplazarMemoria = fals
     if (cli && cli.dossier) { try { dossier = fs.readFileSync(cli.dossier, 'utf8'); } catch {} }
     const dirMemoria = R.dirCanonica(slug);
     const memoria = MEMORIA.leer(dirMemoria);
+    let modoReunion = null;
+    try { modoReunion = JSON.parse(fs.readFileSync(path.join(carpeta, '.reunion.json'), 'utf8')).modo || null; } catch {}
     const prompt = PROMPT.construir({
-      cliente: nombre,
+      cliente: nombre, modo: modoReunion,
       fecha: fechaDeCarpeta(carpeta).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }),
       duracion: dur, transcripcion, dossier, memoria, conHablantes: !!atribuida
     });

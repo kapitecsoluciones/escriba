@@ -17,7 +17,7 @@ contextBridge.exposeInMainWorld('api', {
   crearCliente:    (d)     => ipcRenderer.invoke('crear-cliente', d),
   expedientes:     ()      => ipcRenderer.invoke('expedientes'),
   enlazarExpediente:(d)    => ipcRenderer.invoke('enlazar-expediente', d),
-  grabarIniciar:   (slug)  => ipcRenderer.invoke('grabar-iniciar', slug),
+  grabarIniciar:   (slug, op) => ipcRenderer.invoke('grabar-iniciar', slug, op || {}),
   grabarDetener:   ()      => ipcRenderer.invoke('grabar-detener'),
   procesar:        (d)     => ipcRenderer.invoke('procesar', d),
   cancelarProceso: ()      => ipcRenderer.invoke('cancelar-proceso'),

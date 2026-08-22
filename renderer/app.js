@@ -2,6 +2,7 @@ let CLIENTES = [], EXPEDIENTES = [], REUNIONES = [], RESULTADOS = null;
 let actual = null, reunionActual = null, hayResultados = false;
 let grabando = false, t0 = 0, crono = null, editando = false, vista = 'minuta';
 let borrador = null;      // texto en edición sin guardar; null = no hay nada pendiente
+let modoGrabacion = 'llamada';   // 'llamada' | 'presencial'
 let procesando = false;
 
 const $ = s => document.querySelector(s);
@@ -551,10 +552,28 @@ async function prepararReunion(rehacer){
 
 $('#btnPreparar').onclick = () => prepararReunion(false);
 
+// ---------- modo de grabación ----------
+const AYUDA_MODO = {
+  llamada:    'La otra persona suena en el Mac (FaceTime, Zoom o una llamada del iPhone contestada aquí). Se separa quién dijo qué.',
+  presencial: 'Todos en la misma sala. Conviene el micrófono del iPhone en medio de la mesa. No se separa quién dijo qué.',
+};
+function pintarModo(){
+  document.querySelectorAll('#modoGrabacion .op').forEach(b => b.classList.toggle('activa', b.dataset.modo === modoGrabacion));
+  const m = $('#modoGrabacion'); m.title = AYUDA_MODO[modoGrabacion];
+  m.classList.toggle('bloqueado', grabando);
+}
+document.querySelectorAll('#modoGrabacion .op').forEach(b => b.onclick = () => {
+  if(grabando) return;                       // no se cambia a mitad de grabación
+  modoGrabacion = b.dataset.modo; pintarModo();
+  window.api.configGuardar({ grabacion: { modo: modoGrabacion } });
+  aviso(AYUDA_MODO[modoGrabacion]);
+});
+window.api.configLeer().then(cfg => { modoGrabacion = (cfg.grabacion && cfg.grabacion.modo) === 'presencial' ? 'presencial' : 'llamada'; pintarModo(); });
+
 // ---------- grabación ----------
 $('#btnGrabar').onclick = async () => {
   if(!grabando){
-    const res = await window.api.grabarIniciar(actual.slug);
+    const res = await window.api.grabarIniciar(actual.slug, { modo: modoGrabacion });
     if(!res.ok){
       const causa = explicar(res.error);
       estado('error','No se pudo iniciar la grabación', causa.texto);
@@ -565,11 +584,11 @@ $('#btnGrabar').onclick = async () => {
       }
       return;
     }
-    grabando = true; t0 = Date.now();
+    grabando = true; t0 = Date.now(); pintarModo();
     $('#btnGrabar').textContent = 'Detener y procesar';
     $('#btnGrabar').classList.add('grabando');
     $('#btnImportar').disabled = true;
-    estado('pulso','Grabando','Tu micrófono y el audio del Mac');
+    estado('pulso','Grabando', modoGrabacion==='presencial' ? 'Presencial · una sola pista' : 'Tu micrófono y el audio del Mac');
     const e=$('#estado');
     if(e){ const m=el('div','medidores',
       `<div class="med" id="medMic"><span class="et">Tu voz</span><div class="barra"><div class="relleno"></div></div></div>
@@ -579,7 +598,7 @@ $('#btnGrabar').onclick = async () => {
     crono = setInterval(()=>{ const s=Math.floor((Date.now()-t0)/1000);
       const c=document.querySelector('.crono'); if(c) c.textContent=`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; },500);
   } else {
-    clearInterval(crono); grabando=false;
+    clearInterval(crono); grabando=false; pintarModo();
     $('#btnGrabar').textContent='Grabar reunión';
     $('#btnGrabar').classList.remove('grabando');
     $('#btnGrabar').disabled = true;

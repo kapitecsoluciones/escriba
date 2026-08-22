@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.7.1 — 2026-08-21
+
+Salió de una llamada real: la otra persona sonaba por el altavoz del teléfono
+y todo entró por el micrófono del Mac. Escriba lo trató como presencial —
+correcto — pero nadie se lo había dicho, y el iPhone, que estaba al lado,
+no se usó.
+
+**Cómo entra la otra persona, junto al botón Grabar**
+
+- **Llamada en el Mac**: FaceTime, Zoom, o una llamada del iPhone contestada
+  en el Mac. La otra voz entra por el sistema, la tuya por el micrófono: dos
+  pistas limpias y separación real de quién dijo qué.
+- **Presencial**: todos en la misma sala. Una sola pista con voz, sin
+  atribución por audio, y el micrófono que convenga —el del iPhone en medio de
+  la mesa, si lo tienes.
+
+El modo queda guardado con la reunión y **se le dice al motor** en qué
+situación se grabó, en vez de dejarle adivinarlo por las pistas. Cambiar el
+micrófono en Ajustes para cada tipo de reunión era un viaje que nadie hacía;
+ahora Ajustes tiene un micrófono por modo y el selector elige el correcto.
+
 ## 0.7.0 — 2026-08-21
 
 Una revisión a fondo del código, del ciclo de uso y de los datos que la app ya

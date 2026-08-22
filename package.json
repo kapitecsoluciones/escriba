@@ -1,6 +1,6 @@
 {
   "name": "escriba",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Graba tus reuniones, transcr\u00edbelas en tu propia Mac y convierte lo hablado en una minuta con acuerdos y pendientes.",
   "main": "main.js",
   "scripts": {

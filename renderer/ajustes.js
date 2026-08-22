@@ -12,12 +12,12 @@
     const c = $$('#cuerpoAjustes');
 
     const faltantes = diag.faltantes.length
-      ? `<div class="seccion">Falta por instalar</div>` +
+      ? `<div class="et seccion">Falta por instalar</div>` +
         diag.faltantes.map(f => {
           const brew = /brew install (\S+)/.exec(f.como);
           const boton = brew ? `<button class="btn" style="margin-top:7px" data-brew="${brew[1]}">Instalar ahora</button>` : '';
           const modelo = /modelo/.test(f.que) ? `<button class="btn" style="margin-top:7px" id="btnModelo">Descargar (1.5 GB)</button>` : '';
-          return `<div class="falta"><b>${esc(f.que)}</b> — ${esc(f.como)}${boton}${modelo}</div>`;
+          return `<div class="aviso atencion"><b>${esc(f.que)}</b> — ${esc(f.como)}${boton}${modelo}</div>`;
         }).join('')
       : '';
 
@@ -30,7 +30,7 @@
       </div>`;
 
     const configRoto = diag.configRoto ? `
-      <div class="falta" style="margin-bottom:14px">
+      <div class="aviso atencion" style="margin-bottom:14px">
         <b>Tu configuración no se pudo leer y se empezó de cero.</b>
         El archivo dañado se guardó en <code>${esc(diag.configRoto.respaldo)}</code> por si quieres
         recuperar algo. Vuelve a escribir tus datos aquí y se arregla.
@@ -39,11 +39,11 @@
     c.innerHTML = `
       ${configRoto}
       ${bienvenida}
-      <div class="seccion">Quién eres</div>
+      <div class="et seccion">Quién eres</div>
       <div class="campo">
         <label>Tu nombre</label>
         <input type="text" id="aNombre" value="${esc(cfg.usuario.nombre)}" placeholder="Nombre y apellido">
-        <div class="ayuda">Se usa para saber cuál voz eres tú cuando grabas una videollamada.</div>
+        <div class="ayuda">Sirve para saber cuál de las voces eres tú cuando grabas una llamada.</div>
       </div>
       <div class="campo">
         <label>Tu empresa</label>
@@ -54,7 +54,7 @@
         <input type="text" id="aContacto" value="${esc(cfg.usuario.contacto)}" placeholder="Nombre · correo · teléfono">
       </div>
 
-      <div class="seccion">Con qué se graba</div>
+      <div class="et seccion">Con qué se graba</div>
       <div class="campo">
         <label>Micrófono para llamadas en el Mac</label>
         <select id="aMicrofono">
@@ -72,18 +72,18 @@
         <div class="ayuda">Todos en la misma sala: el micrófono del iPhone, en medio de la mesa, capta mucho mejor a quien está enfrente. Aparece aquí si lo tienes cerca y con Continuidad. Si el que elijas no está al empezar, se graba con el del sistema y se avisa.</div>
       </div>
 
-      <div class="seccion">Quién escribe la minuta</div>
+      <div class="et seccion">Quién escribe la minuta</div>
       ${motores.map(m => `
         <label class="motor ${cfg.motor.tipo === m.id ? 'sel' : ''} ${m.disponible ? '' : 'no'}">
           <input type="radio" name="motor" value="${m.id}" ${cfg.motor.tipo === m.id ? 'checked' : ''}>
           <div>
-            <div class="n">${esc(m.nombre)} ${m.disponible ? '' : '— no disponible'}</div>
-            <div class="d">${esc(m.descripcion)}</div>
-            <div class="p">${esc(m.privacidad)}</div>
+            <div class="motor-nombre">${esc(m.nombre)} ${m.disponible ? '' : '— no disponible'}</div>
+            <div class="motor-desc">${esc(m.descripcion)}</div>
+            <div class="motor-priv">${esc(m.privacidad)}</div>
           </div>
         </label>`).join('')}
 
-      ${motores.some(m => m.disponible) ? '' : `<div class="falta" style="margin-bottom:12px">
+      ${motores.some(m => m.disponible) ? '' : `<div class="aviso atencion" style="margin-bottom:12px">
         <b>Ninguno está listo todavía.</b> Puedes elegir uno igualmente y configurarlo:
         con <b>Claude Code</b> basta instalarlo y autenticarlo; con <b>tu propia llave</b>
         solo hay que pegarla aquí abajo; <b>Ollama</b> necesita estar corriendo en este equipo.
@@ -102,7 +102,7 @@
       </div>
       <div id="resProbar"></div>
 
-      <div class="seccion">Dónde se guarda todo</div>
+      <div class="et seccion">Dónde se guarda todo</div>
       <div class="campo">
         <label>Carpeta de reuniones</label>
         <div class="ruta"><input type="text" id="aReuniones" value="${esc(cfg.rutas.reuniones)}">
@@ -127,13 +127,13 @@
     $$('#btnProbar').onclick = async () => {
       const id = $$('input[name=motor]:checked').value;
       const r = $$('#resProbar');
-      r.innerHTML = '<div class="estado-linea">Probando…</div>';
+      r.innerHTML = '<div class="aviso">Probando…</div>';
       if (id === 'api' && $$('#aLlave').value.trim()) {
         await window.api.guardarLlave({ proveedor: $$('#aProveedor').value, llave: $$('#aLlave').value.trim() });
       }
       await guardar(false);
       const res = await window.api.motorProbar(id);
-      r.innerHTML = `<div class="estado-linea ${res.ok ? 'ok' : 'mal'}">${res.ok ? 'Funciona.' : 'No respondió.'} ${esc(res.detalle || '')}</div>`;
+      r.innerHTML = `<div class="aviso ${res.ok ? 'bien' : 'error'}">${res.ok ? 'Funciona.' : 'No respondió.'} ${esc(res.detalle || '')}</div>`;
     };
 
     c.querySelectorAll('[data-elegir]').forEach(b => b.onclick = async () => {
@@ -152,10 +152,10 @@
         if (r && r.ok) { b.textContent = etiqueta.ok; setTimeout(pintar, 900); return; }
         b.disabled = false;
         b.textContent = 'Reintentar';
-        const caja = b.closest('.falta');
+        const caja = b.closest('.aviso');
         if (caja && !caja.querySelector('.motivo')) {
           const m = document.createElement('div');
-          m.className = 'estado-linea mal motivo';
+          m.className = 'aviso error motivo';
           m.textContent = (r && (r.error || (r.salida || '').trim().split('\n').slice(-2).join(' '))) || 'No se pudo completar.';
           caja.appendChild(m);
         } else if (caja) {
@@ -191,12 +191,20 @@
                    microfonoPresencial: $$('#aMicrofonoPresencial') ? $$('#aMicrofonoPresencial').value : '' },
       motor: { tipo: $$('input[name=motor]:checked').value, proveedor: $$('#aProveedor') ? $$('#aProveedor').value : 'anthropic' },
     });
-    if (cerrar) { $$('#modalAjustes').hidden = true; if (window.recargarClientes) window.recargarClientes(); }
+    if (cerrar) { cerrarAjustes(); if (window.recargarClientes) window.recargarClientes(); }
   }
 
-  const cerrarAjustes = () => { $$('#modalAjustes').hidden = true; };
+  // el foco vuelve a donde estaba al cerrar (antes se perdía en el <body>)
+  let focoPrevio = null;
+  const cerrarAjustes = () => {
+    $$('#modalAjustes').hidden = true;
+    if (focoPrevio && focoPrevio.focus && document.contains(focoPrevio)) focoPrevio.focus();
+    focoPrevio = null;
+  };
 
   window.abrirAjustes = async () => {
+    if (!$$('#modalAjustes').hidden) return;
+    focoPrevio = document.activeElement;
     $$('#modalAjustes').hidden = false;
     await pintar();
     const primero = $$('#aNombre'); if (primero) primero.focus();
@@ -207,7 +215,10 @@
     // Escape y clic fuera cierran el modal; antes la única salida era acertarle al botón.
     $$('#modalAjustes').addEventListener('click', (e) => { if (e.target === $$('#modalAjustes')) cerrarAjustes(); });
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !$$('#modalAjustes').hidden && !document.querySelector('.confirmar')) cerrarAjustes();
+      if (!$$('#modalAjustes').hidden && !document.querySelector('.confirmar')) {
+        if (e.key === 'Escape') cerrarAjustes();
+        if (e.key === 'Tab' && window.atraparTab) window.atraparTab(e, $$('#modalAjustes'));
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === ',') { e.preventDefault(); window.abrirAjustes(); }
     });
   });

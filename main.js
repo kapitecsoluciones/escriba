@@ -12,6 +12,7 @@ const VOCES = require('./lib/voces');
 const MOTORES = require('./lib/motores');
 const { quitarDelDossier } = require('./lib/dossier');
 const MEMORIA = require('./lib/memoria');
+const INDICE = require('./lib/indice');
 const ATOMICO = require('./lib/atomico');
 const MIGRACION = require('./lib/migracion');
 const PREPARACION = require('./lib/preparacion');
@@ -145,7 +146,7 @@ function correr(cmd, args, opts = {}) {
 }
 
 // ---------- consultas ----------
-ipcMain.handle('clientes', () => R.clientes());
+ipcMain.handle('clientes', () => INDICE.clientes());
 ipcMain.handle('config-leer', () => CONFIG.leer());
 ipcMain.handle('config-guardar', (_e, parcial) => CONFIG.guardar(parcial));
 ipcMain.handle('motores-estado', () => MOTORES.estado());
@@ -220,7 +221,9 @@ ipcMain.handle('instalar-dependencia', async (_e, formula) => {
   });
 });
 ipcMain.handle('cliente-activo', (_e, c) => { clienteActivo = c; });
-ipcMain.handle('reuniones', (_e, slug) => R.reuniones(slug));
+ipcMain.handle('reuniones', (_e, slug) => INDICE.reuniones(slug));
+// "qué le debo a este cliente": existía para el prompt de Preparar y no se veía en ningún sitio
+ipcMain.handle('pendientes', (_e, slug) => INDICE.pendientes(slug));
 ipcMain.handle('crear-cliente', (_e, d) => {
   const nombre = typeof d === 'string' ? d : (d && d.nombre);
   const expediente = typeof d === 'string' ? null : (d && d.expediente);
@@ -566,28 +569,7 @@ ipcMain.handle('pdf', seguro(async (_e, { carpeta, cliente, fecha, texto }) => {
 // "catálogo" hace que el buscador parezca roto. La longitud no cambia: NFD
 // expande la letra acentuada a dos y quitar la marca la devuelve a una, así
 // que las posiciones siguen valiendo para recortar el fragmento.
-const plano = (t) => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-
-ipcMain.handle('buscar', (_e, termino) => {
-  const t = plano(termino).trim();
-  if (t.length < 3) return [];
-  const salida = [];
-  for (const c of R.clientes()) {
-    for (const r of R.reuniones(c.slug)) {
-      for (const [campo, texto] of [['minuta', r.minuta], ['transcripción', r.transcripcion]]) {
-        if (!texto) continue;
-        const bajo = plano(texto);
-        let i = bajo.indexOf(t);
-        if (i === -1) continue;
-        const frag = texto.slice(Math.max(0, i - 70), i + 110)
-          .replace(/\s+/g, ' ').replace(/\*\*/g, '').replace(/#+\s*/g, '').trim();
-        salida.push({ cliente: c.nombre, slug: c.slug, id: r.id, campo, fragmento: frag });
-        break;
-      }
-    }
-  }
-  return salida.slice(0, 40);
-});
+ipcMain.handle('buscar', (_e, termino) => INDICE.buscar(termino));
 
 // Expediente del cliente: todas sus reuniones en un solo PDF, para juntas de revisión.
 ipcMain.handle('exportar-historial', seguro(async (_e, { slug, cliente }) => {
@@ -604,16 +586,25 @@ ipcMain.handle('exportar-historial', seguro(async (_e, { slug, cliente }) => {
   // reunir los compromisos de todas las tablas de todas las minutas
   const compromisos = [];
   for (const r of rs) {
-    for (const c of MINUTA.extraer(r.minuta)) {
-      compromisos.push({ fecha: fechaLegible(r.id), texto: c.texto, quien: c.quien });
+    // conEstado, no extraer: el PDF de expediente listaba como pendiente lo
+    // que el usuario ya había marcado como hecho en la app
+    for (const c of MINUTA.conEstado(r.minuta, r.carpeta)) {
+      compromisos.push({ fecha: fechaLegible(r.id), texto: c.texto, quien: c.quien, hecho: c.hecho });
     }
   }
 
   let md = '';
   if (compromisos.length) {
     md += '# Compromisos a lo largo de la relación\n\n';
-    md += '| Reunión | Compromiso | Responsable |\n|---|---|---|\n';
-    md += compromisos.map(c => `| ${c.fecha} | ${c.texto} | ${c.quien} |`).join('\n') + '\n\n';
+    const abiertos = compromisos.filter(c => !c.hecho), cerrados = compromisos.filter(c => c.hecho);
+    if (abiertos.length) {
+      md += `## Pendientes (${abiertos.length})\n\n| Reunión | Compromiso | Responsable |\n|---|---|---|\n`;
+      md += abiertos.map(c => `| ${c.fecha} | ${c.texto} | ${c.quien} |`).join('\n') + '\n\n';
+    }
+    if (cerrados.length) {
+      md += `## Cumplidos (${cerrados.length})\n\n| Reunión | Compromiso | Responsable |\n|---|---|---|\n`;
+      md += cerrados.map(c => `| ${c.fecha} | ${c.texto} | ${c.quien} |`).join('\n') + '\n\n';
+    }
   }
   md += '# Reuniones, una por una\n\n';
   for (const r of rs) {
@@ -757,8 +748,10 @@ ipcMain.handle('preparar', seguro(async (_e, { slug, nombre }) => {
 
 ipcMain.handle('preparacion-leer', seguro((_e, { slug }) => {
   const dir = R.dirCanonica(slug);
-  try { return { ok: true, texto: fs.readFileSync(path.join(dir, 'preparacion.md'), 'utf8') }; }
-  catch { return { ok: true, texto: '' }; }
+  const f = path.join(dir, 'preparacion.md');
+  // con la fecha: un informe de hace meses parecía recién hecho
+  try { return { ok: true, texto: fs.readFileSync(f, 'utf8'), fecha: fs.statSync(f).mtime.toISOString() }; }
+  catch { return { ok: true, texto: '', fecha: null }; }
 }));
 
 ipcMain.handle('preparacion-pdf', seguro(async (_e, { slug, nombre, texto }) => {
@@ -814,11 +807,11 @@ function construirMenu() {
         { label: 'Grabar o detener', accelerator: 'Command+R', click: alRenderer('grabar') },
         { label: 'Importar audio…', accelerator: 'Command+O', click: alRenderer('importar') },
         { type: 'separator' },
-        { label: 'Exportar el PDF', accelerator: 'Command+E', click: alRenderer('pdf') },
+        { label: 'Generar el PDF', accelerator: 'Command+E', click: alRenderer('pdf') },
         { label: 'Copiar la minuta', accelerator: 'Shift+Command+C', click: alRenderer('copiar') },
         { type: 'separator' },
-        { label: 'Expediente del cliente', accelerator: 'Shift+Command+E', click: alRenderer('expediente') },
-        { label: 'Preparar la reunión', accelerator: 'Command+P', click: alRenderer('preparar') },
+        { label: 'Historial del cliente en PDF', accelerator: 'Shift+Command+E', click: alRenderer('expediente') },
+        { label: 'Preparar la reunión', accelerator: 'Shift+Command+P', click: alRenderer('preparar') },
       ],
     },
     {
@@ -844,7 +837,9 @@ function construirMenu() {
         { label: 'Zoom', role: 'zoom' },
         { label: 'Pantalla completa', role: 'togglefullscreen' },
         { type: 'separator' },
-        { label: 'Recargar la ventana', accelerator: 'Shift+Command+R', role: 'forceReload' },
+        // ⇧⌘R es el atajo global de grabar: el reload no puede compartirlo.
+        // Un reload a mitad de grabación reiniciaba el renderer con la captura viva.
+        { label: 'Recargar la ventana', accelerator: 'Alt+Command+R', role: 'forceReload' },
       ],
     },
     {

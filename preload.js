@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('api', {
   onDescarga:      (cb)    => ipcRenderer.on('descarga', (_e, d) => cb(d)),
   onInstalando:    (cb)    => ipcRenderer.on('instalando', (_e, d) => cb(d)),
   reuniones:       (slug)  => ipcRenderer.invoke('reuniones', slug),
+  pendientes:      (slug)  => ipcRenderer.invoke('pendientes', slug),
   crearCliente:    (d)     => ipcRenderer.invoke('crear-cliente', d),
   expedientes:     ()      => ipcRenderer.invoke('expedientes'),
   enlazarExpediente:(d)    => ipcRenderer.invoke('enlazar-expediente', d),

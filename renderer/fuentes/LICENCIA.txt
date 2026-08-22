@@ -1,0 +1,8 @@
+Inter (Rasmus Andersson) y Plus Jakarta Sans (Tokotype) se distribuyen bajo la
+SIL Open Font License 1.1 — https://openfontlicense.org
+
+Son los subconjuntos "latin" que sirve Google Fonts: Inter.woff2 es la fuente
+variable (pesos 100–900) y PlusJakartaSans-800.woff2 la instancia ExtraBold.
+Van empaquetadas para que la app y el PDF se vean igual sin conexión: antes se
+cargaban de fonts.googleapis.com y, sin red, el documento del cliente salía en
+Arial con el espaciado calibrado para otra letra.

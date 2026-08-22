@@ -1,359 +1,395 @@
+/* Escriba — hoja única de la ventana. El PDF (lib/pdf.js) y el sitio llevan la suya.
+
+   Sistema: seis tamaños de letra (11 · 12 · 13 · 14 · 17 · 21), espacio en base
+   4, cuatro radios, un botón con dos tamaños y cuatro intenciones, un aviso con
+   tres variantes y un solo "eyebrow" (.et). Cada clase lleva el nombre de su
+   bloque (.reu-fecha, .comp-texto, .estado-sub): tres colisiones de nombres ya
+   rompieron cosas en producción —la última, .marca, dejó la casilla de los
+   compromisos sin poderse pulsar. */
 :root{
-  --ink:#0A1428; --soft:#5A6680; --muted:#697285;
+  color-scheme:light dark;
+  /* color */
+  --ink:#0A1428; --soft:#525E78; --muted:#626C80;
   --rule:rgba(10,20,40,.09); --rule-fuerte:rgba(10,20,40,.16);
-  --paper:#FFFFFF; --tint:#F7F9FC; --tint2:#EEF2F8;
-  --gold:#B58A3E; --gold-soft:#F6EFE2; --gold-texto:#8F6B2B;
+  --paper:#FFFFFF; --tint:#F7F9FC; --tint2:#EEF2F8; --hover:var(--tint2);
+  --gold:#B58A3E; --gold-soft:#F6EFE2; --gold-texto:#846227;
   --azul:#2367FB; --verde:#2DD2A1; --rojo:#C0392B;
   --sombra:0 1px 2px rgba(10,20,40,.04), 0 8px 24px rgba(10,20,40,.06);
+  --sombra-alta:0 18px 50px rgba(10,20,40,.22);
+  --velo:rgba(10,20,40,.34);
   /* texto que va ENCIMA de un fondo sólido: se invierte con el tema */
   --ink-contra:#FFFFFF; --rojo-contra:#FFFFFF;
-  /* bloques de aviso, antes con el color escrito a mano */
+  /* bloques de aviso */
   --ambar-fondo:#FFFBF2; --ambar-borde:#EADFC7;
   --mal-fondo:#FDF2F0; --mal-borde:#EBCFC9; --mal-texto:#8A3E3E;
   --bien-fondo:#EDF9F3; --bien-texto:#1F6B4D;
+  /* letra */
+  --fuente:'Inter',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --fuente-titulo:'Plus Jakarta Sans',Inter,sans-serif;
+  --fuente-mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --t-11:11px; --t-12:12px; --t-13:13px; --t-14:14px; --t-17:17px; --t-21:21px;
+  --lh-1:1.25; --lh-2:1.45; --lh-3:1.65;
+  /* espacio, base 4 */
+  --e-1:4px; --e-2:8px; --e-3:12px; --e-4:16px; --e-5:20px; --e-6:24px; --e-8:32px;
+  /* radios */
+  --r-1:4px; --r-2:8px; --r-3:12px; --r-4:16px; --r-pill:999px;
+  /* la medida de lectura del documento; la cabecera y la barra de estado la comparten */
+  --medida:680px;
 }
 
 /* Modo oscuro siguiendo al sistema. Solo la ventana de la app: el PDF de la
    minuta y el sitio web se quedan claros, que es como se leen y se imprimen. */
 @media (prefers-color-scheme: dark){
   :root{
-    --ink:#E8ECF4; --soft:#A9B2C4; --muted:#8A93A6;
+    --ink:#E8ECF4; --soft:#AEB7C8; --muted:#98A1B4;
     --rule:rgba(255,255,255,.09); --rule-fuerte:rgba(255,255,255,.17);
     --paper:#161B25; --tint:#0F131A; --tint2:#1E242F;
-    --gold:#C9A163; --gold-soft:rgba(201,161,99,.15); --gold-texto:#D9B87A;
+    --gold:#C9A163; --gold-soft:rgba(201,161,99,.15); --gold-texto:#DDBE82;
     --azul:#5C90FF; --verde:#2DD2A1; --rojo:#E5705F;
     --sombra:0 1px 2px rgba(0,0,0,.32), 0 8px 24px rgba(0,0,0,.34);
+    --sombra-alta:0 18px 50px rgba(0,0,0,.6);
+    --velo:rgba(0,0,0,.55);
     --ink-contra:#0F131A; --rojo-contra:#1A0F0D;
     --ambar-fondo:rgba(201,161,99,.10); --ambar-borde:rgba(201,161,99,.28);
     --mal-fondo:rgba(229,112,95,.12); --mal-borde:rgba(229,112,95,.32); --mal-texto:#F0A99C;
     --bien-fondo:rgba(45,210,161,.12); --bien-texto:#6FE0BC;
   }
 }
+
+/* Fuentes empaquetadas (renderer/fuentes/, SIL OFL): la app y el PDF se ven
+   igual sin conexión. Antes venían de Google Fonts y sin red todo salía en Arial. */
+@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:block;src:url(fuentes/Inter.woff2) format('woff2')}
+@font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:800;font-display:block;src:url(fuentes/PlusJakartaSans-800.woff2) format('woff2')}
+
 *{box-sizing:border-box;margin:0;padding:0}
 body{
-  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
-  font-size:13.5px;color:var(--ink);background:var(--tint);
+  font-family:var(--fuente);font-size:var(--t-13);line-height:var(--lh-2);color:var(--ink);background:var(--tint);
   height:100vh;overflow:hidden;-webkit-font-smoothing:antialiased;
+  /* la interfaz no se selecciona al arrastrar; el texto que se lee, sí (abajo) */
+  -webkit-user-select:none;user-select:none;
 }
+.minuta,.notas,.comp-texto,.comp-meta,.res-frag,.estado-texto,.aviso,.confirmar p,.ayuda,textarea,input{-webkit-user-select:text;user-select:text}
 button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit}
-input,textarea{font-family:inherit;font-size:inherit;color:inherit}
+input,textarea,select{font-family:inherit;font-size:inherit;color:inherit}
+/* foco visible solo al navegar con teclado; los campos de texto ya cambian el borde */
+:focus-visible{outline:2px solid var(--azul);outline-offset:2px}
+input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
 
 .app{display:grid;grid-template-columns:292px 1fr;height:100vh}
 
-/* ---------- barra lateral ---------- */
-.lateral{background:var(--paper);border-right:1px solid var(--rule);display:flex;flex-direction:column;overflow:hidden}
-.marca{padding:38px 18px 14px;-webkit-app-region:drag}
-.marca h1{font-family:'Plus Jakarta Sans',Inter,sans-serif;font-size:15px;font-weight:800;letter-spacing:-.01em;word-spacing:.06em}
-.marca .barra{height:3px;width:34px;background:linear-gradient(90deg,var(--azul),var(--verde));border-radius:2px;margin-top:8px}
-.buscar{margin:6px 14px 10px}
-.buscar input{width:100%;padding:7px 10px;border:1px solid var(--rule-fuerte);border-radius:7px;background:var(--tint);outline:none}
-.buscar input:focus{border-color:var(--azul);background:var(--paper)}
-.lista{flex:1;overflow-y:auto;padding:0 8px 14px}
-.cli{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:7px 10px;border-radius:7px;color:var(--soft);line-height:1.35}
-.cli:hover{background:var(--tint)}
-.cli.activo{background:var(--gold-soft);color:var(--ink);font-weight:600}
-.cli .punto{width:5px;height:5px;border-radius:50%;background:var(--gold);flex:none;opacity:0}
-.cli.activo .punto{opacity:1}
-.cli .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cli .cuenta{margin-left:auto;font-size:11px;color:var(--muted);flex:none}
+/* ---------- piezas compartidas ---------- */
+.et{font-size:var(--t-11);text-transform:uppercase;letter-spacing:.1em;font-weight:700;color:var(--muted);line-height:var(--lh-1)}
+.ayuda{font-size:var(--t-12);color:var(--muted);line-height:var(--lh-2);margin-top:var(--e-1)}
 
-/* ---------- panel ---------- */
-.panel{display:flex;flex-direction:column;overflow:hidden}
-.cabecera{padding:34px 26px 0;-webkit-app-region:drag}
-.cabecera .fila{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;-webkit-app-region:no-drag}
-.cabecera h2{font-family:'Plus Jakarta Sans',Inter,sans-serif;font-size:22px;font-weight:800;letter-spacing:-.02em;word-spacing:.04em}
-.cabecera .sub{color:var(--muted);font-size:12.5px;margin-top:3px}
-.acciones{display:flex;gap:8px}
-.btn{padding:8px 14px;border-radius:8px;border:1px solid var(--rule-fuerte);background:var(--paper);font-weight:600;transition:.12s}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:var(--e-2) var(--e-4);
+  border-radius:var(--r-2);border:1px solid var(--rule-fuerte);background:var(--paper);
+  font-weight:600;font-size:var(--t-13);line-height:var(--lh-1);white-space:nowrap;transition:.12s}
 .btn:hover{border-color:var(--ink)}
 .btn.primario{background:var(--ink);color:var(--ink-contra);border-color:var(--ink)}
 .btn.primario:hover{opacity:.88}
+.btn.peligro{background:var(--rojo);border-color:var(--rojo);color:var(--rojo-contra)}
+.btn.peligro:hover{opacity:.88}
 .btn.grabando{background:var(--rojo);border-color:var(--rojo);color:var(--rojo-contra)}
+.btn.chico{padding:var(--e-1) var(--e-2);font-size:var(--t-12);border-radius:var(--r-1)}
 .btn:disabled{opacity:.4;cursor:default}
+.btn:disabled:hover{border-color:var(--rule-fuerte)}
 
-.cuerpo{flex:1;display:flex;overflow:hidden;margin-top:18px}
+.chip{padding:var(--e-1) var(--e-3);border-radius:var(--r-pill);border:1px solid var(--rule-fuerte);
+  background:var(--paper);font-size:var(--t-12);color:var(--soft);transition:.12s}
+.chip:hover{border-color:var(--gold)}
+.chip.sel{background:var(--gold-soft);border-color:var(--gold);color:var(--ink);font-weight:600}
 
-/* reuniones del cliente activo, anidadas en la barra lateral */
-.reus{margin:2px 0 8px 10px;padding-left:9px;border-left:1px solid var(--rule)}
-.reu{display:block;width:100%;text-align:left;padding:6px 9px;border-radius:7px;
-  border:1px solid transparent;margin-bottom:2px;line-height:1.35}
-.reu:hover{background:var(--tint)}
+/* un aviso, tres variantes */
+.aviso{font-size:var(--t-12);line-height:var(--lh-2);padding:var(--e-2) var(--e-3);border-radius:var(--r-2);
+  background:var(--tint2);border:1px solid var(--rule);color:var(--ink)}
+.aviso.bien{background:var(--bien-fondo);border-color:transparent;color:var(--bien-texto)}
+.aviso.error{background:var(--mal-fondo);border-color:var(--mal-borde);color:var(--mal-texto);font-weight:600}
+.aviso.atencion{background:var(--ambar-fondo);border-color:var(--ambar-borde)}
+.aviso.atencion .et{color:var(--gold-texto)}
+.aviso code{background:var(--paper);border:1px solid var(--rule);border-radius:var(--r-1);padding:1px 5px;font-size:var(--t-11)}
+.aviso .motivo{margin-top:var(--e-2)}
+.aviso + .aviso{margin-top:var(--e-2)}
+.aviso .btn{margin-top:var(--e-2)}
+
+kbd{font-family:inherit;font-size:var(--t-11);background:var(--tint2);border:1px solid var(--rule-fuerte);
+  border-bottom-width:2px;border-radius:var(--r-1);padding:1px 5px;margin:0 1px}
+
+/* ---------- barra lateral ---------- */
+.lateral{background:var(--paper);border-right:1px solid var(--rule);display:flex;flex-direction:column;overflow:hidden}
+.marca{padding:38px var(--e-4) var(--e-3);-webkit-app-region:drag}   /* 38 arriba: deja libre el semáforo de la ventana */
+.marca h1{font-family:var(--fuente-titulo);font-size:var(--t-14);font-weight:800;letter-spacing:-.01em;word-spacing:.06em}
+.marca-linea{height:3px;width:34px;background:linear-gradient(90deg,var(--azul),var(--verde));border-radius:2px;margin-top:var(--e-2)}
+.buscar{margin:var(--e-1) var(--e-3) var(--e-2)}
+.buscar input{width:100%;padding:var(--e-2) var(--e-3);border:1px solid var(--rule-fuerte);border-radius:var(--r-2);background:var(--tint);outline:none}
+.buscar input:focus{border-color:var(--azul);background:var(--paper)}
+.nuevo-cli{display:block;width:calc(100% - 24px);text-align:left;padding:var(--e-2) var(--e-3);margin:0 var(--e-3) var(--e-2);
+  border-radius:var(--r-2);border:1px dashed var(--rule-fuerte);color:var(--soft);font-size:var(--t-12);font-weight:600;transition:.12s}
+.nuevo-cli:hover{border-color:var(--gold);color:var(--gold-texto);background:var(--gold-soft)}
+.lista{flex:1;overflow-y:auto;padding:0 var(--e-2) var(--e-4)}
+.cli{display:flex;align-items:center;gap:var(--e-2);width:100%;text-align:left;padding:var(--e-2) var(--e-3);border-radius:var(--r-2);color:var(--soft)}
+.cli:hover{background:var(--hover)}
+.cli.activo{background:var(--gold-soft);color:var(--ink);font-weight:600}
+.cli .punto{width:5px;height:5px;border-radius:50%;background:var(--gold);flex:none;opacity:0}
+.cli.activo .punto{opacity:1}
+.cli-nombre{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cli-cuenta{margin-left:auto;flex:none;font-size:var(--t-11);font-weight:700;color:var(--muted);background:var(--tint2);border-radius:var(--r-pill);padding:1px 7px;line-height:1.4}
+.cli.activo .cli-cuenta{background:var(--paper)}
+
+/* reuniones del cliente activo, anidadas */
+.reus{margin:0 0 var(--e-2) var(--e-3);padding-left:var(--e-2);border-left:1px solid var(--rule)}
+.reu{display:block;width:100%;text-align:left;padding:var(--e-2);border-radius:var(--r-2);border:1px solid transparent;margin-bottom:2px}
+.reu:hover{background:var(--hover)}
 .reu.activa{background:var(--paper);border-color:var(--rule-fuerte);box-shadow:var(--sombra)}
-.reu .f{font-weight:600;font-size:12.5px}
-.reu .e{font-size:11px;color:var(--muted);margin-top:1px}
-.reu-vacio{font-size:11.5px;color:var(--muted);padding:5px 9px}
+.reu-fecha{font-weight:600;font-size:var(--t-12);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.reu-estado{font-size:var(--t-11);color:var(--muted);margin-top:1px}
+.reu-vacio{font-size:var(--t-11);color:var(--muted);padding:var(--e-1) var(--e-2)}
+.vacio-lateral{color:var(--muted);font-size:var(--t-12);line-height:var(--lh-3);padding:var(--e-4) var(--e-2);text-align:center}
+.ajustes-btn{margin:0 var(--e-2) var(--e-4);padding:var(--e-2) var(--e-3);border-radius:var(--r-2);color:var(--soft);text-align:left;width:calc(100% - 16px)}
+.ajustes-btn:hover{background:var(--hover)}
 
+/* resultados de búsqueda */
+.res{display:block;width:100%;text-align:left;padding:var(--e-2) var(--e-3);border-radius:var(--r-2);margin-bottom:var(--e-1)}
+.res:hover{background:var(--hover)}
+.res-cliente{font-weight:600;font-size:var(--t-12)}
+.res-titulo{font-size:var(--t-12);color:var(--ink);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.res-frag{font-size:var(--t-11);color:var(--muted);margin-top:2px}
+.res-frag mark{background:var(--gold-soft);color:var(--ink);padding:0 2px;border-radius:2px}
+
+/* ---------- panel ---------- */
+.panel{display:flex;flex-direction:column;overflow:hidden}
+/* La cabecera comparte eje con el documento: antes alineaba a 26 px del borde
+   mientras la minuta se centraba a 680, y el desfase (78 px a 1180 de ventana,
+   448 en un monitor de 1920) se movía al redimensionar. */
+.cabecera{padding:34px var(--e-8) 0;-webkit-app-region:drag}   /* 34 arriba: el semáforo */
+.cabecera .fila{max-width:var(--medida);margin:0 auto;display:flex;align-items:flex-end;justify-content:space-between;gap:var(--e-4);-webkit-app-region:no-drag}
+.cabecera .quien{min-width:0;flex:1}
+.titulo-fila{display:flex;align-items:center;gap:var(--e-2);min-width:0}
+.titulo-fila .btn{color:var(--soft);flex:none}
+.titulo-fila .btn:hover{color:var(--ink)}
+.cabecera h2{font-family:var(--fuente-titulo);font-size:var(--t-21);font-weight:800;letter-spacing:-.02em;word-spacing:.04em;line-height:var(--lh-1);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.cabecera-sub{color:var(--muted);font-size:var(--t-12);margin-top:2px}
+.enlazar{margin-left:var(--e-2);font-size:var(--t-12);color:var(--gold-texto);font-weight:600;text-decoration:underline}
+.acciones{display:flex;gap:var(--e-2);align-items:center}
+#menuCliente .menu{left:0;right:auto;min-width:250px}
+
+/* Modo de grabación, junto a Grabar: es la decisión que se toma justo antes
+   de pulsar. Cambiar el micrófono en Ajustes para cada reunión era un viaje
+   que nadie hacía. */
+.modo{display:flex;border:1px solid var(--rule-fuerte);border-radius:var(--r-2);overflow:hidden;background:var(--paper)}
+.modo-op{padding:var(--e-2) var(--e-3);font-size:var(--t-12);font-weight:600;line-height:16px;color:var(--soft);border-right:1px solid var(--rule)}
+.modo-op:last-child{border-right:0}
+.modo-op:hover{background:var(--hover)}
+.modo-op.activa{background:var(--gold-soft);color:var(--ink)}
+.modo.bloqueado .modo-op{opacity:.5;cursor:default}
+
+/* El aviso de progreso vive fuera del documento: cambiar de cliente no lo
+   borra. Todo lo de la barra comparte la medida del documento. */
+#barraEstado{padding:var(--e-4) var(--e-8) 0;flex:none}
+#barraEstado:empty{display:none}
+#barraEstado > *{max-width:var(--medida);margin-left:auto;margin-right:auto}
+#barraEstado > * + *{margin-top:var(--e-2)}
+
+.cuerpo{flex:1;display:flex;overflow:hidden;margin-top:var(--e-4)}
 /* El documento es el producto: se lleva todo el ancho que sobra, pero con una
    medida de lectura fija. Sin límite, maximizada en un monitor grande las
    líneas pasaban de 200 caracteres; con la ventana al mínimo, no llegaban a 40. */
-.detalle{flex:1;overflow-y:auto;padding:4px 30px 48px}
-.detalle > *{max-width:680px;margin-left:auto;margin-right:auto}
-.vacio{color:var(--muted);text-align:center;padding:70px 20px;line-height:1.7}
-.vacio strong{display:block;color:var(--soft);font-size:15px;margin-bottom:6px}
+.detalle{flex:1;overflow-y:auto;padding:var(--e-1) var(--e-8) 48px}
+.detalle > *{max-width:var(--medida);margin-left:auto;margin-right:auto}
+.vacio{color:var(--muted);text-align:center;padding:72px var(--e-5);line-height:var(--lh-3)}
+.vacio strong{display:block;color:var(--soft);font-size:var(--t-14);margin-bottom:var(--e-2)}
+.vacio .atajo{margin-top:var(--e-4);font-size:var(--t-11);color:var(--muted)}
 
-/* minuta renderizada */
-.minuta{background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:26px 30px;
-  box-shadow:var(--sombra);line-height:1.68;font-size:14px}
-.minuta h1,.minuta h2{font-family:'Plus Jakarta Sans',Inter,sans-serif;font-weight:800;word-spacing:.09em;letter-spacing:0}
-.minuta h1{font-size:17px;margin:22px 0 10px;padding-top:14px;border-top:1px solid var(--rule)}
-.minuta h1:first-child{border:none;padding:0;margin-top:0}
-.minuta h2{font-size:14.5px;margin:20px 0 8px}
-.minuta h2::before{content:"";display:block;width:20px;height:2px;background:var(--gold);margin-bottom:6px;border-radius:1px}
-.minuta h3{font-size:13.5px;margin:14px 0 5px}
-.minuta p{margin-bottom:9px}
-.minuta ul,.minuta ol{list-style:none;margin-bottom:11px}
-.minuta li{position:relative;padding-left:18px;margin-bottom:5px}
+.acciones-reunion{margin-bottom:var(--e-4);flex-wrap:wrap}
+/* El reproductor va en la barra: es una herramienta para verificar una cita
+   antes de mandar el PDF, no parte del documento. */
+.acciones-reunion .audio-caja{flex:1;min-width:200px;margin-left:auto}
+.audio-caja audio{width:100%;height:32px;display:block}
+.audio-caja.mal{font-size:var(--t-12);color:var(--rojo)}
+
+/* ---------- pestañas ---------- */
+/* Apiladas, compromisos + hallazgos sumaban ~860 px antes de la primera línea
+   de la minuta en una ventana de 820. Cada cosa tiene ahora su espacio entero. */
+.pestanas{display:flex;gap:2px;border-bottom:1px solid var(--rule-fuerte);margin-bottom:var(--e-4)}
+.pestana{display:flex;align-items:center;gap:6px;padding:var(--e-2) var(--e-3) 10px;font-weight:600;font-size:var(--t-13);color:var(--soft);
+  border-bottom:2px solid transparent;margin-bottom:-1px;border-radius:var(--r-2) var(--r-2) 0 0;transition:.12s}
+.pestana:hover{color:var(--ink);background:var(--hover)}
+.pestana[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
+.pestana .num{font-size:var(--t-11);font-weight:700;color:var(--ink-contra);background:var(--ink);border-radius:var(--r-pill);padding:1px 6px;line-height:1.3}
+.pestana.priv::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--gold);flex:none}
+.pestana-cuerpo[hidden]{display:none}
+
+/* ---------- la minuta ---------- */
+.minuta{background:var(--paper);border:1px solid var(--rule);border-radius:var(--r-3);padding:var(--e-6) var(--e-8);
+  box-shadow:var(--sombra);line-height:var(--lh-3);font-size:var(--t-14)}
+.minuta h1,.minuta h2{font-family:var(--fuente-titulo);font-weight:800;word-spacing:.09em;letter-spacing:0;line-height:var(--lh-1)}
+.minuta h1{font-size:var(--t-21);margin:var(--e-6) 0 var(--e-3);padding-top:var(--e-4);border-top:1px solid var(--rule)}
+.minuta > :first-child,.notas .et + *{margin-top:0}
+.minuta h1:first-child{border:none;padding:0}
+.minuta h2{font-size:var(--t-17);margin:var(--e-5) 0 var(--e-2)}
+.minuta h2::before{content:"";display:block;width:20px;height:2px;background:var(--gold);margin-bottom:var(--e-2);border-radius:1px}
+.minuta h3{font-size:var(--t-14);font-weight:700;margin:var(--e-4) 0 var(--e-1)}
+.minuta p{margin-bottom:var(--e-2)}
+.minuta ul,.minuta ol{list-style:none;margin-bottom:var(--e-3)}
+.minuta li{position:relative;padding-left:var(--e-5);margin-bottom:var(--e-1)}
 .minuta ul>li::before{content:"";position:absolute;left:3px;top:.62em;width:5px;height:5px;border-radius:50%;background:var(--gold)}
 .minuta ol{counter-reset:li}
 .minuta ol>li{counter-increment:li}
-.minuta ol>li::before{content:counter(li);position:absolute;left:0;font-size:11px;font-weight:700;color:var(--gold)}
-.minuta table{width:100%;border-collapse:collapse;margin:12px 0;font-size:12.5px}
-.minuta th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:0 9px 6px;border-bottom:1.5px solid var(--ink)}
-.minuta td{padding:8px 9px;border-bottom:1px solid var(--rule);vertical-align:top}
-.minuta code{background:var(--tint);border:1px solid var(--rule);border-radius:3px;padding:0 4px;font-size:12px}
-.minuta hr{border:none;border-top:1px solid var(--rule);margin:18px 0}
-.minuta .contact{background:var(--tint);border:1px solid var(--rule);border-left:3px solid var(--gold);border-radius:6px;padding:11px 13px;margin-top:18px}
+.minuta ol>li::before{content:counter(li);position:absolute;left:0;font-size:var(--t-11);font-weight:700;color:var(--gold-texto)}
+.minuta table{width:100%;border-collapse:collapse;margin:var(--e-3) 0;font-size:var(--t-13)}
+.minuta th{text-align:left;font-size:var(--t-11);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:0 var(--e-2) var(--e-2);border-bottom:1.5px solid var(--ink)}
+.minuta td{padding:var(--e-2);border-bottom:1px solid var(--rule);vertical-align:top}
+.minuta code{background:var(--tint);border:1px solid var(--rule);border-radius:var(--r-1);padding:0 4px;font-size:var(--t-12);font-family:var(--fuente-mono)}
+.minuta hr{border:none;border-top:1px solid var(--rule);margin:var(--e-5) 0}
+.minuta .contact{background:var(--tint);border:1px solid var(--rule);border-left:3px solid var(--gold);border-radius:var(--r-2);padding:var(--e-3) var(--e-4);margin-top:var(--e-5)}
 
-/* notas internas */
-.notas{margin-top:18px;background:var(--ambar-fondo);border:1px solid var(--ambar-borde);border-left:3px solid var(--gold);border-radius:10px;padding:18px 22px}
-.notas .et{font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;font-weight:700;color:var(--gold-texto);margin-bottom:10px}
-.notas h2{font-size:13.5px;margin:14px 0 6px}
-.notas h2::before{display:none}
-.notas ul{list-style:none}
-.notas li{position:relative;padding-left:16px;margin-bottom:5px;line-height:1.55}
-.notas li::before{content:"";position:absolute;left:2px;top:.6em;width:4px;height:4px;border-radius:50%;background:var(--gold)}
-
-textarea.editor{width:100%;min-height:60vh;border:1px solid var(--rule-fuerte);border-radius:12px;padding:20px;
-  background:var(--paper);line-height:1.6;font-size:13px;resize:vertical;outline:none;
-  font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-textarea.editor:focus{border-color:var(--azul)}
-
-/* estado de grabación / progreso */
-.estado{display:flex;align-items:center;gap:11px;background:var(--paper);border:1px solid var(--rule-fuerte);
-  border-radius:11px;padding:13px 16px;margin-bottom:16px;box-shadow:var(--sombra)}
-.estado .pulso{width:9px;height:9px;border-radius:50%;background:var(--rojo);animation:late 1.4s infinite}
-@keyframes late{0%,100%{opacity:1}50%{opacity:.25}}
-.estado .txt{font-weight:600}
-.estado .sub{color:var(--muted);font-size:12px}
-.estado .crono{margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:16px;font-weight:700}
-.spin{width:14px;height:14px;border:2px solid var(--rule-fuerte);border-top-color:var(--azul);border-radius:50%;animation:gira .7s linear infinite}
-@keyframes gira{to{transform:rotate(360deg)}}
-.error{background:var(--mal-fondo);border-color:var(--mal-borde);color:var(--mal-texto)}
-
-/* medidores de nivel */
-.medidores{display:flex;flex-direction:column;gap:5px;margin-left:16px;min-width:150px;flex:none}
-.med{display:flex;align-items:center;gap:7px;font-size:10.5px;color:var(--muted)}
-.med .et{width:52px;flex:none;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
-.med .barra{flex:1;height:5px;background:var(--tint2);border-radius:3px;overflow:hidden}
-.med .relleno{height:100%;width:0;border-radius:3px;background:var(--verde);transition:width .12s linear}
-.med.mudo .relleno{background:var(--rojo)}
-.med.mudo .et{color:var(--rojo)}
-.aviso-mudo{color:var(--rojo);font-size:11.5px;margin-top:4px;font-weight:600}
-
-/* resultados de búsqueda */
-.res{display:block;width:100%;text-align:left;padding:9px 11px;border-radius:8px;margin-bottom:5px;line-height:1.45}
-.res:hover{background:var(--paper)}
-.res .c{font-weight:600;font-size:12.5px}
-.res .frag{font-size:11.5px;color:var(--muted);margin-top:2px}
-.res .frag mark{background:var(--gold-soft);color:var(--ink);padding:0 2px;border-radius:2px}
-
-/* ---------- ajustes ---------- */
-.ajustes-btn{margin:0 8px 14px;padding:7px 10px;border-radius:7px;color:var(--soft);text-align:left;width:calc(100% - 16px)}
-.ajustes-btn:hover{background:var(--tint)}
-.modal{position:fixed;inset:0;background:rgba(10,20,40,.34);display:flex;align-items:center;justify-content:center;z-index:50}
-.modal[hidden]{display:none}
-.modal-caja{background:var(--paper);border-radius:14px;width:660px;max-width:92vw;max-height:86vh;
-  display:flex;flex-direction:column;box-shadow:0 24px 70px rgba(10,20,40,.24)}
-.modal-cab{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 14px;border-bottom:1px solid var(--rule)}
-.modal-cab h2{font-family:'Plus Jakarta Sans',Inter,sans-serif;font-size:17px;font-weight:800;word-spacing:.06em}
-.modal-cuerpo{overflow-y:auto;padding:20px 24px 26px}
-.campo{margin-bottom:15px}
-.campo label{display:block;font-size:12px;font-weight:600;color:var(--soft);margin-bottom:5px}
-.campo input[type=text],.campo input[type=password],.campo select{width:100%;padding:8px 10px;border:1px solid var(--rule-fuerte);
-  border-radius:7px;background:var(--paper);outline:none}
-.campo input:focus,.campo select:focus{border-color:var(--azul)}
-.campo .ayuda{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.5}
-.seccion{font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;font-weight:700;color:var(--muted);
-  margin:24px 0 12px;padding-top:16px;border-top:1px solid var(--rule)}
-.seccion:first-child{margin-top:0;padding-top:0;border-top:none}
-.motor{display:flex;gap:11px;align-items:flex-start;padding:12px;border:1px solid var(--rule-fuerte);
-  border-radius:9px;margin-bottom:9px;cursor:pointer}
-.motor.sel{border-color:var(--gold);background:var(--gold-soft)}
-.motor.no{opacity:.55}
-.motor input{margin-top:3px}
-.motor .n{font-weight:600}
-.motor .d{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.5}
-.motor .p{font-size:11px;color:var(--gold);margin-top:4px;font-weight:600}
-.estado-linea{font-size:12px;margin-top:8px;padding:8px 11px;border-radius:7px;background:var(--tint)}
-.estado-linea.ok{background:var(--bien-fondo);color:var(--bien-texto)}
-.estado-linea.mal{background:var(--mal-fondo);color:var(--mal-texto)}
-.falta{font-size:12px;padding:9px 11px;border-radius:7px;background:var(--ambar-fondo);border:1px solid var(--ambar-borde);margin-bottom:7px}
-.falta code{background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:1px 5px;font-size:11px}
-
-
-/* ---------- acciones secundarias ---------- */
-/* Seis botones en fila no dejaban ver cuál era la acción principal. */
-.mas{position:relative}
-.mas .menu{position:absolute;right:0;top:calc(100% + 6px);z-index:40;min-width:212px;
-  background:var(--paper);border:1px solid var(--rule-fuerte);border-radius:10px;
-  box-shadow:var(--sombra);padding:5px;display:flex;flex-direction:column}
-.mas .menu[hidden]{display:none}
-.mas .item{text-align:left;padding:8px 11px;border-radius:7px;background:none;border:0;
-  font-size:13px;color:var(--ink);cursor:pointer;white-space:nowrap}
-.mas .item:hover{background:var(--tint2)}
-.mas .item.peligro{color:var(--rojo);margin-top:4px;border-top:1px solid var(--rule);
-  border-radius:0 0 7px 7px;padding-top:10px}
-.mas .item.peligro:hover{background:var(--mal-fondo)}
-.btn.peligro{background:var(--rojo);border-color:var(--rojo);color:var(--rojo-contra)}
-.btn.peligro:hover{opacity:.88}
-
-/* ---------- avance real ---------- */
-/* whisper informa su porcentaje por stderr; antes se tiraba y la espera de diez
-   minutos se veía como un mensaje congelado. */
-/* OJO: no llamar a esto .cuerpo — esa clase ya es el cuerpo de la app, que es
-   flex, y convertía el título y el detalle del aviso en dos columnas pegadas. */
-.estado .texto{flex:1;min-width:0}
-.avance{display:flex;align-items:center;gap:9px;margin-top:7px}
-.avance .pista{flex:1;height:4px;border-radius:2px;background:var(--tint2);overflow:hidden}
-.avance .relleno{height:100%;background:var(--gold);border-radius:2px;transition:width .35s ease}
-.avance .pct{font-size:11px;color:var(--soft);font-variant-numeric:tabular-nums;min-width:30px;text-align:right}
-.btn.cancelar{flex:none;padding:6px 12px;font-size:12.5px}
-.estado .btn.permisos{flex:none;padding:6px 12px;font-size:12.5px;margin-left:auto}
-
-/* ---------- confirmación ---------- */
-.confirmar{position:fixed;inset:0;z-index:80;background:rgba(10,20,40,.34);
-  display:flex;align-items:center;justify-content:center;padding:24px}
-.confirmar .caja{background:var(--paper);border-radius:14px;padding:22px 24px;max-width:400px;
-  box-shadow:0 18px 50px rgba(10,20,40,.22)}
-.confirmar h3{font-size:15px;margin-bottom:7px}
-.confirmar p{color:var(--soft);line-height:1.6;margin-bottom:17px}
-.confirmar .fila{display:flex;gap:8px;justify-content:flex-end}
-
-/* ---------- aviso breve ---------- */
-.aviso-breve{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:90;
-  background:var(--ink);color:var(--ink-contra);padding:8px 10px 8px 17px;border-radius:9px;font-size:12.5px;
-  box-shadow:var(--sombra);transition:opacity .35s, transform .35s;
-  display:flex;align-items:center;gap:6px}
-.aviso-breve .ac{color:var(--ink-contra);font-weight:600;font-size:12.5px;
-  padding:4px 10px;border-radius:6px;background:color-mix(in srgb, var(--ink-contra) 16%, transparent)}
-.aviso-breve .ac:hover{background:color-mix(in srgb, var(--ink-contra) 30%, transparent)}
-.aviso-breve.fuera{opacity:0;transform:translateX(-50%) translateY(8px)}
-
-/* ---------- estados vacíos y pistas ---------- */
-.vacio-lateral{color:var(--muted);font-size:12px;line-height:1.65;padding:16px 10px;text-align:center}
-.vacio .atajo{margin-top:16px;font-size:11.5px;color:var(--muted)}
-.vacio kbd{font-family:inherit;font-size:11px;background:var(--tint2);border:1px solid var(--rule-fuerte);
-  border-bottom-width:2px;border-radius:4px;padding:1px 5px;margin:0 1px}
-.acciones .pista{font-size:11.5px;color:var(--muted);align-self:center;margin-left:2px}
-
-/* ---------- ajustes ---------- */
-.bienvenida{background:var(--tint);border:1px solid var(--rule);border-left:3px solid var(--gold);
-  border-radius:10px;padding:15px 17px;margin-bottom:22px;line-height:1.65;color:var(--soft)}
-.bienvenida strong{color:var(--ink);display:block;margin-bottom:4px}
-.ruta{display:flex;gap:7px}
-.ruta input{flex:1;min-width:0}
-.ruta .btn{flex:none;padding:8px 12px}
-.falta .motivo{margin-top:8px}
-
-/* ---------- nuevo cliente ---------- */
-/* Crear cliente solo existía como efecto colateral de buscar un nombre que no
-   estaba. Ahora es un botón, porque eso no lo adivina nadie. */
-.nuevo-cli{width:100%;text-align:left;padding:8px 10px;margin:0 0 8px;border-radius:8px;
-  border:1px dashed var(--rule-fuerte);background:none;color:var(--soft);font-size:12.5px;
-  font-weight:600;cursor:pointer;transition:.12s}
-.nuevo-cli:hover{border-color:var(--gold);color:var(--gold-texto);background:var(--gold-soft)}
-.confirmar .caja.nuevo{width:400px;max-width:100%}
-.caja.nuevo .et{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.1em;
-  font-weight:700;color:var(--muted);margin-bottom:5px}
-.caja.nuevo input[type=text]{width:100%;padding:9px 11px;border-radius:8px;
-  border:1px solid var(--rule-fuerte);background:var(--paper);font:inherit;color:var(--ink)}
-.caja.nuevo input[type=text]:focus{outline:none;border-color:var(--gold)}
-.caja.nuevo input.mal{border-color:var(--rojo)}
-.caja.nuevo .et2{margin-top:17px;font-size:11px;text-transform:uppercase;letter-spacing:.1em;
-  font-weight:700;color:var(--muted)}
-.caja.nuevo .et2 span{text-transform:none;letter-spacing:0;font-weight:500;opacity:.75}
-.caja.nuevo .ayuda2{font-size:11.5px;color:var(--muted);line-height:1.55;margin-top:5px}
-.caja.nuevo .exps{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
-.caja.nuevo .exp{padding:6px 11px;border-radius:20px;border:1px solid var(--rule-fuerte);
-  background:var(--paper);font-size:12.5px;color:var(--soft);cursor:pointer;transition:.12s}
-.caja.nuevo .exp:hover{border-color:var(--gold)}
-.caja.nuevo .exp.sel{background:var(--gold-soft);border-color:var(--gold);color:var(--ink);font-weight:600}
-.caja.nuevo .fila{margin-top:20px}
-
-/* enlazar expediente desde la cabecera de un cliente que no lo tiene */
-.enlazar{background:none;border:0;padding:0;margin-left:7px;font-size:12.5px;
-  color:var(--gold-texto);font-weight:600;cursor:pointer;text-decoration:underline}
-
-/* ---------- lo que hay que hacer con la minuta ---------- */
-/* Compromisos y hallazgos van ARRIBA: eran lo más valioso del documento y
-   estaban a media página y al final, en texto corrido. */
-.tarjeta{background:var(--paper);border:1px solid var(--rule-fuerte);border-radius:11px;
-  padding:13px 16px;margin-bottom:11px;box-shadow:var(--sombra)}
-.tarjeta .et{font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;font-weight:700;
-  color:var(--muted);margin-bottom:9px}
-
-.compromisos .comp{display:flex;align-items:flex-start;gap:10px;padding:6px 0;border-top:1px solid var(--rule)}
-.compromisos .comp:first-of-type{border-top:none;padding-top:0}
-/* Se llamaba .marca y chocaba con la .marca de la barra lateral, que trae
-   padding:38px 18px 14px y -webkit-app-region:drag. La casilla de 19x19 se
-   pintaba como un bloque de ~39x55 px DENTRO de una región de arrastre de
-   ventana, así que no se podía pulsar con el ratón: por eso no existe ni un
-   solo compromisos.json en uso real. Tercera colisión de nombres de clase en
-   este archivo; de ahí que ahora se llame .casilla. */
-.compromisos .casilla{flex:none;width:19px;height:19px;margin-top:1px;border-radius:6px;
-  border:1.5px solid var(--rule-fuerte);background:var(--paper);font-size:12px;
-  line-height:1;color:var(--ink-contra);transition:.12s}
-.compromisos .casilla:hover{border-color:var(--gold)}
-.compromisos .comp.hecho .casilla{background:var(--gold);border-color:var(--gold)}
-.compromisos .txt{flex:1;min-width:0}
-.compromisos .txt .t{line-height:1.42;font-size:13px}
-.compromisos .txt .m{font-size:11.5px;color:var(--muted);margin-top:1px}
-.compromisos .comp.hecho .txt .t{text-decoration:line-through;color:var(--muted)}
-.compromisos .copiar{flex:none;font-size:11.5px;color:var(--muted);padding:2px 6px;border-radius:5px;opacity:0;transition:.12s}
-.compromisos .comp:hover .copiar{opacity:1}
-.compromisos .copiar:hover{background:var(--tint2);color:var(--ink)}
-
-.hallazgos{background:var(--ambar-fondo);border-color:var(--ambar-borde);border-left:3px solid var(--gold)}
-.hallazgos .et{color:var(--gold-texto)}
-.hallazgos .h{position:relative;padding-left:15px;margin-bottom:5px;line-height:1.55;font-size:13px}
-.hallazgos .h::before{content:"";position:absolute;left:2px;top:.6em;width:4px;height:4px;
-  border-radius:50%;background:var(--gold)}
-.hallazgos .vertodo{margin-top:7px;font-size:11.5px;color:var(--gold-texto);font-weight:600;text-decoration:underline}
-.compromisos .vertodo{margin-top:9px;font-size:11.5px;color:var(--soft);font-weight:600;
-  padding-top:8px;border-top:1px solid var(--rule);width:100%;text-align:left}
-.compromisos .vertodo:hover{color:var(--ink)}
-
-/* ---------- audio de la reunión ---------- */
-/* Las marcas de tiempo del diálogo eran decorativas: no había forma de oír nada.
-   Verificar una cita antes de mandar el PDF es justo donde más caro sale fallar. */
-.audio-caja{margin-bottom:12px}
-.audio-caja audio{width:100%;height:34px}
-.audio-caja.mal{font-size:12px;color:var(--rojo)}
-.minuta.dialogo p{margin-bottom:11px}
-.minuta.dialogo .salto{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--soft);
-  margin-right:8px;padding:1px 5px;border-radius:4px;background:var(--tint);border:1px solid var(--rule)}
+/* quién dijo qué: cada marca de tiempo salta a ese momento del audio */
+.minuta.dialogo p{margin-bottom:var(--e-3)}
+.minuta.dialogo .salto{font-family:var(--fuente-mono);font-size:var(--t-11);color:var(--soft);margin-right:var(--e-2);
+  padding:1px 5px;border-radius:var(--r-1);background:var(--tint);border:1px solid var(--rule)}
 .minuta.dialogo .salto:hover{background:var(--gold-soft);border-color:var(--gold);color:var(--gold-texto)}
 .minuta.dialogo strong{color:var(--gold-texto)}
 
-/* ---------- barra de estado ---------- */
-/* El aviso de progreso vivía dentro del documento, así que cambiar de cliente
-   lo borraba: te quedabas sin la única señal de que algo seguía corriendo. */
-#barraEstado{padding:0 30px;flex:none}
-#barraEstado:empty{display:none}
-/* todo lo de la barra comparte la medida del documento: el aviso de abajo
-   quedaba pegado al borde y el recuadro centrado, cada uno por su lado */
-#barraEstado > *{max-width:680px;margin-left:auto;margin-right:auto}
-#barraEstado .estado{margin-top:14px}
-#barraEstado .aviso-mudo{margin-bottom:6px}
+/* notas internas: lo que no se dijo, riesgos y oportunidades */
+.notas{background:var(--ambar-fondo);border:1px solid var(--ambar-borde);border-left:3px solid var(--gold);border-radius:var(--r-3);
+  padding:var(--e-5) var(--e-6);line-height:var(--lh-3);font-size:var(--t-14)}
+.notas .et{color:var(--gold-texto);margin-bottom:var(--e-3)}
+.notas h1,.notas h2{font-family:var(--fuente-titulo);font-weight:800;font-size:var(--t-17);margin:var(--e-4) 0 var(--e-2);line-height:var(--lh-1)}
+.notas h3{font-size:var(--t-14);font-weight:700;margin:var(--e-3) 0 var(--e-1)}
+.notas p{margin-bottom:var(--e-2)}
+.notas ul{list-style:none;margin-bottom:var(--e-3)}
+.notas li{position:relative;padding-left:var(--e-4);margin-bottom:var(--e-1)}
+.notas li::before{content:"";position:absolute;left:2px;top:.6em;width:4px;height:4px;border-radius:50%;background:var(--gold)}
 
-/* ---------- modo de grabación ---------- */
-/* Junto a Grabar, porque es la decisión que se toma justo antes de pulsar.
-   Cambiar el micrófono en Ajustes para cada tipo de reunión era un viaje que
-   nadie hacía. */
-.modo{display:flex;border:1px solid var(--rule-fuerte);border-radius:8px;overflow:hidden;background:var(--paper)}
-.modo .op{padding:8px 11px;font-size:12.5px;font-weight:600;color:var(--soft);border-right:1px solid var(--rule)}
-.modo .op:last-child{border-right:0}
-.modo .op:hover{background:var(--tint)}
-.modo .op.activa{background:var(--gold-soft);color:var(--ink)}
-.modo.bloqueado .op{opacity:.5;cursor:default}
-.modo-ayuda{font-size:11.5px;color:var(--muted);margin-top:6px;text-align:right}
+textarea.editor{width:100%;min-height:60vh;border:1px solid var(--rule-fuerte);border-radius:var(--r-3);padding:var(--e-5);
+  background:var(--paper);line-height:var(--lh-3);font-size:var(--t-13);resize:vertical;outline:none;font-family:var(--fuente-mono)}
+textarea.editor:focus{border-color:var(--azul)}
+
+/* ---------- compromisos ---------- */
+/* Se marcan y se copian sueltos, sin tocar minuta.md. */
+.tarjeta{background:var(--paper);border:1px solid var(--rule-fuerte);border-radius:var(--r-3);padding:var(--e-4) var(--e-5);box-shadow:var(--sombra)}
+.tarjeta .et{margin-bottom:var(--e-2)}
+.compromisos .comp{display:flex;align-items:flex-start;gap:var(--e-3);padding:var(--e-2) 0;border-top:1px solid var(--rule)}
+.compromisos .comp:first-of-type{border-top:none;padding-top:0}
+/* pendientes del cliente, encima del estado vacío */
+.detalle .pendientes{margin-top:var(--e-2)}
+.detalle .pendientes + .vacio{padding-top:var(--e-6)}
+.detalle .pendientes + .vacio strong{display:none}   /* el nombre ya está en la tarjeta */
+/* 24 px: el mínimo que se pulsa sin apuntar */
+.casilla{flex:none;width:24px;height:24px;border-radius:var(--r-2);border:1.5px solid var(--rule-fuerte);background:var(--paper);
+  display:flex;align-items:center;justify-content:center;font-size:var(--t-13);line-height:1;color:var(--ink-contra);transition:.12s}
+.casilla:hover{border-color:var(--gold)}
+.comp.hecho .casilla{background:var(--gold);border-color:var(--gold)}
+.comp-cuerpo{flex:1;min-width:0;padding-top:3px}
+.comp-texto{font-size:var(--t-13)}
+.comp-meta{font-size:var(--t-12);color:var(--muted);margin-top:1px}
+.comp.hecho .comp-texto{text-decoration:line-through;color:var(--muted)}
+.copiar{flex:none;font-size:var(--t-12);color:var(--muted);padding:2px 6px;border-radius:var(--r-1);opacity:0;transition:.12s;margin-top:3px}
+.comp:hover .copiar,.copiar:focus-visible{opacity:1}
+.copiar:hover{background:var(--hover);color:var(--ink)}
+
+/* ---------- estado de grabación / progreso ---------- */
+.estado{display:flex;align-items:center;gap:var(--e-3);background:var(--paper);border:1px solid var(--rule-fuerte);
+  border-radius:var(--r-3);padding:var(--e-3) var(--e-4);box-shadow:var(--sombra)}
+.estado.error{background:var(--mal-fondo);border-color:var(--mal-borde);color:var(--mal-texto)}
+.estado .pulso{width:9px;height:9px;border-radius:50%;background:var(--rojo);animation:late 1.4s infinite;flex:none}
+@keyframes late{0%,100%{opacity:1}50%{opacity:.25}}
+.estado-texto{flex:1;min-width:0}
+.estado-titulo{font-weight:600}
+.estado-sub{color:var(--muted);font-size:var(--t-12);margin-top:2px}
+.estado.error .estado-sub{color:inherit;opacity:.85}
+.estado .crono{margin-left:auto;font-family:var(--fuente-mono);font-size:var(--t-17);font-weight:700;font-variant-numeric:tabular-nums}
+.estado .permisos{margin-left:auto}
+.spin{width:14px;height:14px;border:2px solid var(--rule-fuerte);border-top-color:var(--azul);border-radius:50%;animation:gira .7s linear infinite;flex:none}
+@keyframes gira{to{transform:rotate(360deg)}}
+
+/* medidores de nivel: azul es "actividad"; el rojo queda para grabando y error */
+.medidores{display:flex;flex-direction:column;gap:var(--e-1);margin-left:var(--e-4);min-width:150px;flex:none}
+.med{display:flex;align-items:center;gap:var(--e-2)}
+.med .et{width:64px;flex:none;letter-spacing:.06em}
+.med-pista{flex:1;height:5px;background:var(--tint2);border-radius:var(--r-1);overflow:hidden}
+.med-relleno{height:100%;width:0;border-radius:var(--r-1);background:var(--azul);transition:width .12s linear}
+.med.mudo .med-relleno{background:var(--rojo)}
+.med.mudo .et{color:var(--rojo)}
+
+/* avance real: whisper informa su porcentaje por stderr; antes se tiraba y la
+   espera de diez minutos se veía como un mensaje congelado */
+.avance{display:flex;align-items:center;gap:var(--e-2);margin-top:var(--e-2)}
+.avance-pista{flex:1;height:4px;border-radius:2px;background:var(--tint2);overflow:hidden}
+.avance-relleno{height:100%;background:var(--azul);border-radius:2px;transition:width .35s ease}
+.avance-pct{font-size:var(--t-11);color:var(--soft);font-variant-numeric:tabular-nums;min-width:30px;text-align:right}
+
+/* ---------- menú de acciones secundarias ---------- */
+.mas{position:relative}
+.mas .menu{position:absolute;right:0;top:calc(100% + 6px);z-index:40;min-width:212px;
+  background:var(--paper);border:1px solid var(--rule-fuerte);border-radius:var(--r-3);
+  box-shadow:var(--sombra-alta);padding:var(--e-1);display:flex;flex-direction:column}
+.mas .menu[hidden]{display:none}
+.mas .item{display:flex;align-items:center;width:100%;text-align:left;padding:var(--e-2) var(--e-3);border-radius:var(--r-2);
+  font-size:var(--t-13);color:var(--ink);white-space:nowrap}
+.mas .item:hover{background:var(--hover)}
+.mas .item:disabled{opacity:.4;cursor:default}
+.mas .item:disabled:hover{background:none}
+.mas .item kbd{margin-left:auto;padding:0 0 0 var(--e-6);background:none;border:0;color:var(--muted)}
+.mas .item.peligro{color:var(--rojo);margin-top:var(--e-1);border-top:1px solid var(--rule);border-radius:0 0 var(--r-2) var(--r-2);padding-top:10px}
+.mas .item.peligro:hover{background:var(--mal-fondo)}
+
+/* ---------- diálogos ---------- */
+.confirmar{position:fixed;inset:0;z-index:80;background:var(--velo);display:flex;align-items:center;justify-content:center;padding:var(--e-6)}
+.confirmar .caja{background:var(--paper);border:1px solid var(--rule);border-radius:var(--r-4);padding:var(--e-6);max-width:400px;box-shadow:var(--sombra-alta)}
+.confirmar h3{font-size:var(--t-17);font-weight:700;line-height:var(--lh-1);margin-bottom:var(--e-2)}
+.confirmar p{color:var(--soft);line-height:var(--lh-3);margin-bottom:var(--e-5)}
+.botones{display:flex;gap:var(--e-2);justify-content:flex-end}
+
+/* nuevo cliente */
+.confirmar .caja.nuevo{width:400px;max-width:100%}
+.caja.nuevo h3{margin-bottom:var(--e-4)}
+.caja.nuevo .et{display:block;margin-bottom:var(--e-1)}
+.caja.nuevo .et span{text-transform:none;letter-spacing:0;font-weight:400;opacity:.75}
+.caja.nuevo input[type=text]{width:100%;padding:var(--e-2) var(--e-3);border-radius:var(--r-2);border:1px solid var(--rule-fuerte);background:var(--paper);font:inherit;color:var(--ink)}
+.caja.nuevo input[type=text]:focus{outline:none;border-color:var(--gold)}
+.caja.nuevo input.mal{border-color:var(--rojo)}
+.caja.nuevo input ~ .et{margin-top:var(--e-4)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:var(--e-2)}
+.caja.nuevo .botones{margin-top:var(--e-5)}
+
+/* aviso breve que se va solo; puede traer acciones */
+.aviso-breve{position:fixed;bottom:var(--e-6);left:50%;transform:translateX(-50%);z-index:90;max-width:min(92vw,560px);
+  background:var(--ink);color:var(--ink-contra);padding:var(--e-2) var(--e-2) var(--e-2) var(--e-4);border-radius:var(--r-2);font-size:var(--t-12);
+  box-shadow:var(--sombra-alta);transition:opacity .35s, transform .35s;display:flex;align-items:center;gap:6px}
+.aviso-breve .accion{color:var(--ink-contra);font-weight:600;font-size:var(--t-12);padding:var(--e-1) 10px;border-radius:var(--r-1);white-space:nowrap;
+  background:color-mix(in srgb, var(--ink-contra) 16%, transparent)}
+.aviso-breve .accion:hover{background:color-mix(in srgb, var(--ink-contra) 30%, transparent)}
+.aviso-breve.fuera{opacity:0;transform:translateX(-50%) translateY(8px)}
+
+/* ---------- ajustes ---------- */
+.modal{position:fixed;inset:0;background:var(--velo);display:flex;align-items:center;justify-content:center;z-index:50}
+.modal[hidden]{display:none}
+.modal-caja{background:var(--paper);border:1px solid var(--rule);border-radius:var(--r-4);width:660px;max-width:92vw;max-height:86vh;
+  display:flex;flex-direction:column;box-shadow:var(--sombra-alta)}
+.modal-cab{display:flex;align-items:center;justify-content:space-between;padding:var(--e-5) var(--e-6) var(--e-4);border-bottom:1px solid var(--rule)}
+.modal-cab h2{font-family:var(--fuente-titulo);font-size:var(--t-17);font-weight:800;word-spacing:.06em}
+.modal-cuerpo{overflow-y:auto;padding:var(--e-5) var(--e-6) var(--e-6)}
+.bienvenida{background:var(--tint);border:1px solid var(--rule);border-left:3px solid var(--gold);border-radius:var(--r-2);
+  padding:var(--e-4);margin-bottom:var(--e-6);line-height:var(--lh-3);color:var(--soft)}
+.bienvenida strong{color:var(--ink);display:block;margin-bottom:var(--e-1)}
+.seccion{margin:var(--e-6) 0 var(--e-3);padding-top:var(--e-4);border-top:1px solid var(--rule)}
+.seccion:first-child{margin-top:0;padding-top:0;border-top:none}
+.campo{margin-bottom:var(--e-4)}
+.campo label{display:block;font-size:var(--t-12);font-weight:600;color:var(--soft);margin-bottom:var(--e-1)}
+.campo input[type=text],.campo input[type=password],.campo select{width:100%;padding:var(--e-2) var(--e-3);border:1px solid var(--rule-fuerte);
+  border-radius:var(--r-2);background:var(--paper);outline:none}
+.campo input:focus,.campo select:focus{border-color:var(--azul)}
+.ruta{display:flex;gap:var(--e-2)}
+.ruta input{flex:1;min-width:0}
+.ruta .btn{flex:none}
+.motor{display:flex;gap:var(--e-3);align-items:flex-start;padding:var(--e-3);border:1px solid var(--rule-fuerte);border-radius:var(--r-2);margin-bottom:var(--e-2);cursor:pointer}
+.motor.sel{border-color:var(--gold);background:var(--gold-soft)}
+.motor.no{opacity:.55}
+.motor input{margin-top:3px}
+.motor-nombre{font-weight:600}
+.motor-desc{font-size:var(--t-12);color:var(--muted);margin-top:2px}
+.motor-priv{font-size:var(--t-11);color:var(--gold-texto);margin-top:var(--e-1);font-weight:600}

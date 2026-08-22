@@ -3,7 +3,6 @@
 <head>
 <meta charset="utf-8">
 <title>Escriba</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
@@ -11,30 +10,37 @@
   <aside class="lateral">
     <div class="marca">
       <h1>Escriba</h1>
-      <div class="barra"></div>
+      <div class="marca-linea"></div>
     </div>
-    <div class="buscar"><input id="q" type="search" placeholder="Buscar cliente" autocomplete="off"></div>
-    <button class="nuevo-cli" id="btnNuevoCliente">+ Nuevo cliente</button>
+    <div class="buscar"><input id="q" type="search" placeholder="Buscar en clientes y minutas" title="Un cliente por nombre, o cualquier cosa que se haya dicho en una reunión (⌘F)" autocomplete="off"></div>
+    <button class="nuevo-cli" id="btnNuevoCliente" title="Crear un cliente (⌘N)">+ Nuevo cliente</button>
     <div class="lista" id="clientes"></div>
-    <button class="ajustes-btn" id="btnAjustes">Ajustes</button>
+    <button class="ajustes-btn" id="btnAjustes" title="Tu nombre, micrófonos, quién redacta y dónde se guarda todo (⌘,)">Ajustes</button>
   </aside>
 
   <main class="panel">
     <div class="cabecera">
       <div class="fila">
-        <div>
-          <h2 id="titulo">Elige un cliente</h2>
-          <div class="sub" id="subtitulo">Sus reuniones aparecen aquí</div>
+        <div class="quien">
+          <div class="titulo-fila">
+            <h2 id="titulo">Elige un cliente</h2>
+            <div class="mas" id="menuCliente">
+              <button class="btn chico" id="btnCliente" disabled aria-haspopup="true" title="Preparar, historial e importar">Cliente ▾</button>
+              <div class="menu" hidden>
+                <button class="item" id="btnPreparar" title="Qué está pendiente y qué preguntar, antes de entrar">Preparar la reunión<kbd>⇧⌘P</kbd></button>
+                <button class="item" id="btnExpediente" title="Todas las minutas del cliente en un solo PDF, con sus compromisos">Historial en PDF<kbd>⇧⌘E</kbd></button>
+                <button class="item" id="btnImportar" title="Una grabación que ya tienes: se transcribe y se redacta la minuta">Importar un audio…<kbd>⌘O</kbd></button>
+              </div>
+            </div>
+          </div>
+          <div class="cabecera-sub" id="subtitulo">Sus reuniones aparecen aquí</div>
         </div>
         <div class="acciones">
-          <button class="btn" id="btnPreparar" disabled title="Qué está pendiente y qué preguntar, antes de entrar">Preparar</button>
-          <button class="btn" id="btnExpediente" disabled>Expediente</button>
-          <button class="btn" id="btnImportar" disabled>Importar audio</button>
-          <div class="modo" id="modoGrabacion" title="Cómo entra la otra persona">
-            <button class="op activa" data-modo="llamada">Llamada en el Mac</button>
-            <button class="op" data-modo="presencial">Presencial</button>
+          <div class="modo" id="modoGrabacion">
+            <button class="modo-op activa" data-modo="llamada">Llamada en el Mac</button>
+            <button class="modo-op" data-modo="presencial">Presencial</button>
           </div>
-          <button class="btn primario" id="btnGrabar" disabled title="También con Cmd+Shift+R desde cualquier app">Grabar reunión</button>
+          <button class="btn primario" id="btnGrabar" disabled title="También con ⌘⇧R desde cualquier app">Grabar reunión</button>
         </div>
       </div>
     </div>
@@ -51,10 +57,10 @@
     </div>
   </main>
 </div>
-<div class="modal" id="modalAjustes" hidden>
+<div class="modal" id="modalAjustes" role="dialog" aria-modal="true" aria-labelledby="tituloAjustes" hidden>
   <div class="modal-caja">
     <div class="modal-cab">
-      <h2>Ajustes</h2>
+      <h2 id="tituloAjustes">Ajustes</h2>
       <button class="btn" id="cerrarAjustes">Cerrar</button>
     </div>
     <div class="modal-cuerpo" id="cuerpoAjustes"></div>

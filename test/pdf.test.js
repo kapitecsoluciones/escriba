@@ -49,8 +49,48 @@ test('el expediente puede cambiar los encabezados', () => {
   assert.match(html, /Historial de reuniones/);
 });
 
-test('sin logo del cliente cae al encabezado tipográfico, no al de otra marca', () => {
+// La cabecera: quien emite, grande a la izquierda; para quién, pequeño a la
+// derecha. Antes iba al revés y el documento parecía emitido por el cliente.
+test('sin logos: el emisor a la izquierda y "Para · cliente" a la derecha, nunca la marca de otro', () => {
+  CONFIG.guardar({ usuario: { empresa: 'Estudio Norte' } });
   const html = PDF.envolver({ cliente: 'Cliente Demo', fecha: 'hoy', cuerpoHtml: '', carpetaCliente: null });
-  assert.match(html, /Cliente Demo<\/div>/);
+  assert.match(html, /class="emisor">Estudio Norte<\/div>/);
+  assert.match(html, /class="para">Para<b>Cliente Demo<\/b>/);
   assert.doesNotMatch(html, /<img src="data:/);
+  // el cliente no aparece como emisor
+  assert.doesNotMatch(html, /class="emisor">Cliente Demo/);
+});
+
+test('el logo del cliente solo sale de SU carpeta, y el propio solo de Ajustes', () => {
+  const carpeta = fs.mkdtempSync(path.join(HOGAR, 'cli-'));
+  const png = Buffer.from('89504e470d0a1a0a', 'hex');
+  fs.writeFileSync(path.join(carpeta, 'logo.png'), png);
+  const conLogo = PDF.envolver({ cliente: 'Cliente Demo', fecha: 'hoy', cuerpoHtml: '', carpetaCliente: carpeta });
+  assert.match(conLogo, /<img src="data:image\/png;base64,[^"]+" alt="Cliente Demo">/);
+  assert.match(conLogo, /class="emisor">/, 'el emisor sigue siendo tipográfico');
+  // otro cliente sin logo no hereda el de este
+  const otro = PDF.envolver({ cliente: 'Otro', fecha: 'hoy', cuerpoHtml: '', carpetaCliente: fs.mkdtempSync(path.join(HOGAR, 'otro-')) });
+  assert.doesNotMatch(otro, /<img src="data:image/);
+  // el propio, desde Ajustes, va a la izquierda
+  const propio = path.join(HOGAR, 'marca.png'); fs.writeFileSync(propio, png);
+  CONFIG.guardar({ marca: { logo: propio } });
+  const conPropio = PDF.envolver({ cliente: 'Otro', fecha: 'hoy', cuerpoHtml: '', carpetaCliente: null });
+  assert.match(conPropio, /<header class="masthead"><img src="data:image\/png;base64,[^"]+" alt="Estudio Norte">/);
+  CONFIG.guardar({ marca: { logo: '' } });
+});
+
+// Sin red el PDF salía en Arial con el espaciado calibrado para otra letra.
+test('las fuentes van incrustadas; nada se carga de internet', () => {
+  const html = PDF.envolver({ cliente: 'Acme', fecha: 'hoy', cuerpoHtml: '' });
+  assert.doesNotMatch(html, /googleapis|https?:\/\//);
+  assert.match(html, /@font-face\{font-family:'Inter';[^}]*font-weight:100 900;src:url\(data:font\/woff2;base64,/);
+  assert.match(html, /@font-face\{font-family:'Plus Jakarta Sans';[^}]*font-weight:800;src:url\(data:font\/woff2;base64,/);
+});
+
+// La misma escala que la ventana (pt = px × 0.75): 14 px → 10.5 pt, 17 → 12.75, 21 → 15.75.
+test('comparte escala con la app', () => {
+  const html = PDF.envolver({ cliente: 'Acme', fecha: 'hoy', cuerpoHtml: '' });
+  assert.match(html, /html,body\{[^}]*font-size:10\.5pt/);
+  assert.match(html, /\nh2\{[^}]*font-size:12\.75pt/);
+  assert.match(html, /h1:not\(\.doctitle\)\{[^}]*font-size:15\.75pt/);
 });

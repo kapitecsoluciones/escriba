@@ -1,5 +1,96 @@
 # Changelog
 
+## 0.8.0 — 2026-08-22
+
+Una ronda de usabilidad y diseño. Empezó capturando cada estado de la app en
+claro y oscuro y midiendo, no leyendo CSS. Cuatro de las cosas que salieron
+perdían datos o engañaban; el resto es cómo se ve y cómo se llega a cada cosa.
+
+**Cuatro defectos que perdían trabajo o engañaban**
+
+- **«Cancelar» al cerrar con cambios sin guardar cerraba igual** y se perdía
+  la edición. Era el único diálogo cuyo Cancelar no cancelaba. Y Enter desde
+  cualquier sitio aceptaba el botón destructivo de cualquier diálogo; ahora
+  solo acepta sobre un botón del diálogo, y en los destructivos el foco arranca
+  en Cancelar.
+- **Cambiar de cliente durante la grabación** redactaba la minuta bajo el
+  cliente nuevo con el audio del viejo, y le anotaba lo acordado en SU memoria.
+  Ahora se bloquea con aviso.
+- **Cualquier acción durante la grabación borraba el indicador de grabación**
+  (cronómetro, medidores, avisos) y dejaba **Detener** deshabilitado durante
+  20–60 s. Los estados pasajeros van ahora en su propio recuadro y Detener se
+  puede pulsar siempre.
+- **El contador de compromisos retrocedía al marcar** («1 de 10» con siete
+  marcados): contaba solo los visibles.
+
+Y menores: ⇧⌘R ya no está asignado también a «Recargar la ventana»; Preparar
+pasa de ⌘P a ⇧⌘P (⌘P es imprimir); Escape sale del editor; al abrir una reunión
+ya no se ven las notas internas un instante antes de esconderse; el informe de
+preparación dice cuándo se generó; el historial en PDF respeta los compromisos
+marcados; los errores tienen botón de cerrar.
+
+**Pestañas y menú**
+
+- La reunión se ve en **Minuta · Compromisos · Interno · Quién dijo qué**.
+  Apiladas, compromisos y hallazgos empujaban ~860 px antes de la primera
+  línea de la minuta: lo que revisas antes de enviar no se veía sin scroll. La
+  pestaña Minuta es exactamente lo que recibe el cliente. Cambiar de pestaña no
+  repinta, así el audio sigue donde iba.
+- La cabecera lleva **Grabar** y el modo; **Preparar, Historial en PDF e
+  Importar** van en **Cliente ▾** junto al nombre. Seis controles no cabían en
+  la ventana mínima.
+- La cabecera comparte eje con el documento (el desfase era de 78 px a 1180 de
+  ventana y 448 en un monitor grande).
+- **Compartir…** es el botón principal cuando el PDF está al día; si la minuta
+  cambió después, vuelve a serlo Generar PDF. «Exportar» era el único verbo
+  que no hacía lo que decía.
+
+**Sistema visual**
+
+- Seis tamaños de letra (antes 13, la mitad en medio píxel), espacio en base 4,
+  cuatro radios, un botón, un aviso con tres variantes, un solo «eyebrow».
+- Clases con el nombre de su bloque: tres colisiones de nombres ya habían
+  roto cosas en producción.
+- **Modo oscuro de verdad**: `color-scheme` (los `<select>`, el reproductor y
+  las barras de scroll se quedaban en blanco), sombras y velo propios, el hover
+  va en la misma dirección en los dos temas.
+- Contraste medido: todo texto sobre su fondo ≥ 4,5:1 en claro y en oscuro. El
+  dorado a 3,15:1 ya no se usa como texto.
+- `prefers-reduced-motion`, la interfaz no se selecciona al arrastrar, foco
+  visible al navegar con teclado, casillas de 24 px.
+
+**PDF**
+
+- **Fuentes incrustadas** (Inter y Plus Jakarta Sans, SIL OFL). Venían de
+  Google Fonts: sin conexión el documento del cliente salía en Arial. La app
+  tampoco carga nada de internet ya.
+- **Quien emite, grande a la izquierda; «Para · cliente», pequeño a la
+  derecha.** Iba al revés y el documento parecía emitido por el cliente.
+- Misma escala que la ventana (pt = px × 0,75), la barra de acento respeta el
+  color configurado, y un título no se queda huérfano al pie de página.
+
+**Búsqueda y clientes**
+
+- **Índice en memoria.** La búsqueda releía cuatro archivos por reunión en
+  cada tecla y congelaba la ventana; con 100 reuniones largas ahora tarda
+  ~3 ms por tecla. Se reconstruye solo cuando cambia algo en disco.
+- **Por palabras, en AND, sin acentos**: «precio hablamos» encuentra la
+  reunión donde hablamos del precio. El conteo es el total, no el tope.
+- Las reuniones tienen **título** (el acuerdo principal) y **año** en la fecha.
+- **Pendientes por cliente**: al elegir un cliente sin abrir reunión, lo que le
+  debes de todas sus reuniones, para marcar desde ahí. Existía para el prompt
+  de Preparar y no se veía en ningún sitio.
+- La lista de clientes va por reunión más reciente y lleva los pendientes.
+
+**Teclado y textos**
+
+- ↑↓ recorren la lista, Enter abre, ←→ cambian de pestaña; ⌘F → escribir →
+  Enter abre el primer resultado.
+- Los diálogos atrapan Tab y devuelven el foco al cerrarse; Ajustes lleva
+  `role="dialog"`.
+- Cada botón tiene su ayuda; el selector de modo explica cada opción, no la
+  que no señalas. «Pulsa» → «Presiona».
+
 ## 0.7.1 — 2026-08-21
 
 Salió de una llamada real: la otra persona sonaba por el altavoz del teléfono

@@ -63,6 +63,9 @@ footer a{color:var(--soft)}
   <a href="#minuta">La minuta y las notas internas</a>
   <a href="#corregir">Corregir, rehacer y borrar</a>
   <a href="#expediente">Expedientes de cliente</a>
+  <a href="#pendientes">Qué le debes a cada cliente</a>
+  <a href="#buscar">Buscar</a>
+  <a href="#teclado">Teclado</a>
   <a href="#motor">Elegir quién redacta</a>
   <a href="#archivos">Dónde queda todo</a>
   <a href="#problemas">Cuando algo falla</a>
@@ -99,10 +102,10 @@ y hay que cerrar y volver a abrir Escriba.</p>
 
 <h2 id="grabar">Grabar una reunión</h2>
 <ol>
-  <li><b>Elige el cliente</b> en la lista de la izquierda, o pulsa <b>+ Nuevo cliente</b> si es
+  <li><b>Elige el cliente</b> en la lista de la izquierda, o presiona <b>+ Nuevo cliente</b> si es
       la primera vez que lo grabas. Al crearlo puedes enlazarle un expediente, y el nombre queda
       tal como lo escribas.</li>
-  <li><b>Pulsa Grabar reunión.</b> También funciona <code>Cmd+Shift+R</code> desde cualquier
+  <li><b>Presiona Grabar reunión.</b> También funciona <code>Cmd+Shift+R</code> desde cualquier
       aplicación, sin abrir la ventana.</li>
   <li>Mientras grabas verás dos medidores: <b>Tu voz</b> y <b>Llamada</b>.</li>
   <li><b>Detener y procesar</b> al terminar.</li>
@@ -143,20 +146,25 @@ Si cancelas, el audio queda guardado y puedes retomarlo después con <b>Procesar
   <li><b>Las notas internas.</b> Lo que <em>no</em> se dijo, riesgos y oportunidades. Se ven en la
       app sobre fondo ámbar y <b>nunca salen en el PDF</b>.</li>
 </ul>
-<p>Arriba del documento aparecen las dos cosas que más se usan: los <b>compromisos</b>, que puedes
-marcar como hechos y copiar sueltos, y un resumen de <b>lo que no se dijo</b>, siempre marcado como
-que no se envía al cliente.</p>
-<p>Al pulsar <b>Exportar PDF</b> aparece un aviso con <b>Compartir</b> —la hoja de macOS, con Mail,
+<p>Cada reunión se ve en cuatro pestañas, con <kbd>←</kbd> <kbd>→</kbd> para cambiar:</p>
+<ul>
+  <li><b>Minuta</b> — exactamente lo que recibe el cliente. Ni una línea más.</li>
+  <li><b>Compromisos</b> — la lista para marcar los que se cumplan y copiar sueltos. La pestaña
+      lleva el número de pendientes.</li>
+  <li><b>Interno</b> — las notas internas, con un punto dorado para que no se confundan.</li>
+  <li><b>Quién dijo qué</b> — la conversación por voces; cada marca de tiempo se puede oír con el
+      reproductor de la barra, para verificar una cita antes de mandar nada.</li>
+</ul>
+<p>Al presionar <b>Generar PDF</b> aparece un aviso con <b>Compartir</b> —la hoja de macOS, con Mail,
 Mensajes, WhatsApp y AirDrop—, <b>Guardar copia…</b> para dejarlo donde quieras con un nombre
-reconocible, y <b>Abrir</b>. Las tres siguen disponibles después en el menú <b>Más</b>. El PDF
-queda siempre archivado además dentro de la carpeta de la reunión.</p>
-<p>Si la reunión tiene audio, hay un reproductor: en la vista de <b>Quién dijo qué</b>, pulsar una
-marca de tiempo salta a ese momento. Sirve para verificar una cita antes de mandar el PDF.</p>
-<p>Con <b>Editar</b> puedes corregir el texto antes de exportar. <b>Ver quién dijo qué</b> muestra la
-conversación con hora y hablante, útil para verificar una cita antes de enviar.</p>
+reconocible, y <b>Abrir</b>. Cuando el PDF está al día, <b>Compartir…</b> pasa a ser el botón
+principal; si editas la minuta después, vuelve a serlo <b>Generar PDF</b>, porque el archivo ya no
+corresponde. El PDF queda siempre archivado además dentro de la carpeta de la reunión, con las
+fuentes incrustadas: se ve igual con o sin conexión.</p>
+<p>Con <b>Editar</b> puedes corregir el texto antes de generarlo.</p>
 
 <h2 id="corregir">Corregir, rehacer y borrar</h2>
-<p>Al pulsar <b>Editar</b> aparecen solo dos botones: <b>Guardar cambios</b> (o <kbd>⌘</kbd><kbd>S</kbd>)
+<p>Al presionar <b>Editar</b> aparecen solo dos botones: <b>Guardar cambios</b> (o <kbd>⌘</kbd><kbd>S</kbd>)
 y <b>Descartar</b>. Los demás desaparecen a propósito, porque trabajarían sobre la versión vieja del
 texto. Si intentas cambiar de cliente o abrir otra reunión con cambios sin guardar, la app te pregunta
 antes de perderlos.</p>
@@ -181,8 +189,39 @@ enlaza al crear el cliente, o después desde <b>sin expediente · enlazar</b>, j
 Si el archivo se llama igual que el cliente, se enlaza solo.</p>
 <p>Al terminar, añade al expediente lo acordado y los pendientes, así la siguiente reunión arranca
 con memoria.</p>
-<p>El botón <b>Expediente</b> genera un PDF con todas las reuniones del cliente y una tabla con los
-compromisos de toda la relación. Es el documento para una junta de revisión.</p>
+<p><b>Historial en PDF</b>, en el menú <b>Cliente ▾</b> junto al nombre, genera un PDF con todas
+las reuniones del cliente y una tabla con los compromisos de toda la relación, marcados como
+cumplidos o pendientes tal como los tengas en la app. Es el documento para una junta de revisión.
+En ese mismo menú están <b>Preparar la reunión</b> e <b>Importar un audio…</b>.</p>
+
+<h2 id="pendientes">Qué le debes a cada cliente</h2>
+<p>Al elegir un cliente sin abrir ninguna reunión, Escriba junta los <b>compromisos pendientes de
+todas sus reuniones</b>: lo que quedó sin marcar como cumplido, con su responsable, su fecha y la
+reunión de donde salió. Se pueden marcar desde ahí, y <b>ver la reunión</b> abre la minuta en su
+pestaña de compromisos. La lista de clientes va por reunión más reciente y lleva el número de
+pendientes al lado del nombre.</p>
+<p><img src="captura-pendientes.png" alt="Pendientes de un cliente" style="width:100%;border-radius:10px;border:1px solid rgba(10,20,40,.1)"></p>
+
+<h2 id="buscar">Buscar</h2>
+<p>El buscador de la izquierda (<kbd>⌘</kbd><kbd>F</kbd>) encuentra clientes por nombre y, a partir de
+tres letras, <b>cualquier cosa que se haya dicho</b> en una minuta o en una transcripción. Busca por
+palabras, sin importar el orden ni los acentos: «precio hablamos» encuentra la reunión donde
+hablamos del precio. Los resultados van del más reciente al más antiguo, con el título de la
+reunión y el fragmento donde aparece; <kbd>Enter</kbd> abre el primero.</p>
+
+<h2 id="teclado">Teclado</h2>
+<table>
+  <thead><tr><th>Tecla</th><th>Qué hace</th></tr></thead>
+  <tbody>
+    <tr><td><kbd>⌘</kbd><kbd>⇧</kbd><kbd>R</kbd></td><td>Grabar o detener, desde cualquier aplicación</td></tr>
+    <tr><td><kbd>⌘</kbd><kbd>F</kbd> · <kbd>↓</kbd> <kbd>↑</kbd> · <kbd>Enter</kbd></td><td>Buscar, recorrer la lista de clientes y reuniones, abrir</td></tr>
+    <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>Cambiar de pestaña en la reunión</td></tr>
+    <tr><td><kbd>⌘</kbd><kbd>E</kbd> · <kbd>⌘</kbd><kbd>⇧</kbd><kbd>C</kbd></td><td>Generar el PDF · copiar la minuta sin las notas internas</td></tr>
+    <tr><td><kbd>⌘</kbd><kbd>⇧</kbd><kbd>P</kbd> · <kbd>⌘</kbd><kbd>⇧</kbd><kbd>E</kbd> · <kbd>⌘</kbd><kbd>O</kbd></td><td>Preparar la reunión · historial en PDF · importar un audio</td></tr>
+    <tr><td><kbd>⌘</kbd><kbd>N</kbd> · <kbd>⌘</kbd><kbd>,</kbd></td><td>Nuevo cliente · Ajustes</td></tr>
+    <tr><td><kbd>⌘</kbd><kbd>S</kbd> · <kbd>Esc</kbd></td><td>En el editor: guardar · salir (pregunta si hay cambios)</td></tr>
+  </tbody>
+</table>
 
 <h2 id="motor">Elegir quién redacta</h2>
 <p>La transcripción siempre corre en tu Mac. Lo que cambia es quién escribe la minuta:</p>

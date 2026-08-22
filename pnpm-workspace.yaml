@@ -1,11 +1,10 @@
 onlyBuiltDependencies:
   - electron
 
-# electron-winstaller solo sirve para instaladores de Windows; el único
-# destino es un .dmg. Sin decidirlo aquí, `pnpm install --frozen-lockfile` en
-# CI falla con ERR_PNPM_IGNORED_BUILDS.
-ignoredBuiltDependencies:
-  - electron-winstaller
-
+# pnpm 11 exige decidir cada script de build. electron-winstaller solo sirve
+# para instaladores de Windows y el único destino es un .dmg: no se ejecuta.
+# Sin esta decisión, `pnpm install --frozen-lockfile` falla en CI con
+# ERR_PNPM_IGNORED_BUILDS. (Probadas ignoredBuiltDependencies y
+# neverBuiltDependencies: pnpm 11.5 no las honra aquí; allowBuilds sí.)
 allowBuilds:
-  electron-winstaller: set this to true or false
+  electron-winstaller: false

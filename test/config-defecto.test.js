@@ -15,7 +15,7 @@ const CONFIG = require('../lib/config');
 test('un config.json corrupto no revienta: se cae a los valores por defecto', () => {
   const c = CONFIG.leer();
   assert.strictEqual(c.usuario.nombre, '');
-  assert.strictEqual(c.motor.tipo, 'claude-cli');
+  assert.strictEqual(c.motor.tipo, 'automatico');
   assert.ok(c.rutas.reuniones.length > 0);
 });
 

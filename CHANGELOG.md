@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.9.0 — 2026-08-26
+
+**La minuta ya no depende de un solo harness.** El modo Automático prueba
+Claude Code, después Codex y, si están configurados, Ollama y la llave propia.
+Un cambio incompatible, una sesión vencida o una CLI ausente deja paso al
+siguiente motor; cancelar sigue cancelando y nunca dispara otro proveedor.
+
+- **Codex** se puede elegir también por separado. Reutiliza la sesión local de
+  ChatGPT, recibe el prompt por stdin y corre de forma efímera, en una carpeta
+  aislada, sin configuración del usuario y con sandbox de solo lectura.
+- Claude Code y Codex comprueban que además de instalados estén autenticados.
+- Las integraciones aisladas requieren Claude Code 2.1.246 o posterior y Codex
+  0.149.1 o posterior.
+- Se retiraron `MultiEdit`, `SlashCommand` y `LS` de la lista de herramientas
+  bloqueadas de Claude Code: la versión 2.1.246 ya no reconoce esos nombres y
+  abortaba antes de redactar.
+- Cada reunión guarda y muestra qué motor produjo la versión actual de la
+  minuta.
+
 ## 0.8.2 — 2026-08-22
 
 **Tu marca, desde Ajustes.** El logo propio y el color de acento del PDF

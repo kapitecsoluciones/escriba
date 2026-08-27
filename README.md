@@ -105,9 +105,11 @@ audio), Apple Silicon, and [Homebrew](https://brew.sh) — install that first, i
 is the one thing the app cannot install for you. From there Settings installs
 `ffmpeg`, `whisper-cpp` and the 1.5 GB transcription model for you.
 
-You also need something to write the minute with: the **Claude Code CLI**
-(the default), an API key of your own, or **Ollama** running locally. Settings
-lets you pick and configure any of the three.
+You also need something to write the minute with: the **Claude Code CLI**, the
+**Codex CLI**, **Ollama** running locally, or an API key of your own. The
+default Automatic mode tries them in that order, skipping anything unavailable.
+Settings also lets you choose one directly. The isolated CLI integrations
+require Claude Code 2.1.246 or newer and Codex 0.149.1 or newer.
 
 ## In-person meetings
 
@@ -148,7 +150,7 @@ folder.
 npm test        # node --test "test/*.test.js"
 ```
 
-163 tests over `lib/`, no dependencies beyond Node itself. They cover the
+More than 200 tests over `lib/`, no dependencies beyond Node itself. They cover the
 Markdown converter's three former hang cases, the 2 dB margin that decides who
 said what, config merging, the exact heading the internal-notes filter depends
 on, and PDF escaping. Each was checked by breaking the code on purpose — a
@@ -172,8 +174,10 @@ Your choice, and the app states in plain words what leaves the machine:
 
 | Engine | What leaves your Mac |
 |---|---|
-| Claude Code | The meeting text, to Anthropic |
-| Your own API key | The meeting text, to your provider |
+| Automatic | The transcript, memory, and linked dossier may reach multiple engines, in order, until one answers |
+| Claude Code | The transcript, memory, and linked dossier, to Anthropic |
+| Codex | The transcript, memory, and linked dossier, to OpenAI |
+| Your own API key | The transcript, memory, and linked dossier, to your provider |
 | Ollama | Nothing |
 
 Audio never leaves, with any of them. Keys live in the macOS Keychain.

@@ -26,15 +26,16 @@ posponer y las oportunidades que aparecieron.
   modelo de diarización.
 - **Todo se queda en tu Mac.** El audio nunca sale. La transcripción corre en
   tu propio equipo con whisper.cpp.
-- **Tú eliges quién redacta.** Claude Code, tu propia llave de API, o un modelo
-  local con Ollama.
+- **Tú eliges quién redacta.** En Automático prueba Claude Code, Codex, Ollama
+  y tu propia llave, o puedes elegir cualquiera por separado.
 - **PDF con tu marca**, listo para enviar.
 
 ## Qué necesitas
 
 - macOS 15 o más nuevo (13 sirve solo para audio importado: sin 15 no se graba el micrófono), Apple Silicon
 - [Homebrew](https://brew.sh) para `ffmpeg` y `whisper-cpp`
-- Un motor de redacción: Claude Code, una llave de API, u Ollama
+- Un motor de redacción: Claude Code 2.1.246 o posterior, Codex 0.149.1 o
+  posterior, una llave de API u Ollama
 
 La app revisa todo esto la primera vez que la abres e instala lo que falte.
 
@@ -77,7 +78,7 @@ reunión la manda a la Papelera, no la destruye.
 npm test
 ```
 
-163 pruebas sobre `lib/`, sin instalar nada más que Node. Cubren los tres casos
+Más de 200 pruebas sobre `lib/`, sin instalar nada más que Node. Cubren los tres casos
 que colgaban el conversor de Markdown, el margen de 2 dB que decide quién dijo
 qué, la fusión de configuración, el encabezado exacto del que depende el filtro
 de notas internas, y el escapado del PDF. Cada bloque se comprobó rompiendo el
@@ -108,8 +109,10 @@ rodeos en la pantalla de Ajustes:
 
 | Motor | Qué sale de tu Mac |
 |---|---|
-| Claude Code | El texto de la reunión, a Anthropic |
-| Tu llave de API | El texto de la reunión, al proveedor que elijas |
+| Automático | La transcripción, memoria y expediente pueden llegar, en orden, a más de un motor hasta que uno responda |
+| Claude Code | La transcripción, memoria y expediente, a Anthropic |
+| Codex | La transcripción, memoria y expediente, a OpenAI |
+| Tu llave de API | La transcripción, memoria y expediente, al proveedor que elijas |
 | Ollama | Nada |
 
 El audio nunca sale con ninguno. Si le indicas una carpeta de expedientes, el

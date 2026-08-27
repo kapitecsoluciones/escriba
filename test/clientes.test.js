@@ -117,6 +117,16 @@ test('los datos del cliente no se cuentan como reunión', () => {
   assert.strictEqual(rs[0].id, '2026-01-15_1000');
 });
 
+test('la reunión conserva y muestra qué motor escribió la minuta', () => {
+  const carpeta = path.join(REUNIONES, 'acme', '2026-01-15_1000');
+  fs.writeFileSync(path.join(carpeta, '.reunion.json'), JSON.stringify({ modo: 'llamada' }));
+
+  R.guardarMotorReunion(carpeta, { id: 'codex-cli', nombre: 'Codex' });
+
+  assert.deepStrictEqual(R.reuniones('acme')[0].motor, { id: 'codex-cli', nombre: 'Codex' });
+  assert.strictEqual(JSON.parse(fs.readFileSync(path.join(carpeta, '.reunion.json'), 'utf8')).modo, 'llamada');
+});
+
 // ---------- slug vacío: podía borrar la carpeta de OTRO cliente ----------
 // Un nombre sin letras latinas dejaba el slug vacío, y `path.join(BASE(), '')`
 // es la carpeta raíz: `reuniones('')` devolvía las carpetas de los demás

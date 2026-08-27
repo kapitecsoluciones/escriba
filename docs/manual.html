@@ -239,11 +239,16 @@ texto «Para».</p>
 <table>
   <thead><tr><th>Motor</th><th>Qué necesitas</th><th>Qué sale de tu Mac</th></tr></thead>
   <tbody>
-    <tr><td>Claude Code</td><td>Tenerlo instalado y con sesión</td><td>El texto, a Anthropic</td></tr>
-    <tr><td>Llave propia</td><td>Una llave de Anthropic o de OpenAI</td><td>El texto, a ese proveedor</td></tr>
+    <tr><td>Automático</td><td>Al menos uno de los siguientes</td><td>La transcripción, memoria y expediente pueden llegar, en orden, a más de un motor hasta que uno responda</td></tr>
+    <tr><td>Claude Code</td><td>Versión 2.1.246 o posterior, con sesión</td><td>La transcripción, memoria y expediente, a Anthropic</td></tr>
+    <tr><td>Codex</td><td>Versión 0.149.1 o posterior, con sesión</td><td>La transcripción, memoria y expediente, a OpenAI</td></tr>
+    <tr><td>Llave propia</td><td>Una llave de Anthropic o de OpenAI</td><td>La transcripción, memoria y expediente, a ese proveedor</td></tr>
     <tr><td>Ollama</td><td>Ollama y un modelo descargado</td><td>Nada</td></tr>
   </tbody>
 </table>
+<p>Automático prueba Claude Code, Codex, Ollama y la llave propia, en ese orden. Si un motor no
+está instalado, no tiene sesión o falla antes de responder, continúa con el siguiente. Cancelar un
+trabajo no activa el fallback.</p>
 <p>Las llaves se guardan en el <b>Keychain de macOS</b>, nunca en un archivo. El botón
 <b>Probar el motor</b> confirma que responde antes de que dependas de él.</p>
 <div class="aviso"><b>Antes de grabar:</b> avisar a los demás que estás grabando es tu
@@ -278,8 +283,9 @@ Escriba.</p>
 <p>Pasa con audios largos y silencios prolongados. Escriba ya usa la opción que lo evita; si aun así
 ocurre, vuelve a procesar la reunión desde la app.</p>
 <h3>La minuta no se genera</h3>
-<p>Abre Ajustes y pulsa <b>Probar el motor</b>. Si el motor no responde, elige otro: los tres son
-intercambiables y la transcripción ya está hecha, así que no pierdes la reunión.</p>
+<p>Abre Ajustes y pulsa <b>Probar el motor</b>. El modo automático prueba Claude Code, Codex,
+Ollama y la API configurada en ese orden; también puedes elegir cualquiera a mano. La
+transcripción ya está hecha, así que no pierdes la reunión.</p>
 <h3>El PDF sale sin logo</h3>
 <p>Pon un archivo <code>logo.png</code> en la carpeta del cliente, o indica el logo de tu empresa en
 Ajustes. Sin ninguno de los dos, el encabezado sale con el nombre en tipografía.</p>

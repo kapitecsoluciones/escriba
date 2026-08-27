@@ -29,3 +29,16 @@ required.
   built on ScreenCaptureKit).
 - More writing engines.
 - Making the minute template configurable without editing `lib/prompt.js`.
+
+## Adding a writing engine
+
+Writing engines live in `lib/motores/`. Each module exposes `id`, `nombre`,
+`descripcion`, `privacidad`, `disponible()`, `probar()` and `redactar(prompt,
+{ senal })`. Register a new engine in `lib/motores/index.js`; add it to the
+automatic order only when falling through to it is safe and expected.
+
+CLI engines must receive the meeting through stdin, honor the supplied
+`AbortSignal`, avoid loading user or project instructions, and run without
+tools or filesystem access beyond the credentials strictly needed to
+authenticate. Add focused tests for availability, authentication, cleanup,
+cancellation and fallback before opening a pull request.

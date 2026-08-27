@@ -10,6 +10,7 @@ const MD = require('./lib/md');
 const MINUTA = require('./lib/minuta');
 const VOCES = require('./lib/voces');
 const MOTORES = require('./lib/motores');
+const REDACCION = require('./lib/redaccion');
 const { quitarDelDossier } = require('./lib/dossier');
 const MEMORIA = require('./lib/memoria');
 const INDICE = require('./lib/indice');
@@ -460,21 +461,12 @@ async function procesarInterno({ carpeta, slug, nombre, reemplazarMemoria = fals
       fecha: fechaDeCarpeta(carpeta).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }),
       duracion: dur, transcripcion, dossier, memoria, conHablantes: !!atribuida
     });
-    const motor = MOTORES.activo();
-    if (!(await motor.disponible())) {
-      throw new Error(`El motor de redacción "${motor.nombre}" no está disponible. Revísalo en Ajustes.`);
-    }
-    const minuta = await motor.redactar(prompt, { senal: trabajo && trabajo.ac.signal });
-    punto();
-    // "Volver a redactar" pisaba las correcciones hechas a mano sin vuelta atrás.
-    // La versión anterior queda guardada al lado antes de escribir la nueva.
-    const destinoMinuta = path.join(carpeta, 'minuta.md');
-    try {
-      if (fs.existsSync(destinoMinuta) && fs.statSync(destinoMinuta).size > 0) {
-        ATOMICO.escribirAtomico(path.join(carpeta, 'minuta-anterior.md'), fs.readFileSync(destinoMinuta));
-      }
-    } catch {}
-    ATOMICO.escribirAtomico(destinoMinuta, minuta);
+    const { minuta } = await REDACCION.redactarYGuardar({
+      motor: MOTORES.activo(), prompt, carpeta,
+      senal: trabajo && trabajo.ac.signal,
+      alIntentar: (m) => avisar('redactando', `Escribiendo la minuta con ${m.nombre}`),
+      antesDeGuardar: punto,
+    });
 
     avisar('guardando', 'Guardando lo acordado en la memoria del cliente');
     const res = MEMORIA.anotar({
@@ -740,7 +732,7 @@ ipcMain.handle('preparar', seguro(async (_e, { slug, nombre }) => {
   let dossier = null;
   if (cli && cli.dossier) { try { dossier = fs.readFileSync(cli.dossier, 'utf8'); } catch {} }
   const motor = MOTORES.activo();
-  if (!(await motor.disponible())) {
+  if (motor.id !== 'automatico' && !(await motor.disponible())) {
     return { ok: false, error: `El motor "${motor.nombre}" no está disponible. Revísalo en Ajustes.` };
   }
   const ultima = rs.find(r => r.minuta);
@@ -749,7 +741,7 @@ ipcMain.handle('preparar', seguro(async (_e, { slug, nombre }) => {
     pendientes: MEMORIA.pendientes(rs),
     ultimaFecha: ultima ? fechaDeCarpeta(ultima.carpeta).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : null,
   });
-  const texto = await motor.redactar(prompt);
+  const texto = await REDACCION.redactarMotor({ motor, prompt });
   if (!texto || texto.trim().length < 40) return { ok: false, error: 'El motor no devolvió nada útil.' };
   fs.mkdirSync(dirCliente, { recursive: true });
   ATOMICO.escribirAtomico(path.join(dirCliente, 'preparacion.md'), texto);

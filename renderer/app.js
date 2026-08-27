@@ -546,6 +546,11 @@ function pintarDetalle(){
   // El reproductor vive en la barra, no en una tarjeta: es una herramienta
   // para verificar una cita, no parte del documento.
   if(r.minuta && r.tieneAudio) barra.appendChild(reproductor(r));
+  if(r.minuta && r.motor && r.motor.nombre){
+    const usado = el('div','motor-usado',`Redactada con ${esc(r.motor.nombre)}`);
+    usado.title = 'Motor que produjo esta versión de la minuta';
+    barra.appendChild(usado);
+  }
   d.appendChild(barra);
 
   if(!r.minuta){

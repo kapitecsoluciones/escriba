@@ -101,8 +101,9 @@
 
       ${motores.some(m => m.disponible) ? '' : `<div class="aviso atencion" style="margin-bottom:12px">
         <b>Ninguno está listo todavía.</b> Puedes elegir uno igualmente y configurarlo:
-        con <b>Claude Code</b> basta instalarlo y autenticarlo; con <b>tu propia llave</b>
-        solo hay que pegarla aquí abajo; <b>Ollama</b> necesita estar corriendo en este equipo.
+        con <b>Claude Code</b> o <b>Codex</b> basta instalarlos y autenticarlos; con
+        <b>tu propia llave</b> solo hay que pegarla aquí abajo; <b>Ollama</b> necesita
+        estar corriendo en este equipo.
       </div>`}
       <div class="campo" id="cajaLlave" ${cfg.motor.tipo === 'api' ? '' : 'hidden'}>
         <label>Proveedor y llave</label>
@@ -116,7 +117,7 @@
       <div style="display:flex;gap:8px;margin-top:6px">
         <button class="btn" id="btnProbar">Probar que funciona</button>
       </div>
-      <div id="resProbar"></div>
+      <div id="resProbar" role="status" aria-live="polite"></div>
 
       <div class="et seccion">Dónde se guarda todo</div>
       <div class="campo">
@@ -178,15 +179,26 @@
     });
 
     $$('#btnProbar').onclick = async () => {
+      const boton = $$('#btnProbar');
+      if (boton.disabled) return;
+      boton.disabled = true;
       const id = $$('input[name=motor]:checked').value;
       const r = $$('#resProbar');
+      r.setAttribute('aria-busy', 'true');
       r.innerHTML = '<div class="aviso">Probando…</div>';
-      if (id === 'api' && $$('#aLlave').value.trim()) {
-        await window.api.guardarLlave({ proveedor: $$('#aProveedor').value, llave: $$('#aLlave').value.trim() });
+      try {
+        if (id === 'api' && $$('#aLlave').value.trim()) {
+          await window.api.guardarLlave({ proveedor: $$('#aProveedor').value, llave: $$('#aLlave').value.trim() });
+        }
+        await guardar(false);
+        const res = await window.api.motorProbar(id);
+        r.innerHTML = `<div class="aviso ${res.ok ? 'bien' : 'error'}">${res.ok ? 'Funciona.' : 'No respondió.'} ${esc(res.detalle || '')}</div>`;
+      } catch (e) {
+        r.innerHTML = `<div class="aviso error">No respondió. ${esc(e.message || String(e))}</div>`;
+      } finally {
+        boton.disabled = false;
+        r.removeAttribute('aria-busy');
       }
-      await guardar(false);
-      const res = await window.api.motorProbar(id);
-      r.innerHTML = `<div class="aviso ${res.ok ? 'bien' : 'error'}">${res.ok ? 'Funciona.' : 'No respondió.'} ${esc(res.detalle || '')}</div>`;
     };
 
     c.querySelectorAll('[data-elegir]').forEach(b => b.onclick = async () => {

@@ -23,7 +23,7 @@ test('guardar una rama no toca las demás', () => {
   const c = CONFIG.leer();
   assert.strictEqual(c.marca.acento, '#123456');
   assert.strictEqual(c.usuario.empresa, 'Acme');
-  assert.strictEqual(c.motor.tipo, 'claude-cli', 'los valores por defecto siguen ahí');
+  assert.strictEqual(c.motor.tipo, 'automatico', 'los valores por defecto siguen ahí');
 });
 
 test('con nombre, la app ya se considera configurada', () => {

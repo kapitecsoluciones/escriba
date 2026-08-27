@@ -108,7 +108,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
 .aviso{font-size:var(--t-12);line-height:var(--lh-2);padding:var(--e-2) var(--e-3);border-radius:var(--r-2);
   background:var(--tint2);border:1px solid var(--rule);color:var(--ink)}
 .aviso.bien{background:var(--bien-fondo);border-color:transparent;color:var(--bien-texto)}
-.aviso.error{background:var(--mal-fondo);border-color:var(--mal-borde);color:var(--mal-texto);font-weight:600}
+.aviso.error{background:var(--mal-fondo);border-color:var(--mal-borde);color:var(--mal-texto);font-weight:600;white-space:pre-line;overflow-wrap:anywhere}
 .aviso.atencion{background:var(--ambar-fondo);border-color:var(--ambar-borde)}
 .aviso.atencion .et{color:var(--gold-texto)}
 .aviso code{background:var(--paper);border:1px solid var(--rule);border-radius:var(--r-1);padding:1px 5px;font-size:var(--t-11)}
@@ -176,6 +176,7 @@ kbd{font-family:inherit;font-size:var(--t-11);background:var(--tint2);border:1px
 .cabecera h2{font-family:var(--fuente-titulo);font-size:var(--t-21);font-weight:800;letter-spacing:-.02em;word-spacing:.04em;line-height:var(--lh-1);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .cabecera-sub{color:var(--muted);font-size:var(--t-12);margin-top:2px}
+.motor-usado{margin-left:auto;color:var(--muted);font-size:var(--t-11);white-space:nowrap;align-self:center}
 .enlazar{margin-left:var(--e-2);font-size:var(--t-12);color:var(--gold-texto);font-weight:600;text-decoration:underline}
 .acciones{display:flex;gap:var(--e-2);align-items:center}
 #menuCliente .menu{left:0;right:auto;min-width:250px}
@@ -304,7 +305,7 @@ textarea.editor:focus{border-color:var(--azul)}
 .estado-texto{flex:1;min-width:0}
 .estado-titulo{font-weight:600}
 .estado-sub{color:var(--muted);font-size:var(--t-12);margin-top:2px}
-.estado.error .estado-sub{color:inherit;opacity:.85}
+.estado.error .estado-sub{color:inherit;opacity:.85;white-space:pre-line;overflow-wrap:anywhere}
 .estado .crono{margin-left:auto;font-family:var(--fuente-mono);font-size:var(--t-17);font-weight:700;font-variant-numeric:tabular-nums}
 .estado .permisos{margin-left:auto}
 .spin{width:14px;height:14px;border:2px solid var(--rule-fuerte);border-top-color:var(--azul);border-radius:50%;animation:gira .7s linear infinite;flex:none}

@@ -18,6 +18,7 @@ const MARCA = require('./lib/marca');
 const ATOMICO = require('./lib/atomico');
 const MIGRACION = require('./lib/migracion');
 const PREPARACION = require('./lib/preparacion');
+const { fechaDeCarpeta, ventana } = require('./lib/fechas');
 
 let win = null;
 // Versión del formato de dialogo.txt. Sube cuando cambia el criterio de
@@ -42,15 +43,6 @@ const notificar = (titulo, cuerpo) => {
 function sello() {
   const d = new Date(), z = n => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}_${z(d.getHours())}${z(d.getMinutes())}${z(d.getSeconds())}`;
-}
-
-// La fecha de la REUNIÓN, sacada del nombre de la carpeta. Antes se usaba
-// `new Date()` al procesar: redactar hoy la junta de ayer ponía la fecha de hoy
-// en la minuta mientras el PDF de expediente la fechaba bien.
-function fechaDeCarpeta(carpeta) {
-  const m = String(carpeta || '').match(/(\d{4})-(\d{2})-(\d{2})_/);
-  if (!m) return new Date();
-  return new Date(+m[1], +m[2] - 1, +m[3]);
 }
 
 function crearVentana() {
@@ -372,8 +364,9 @@ async function duracion(archivo) {
   try {
     const s = await correr(BIN().ffprobe, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', archivo]);
     const seg = parseFloat(s);
-    return `${Math.floor(seg / 60)} min ${String(Math.floor(seg % 60)).padStart(2, '0')} s`;
-  } catch { return 'desconocida'; }
+    if (!Number.isFinite(seg)) return { texto: 'desconocida', segundos: null };
+    return { texto: `${Math.floor(seg / 60)} min ${String(Math.floor(seg % 60)).padStart(2, '0')} s`, segundos: seg };
+  } catch { return { texto: 'desconocida', segundos: null }; }
 }
 
 async function procesarInterno({ carpeta, slug, nombre, reemplazarMemoria = false }) {
@@ -459,7 +452,8 @@ async function procesarInterno({ carpeta, slug, nombre, reemplazarMemoria = fals
     const prompt = PROMPT.construir({
       cliente: nombre, modo: modoReunion,
       fecha: fechaDeCarpeta(carpeta).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }),
-      duracion: dur, transcripcion, dossier, memoria, conHablantes: !!atribuida
+      duracion: dur.texto, horario: ventana(carpeta, dur.segundos),
+      transcripcion, dossier, memoria, conHablantes: !!atribuida
     });
     const { minuta } = await REDACCION.redactarYGuardar({
       motor: MOTORES.activo(), prompt, carpeta,
@@ -477,8 +471,8 @@ async function procesarInterno({ carpeta, slug, nombre, reemplazarMemoria = fals
     });
 
     avisar('listo', '');
-    notificar('Minuta lista', `${nombre} · ${dur}. Ya puedes revisarla y exportar el PDF.`);
-    return { ok: true, minuta, transcripcion, duracion: dur, carpeta, dossier: res };
+    notificar('Minuta lista', `${nombre} · ${dur.texto}. Ya puedes revisarla y exportar el PDF.`);
+    return { ok: true, minuta, transcripcion, duracion: dur.texto, carpeta, dossier: res };
   } catch (e) {
     // cancelar es una decisión del usuario, no un fallo: no se le enseña un error rojo
     if (e.cancelado || (trabajo && trabajo.cancelado)) {

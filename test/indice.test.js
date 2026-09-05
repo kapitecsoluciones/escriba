@@ -135,3 +135,9 @@ test('con 100 reuniones largas, una tecla tarda menos de 50 ms una vez construid
   assert.ok(ms < 50, `cada búsqueda tardó ${ms.toFixed(1)} ms`);
   assert.strictEqual(INDICE.buscar('girasol100').total, 1);   // 'girasol7' también casa con girasol70…79: es subcadena a propósito
 });
+
+test('el título nunca sale de las notas internas', () => {
+  const m = '**Acme · 5 de septiembre de 2026 · 2 min 35 s**\n\n## Lo que quedó definido\n\nPárrafo sin negritas.\n\n## Notas internas (no enviar)\n\n**Lo que NO se dijo**\n\n- Nadie habló del precio.\n';
+  assert.notStrictEqual(INDICE.tituloReunion(m), 'Lo que NO se dijo');
+  assert.strictEqual(INDICE.tituloReunion(m), null);
+});

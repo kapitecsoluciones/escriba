@@ -641,7 +641,8 @@ async function procesarInterno({ carpeta, slug, nombre, reemplazarMemoria = fals
     let modoReunion = null, importada = false;
     try {
       const meta = JSON.parse(fs.readFileSync(path.join(carpeta, '.reunion.json'), 'utf8')) || {};
-      modoReunion = meta.modo || null; importada = !!meta.importado;
+      // La reunión de ejemplo tampoco tiene ventana real: su sello es la hora de instalarla
+      modoReunion = meta.modo || null; importada = !!(meta.importado || meta.ejemplo);
     } catch {}
     const prompt = PROMPT.construir({
       cliente: nombre, modo: modoReunion,
@@ -1150,6 +1151,25 @@ app.whenReady().then(async () => {
   // Sirve para verificar que los subprocesos (whisper, claude) funcionan cuando la
   // app se abre desde el Finder y no desde la terminal.
   // Gancho de diagnóstico: solo activo con ESCRIBA_AUTOPRUEBA=1
+  // Capturas para la documentación: ESCRIBA_CAPTURAS apunta a un JSON con
+  // [{js, archivo, espera}]; cada paso corre `js` en la ventana, espera y
+  // guarda un PNG. Solo se activa con la variable puesta; con clientes ficticios.
+  if (process.env.ESCRIBA_CAPTURAS && fs.existsSync(process.env.ESCRIBA_CAPTURAS)) {
+    const pasos = JSON.parse(fs.readFileSync(process.env.ESCRIBA_CAPTURAS, 'utf8'));
+    const { nativeTheme } = require('electron');
+    nativeTheme.themeSource = process.env.ESCRIBA_CAPTURAS_TEMA || 'light';
+    win.setSize(+process.env.ESCRIBA_CAPTURAS_ANCHO || 1180, +process.env.ESCRIBA_CAPTURAS_ALTO || 820);
+    setTimeout(async () => {
+      for (const paso of pasos) {
+        try {
+          if (paso.js) await win.webContents.executeJavaScript(paso.js);
+          await new Promise(r => setTimeout(r, paso.espera || 800));
+          if (paso.archivo) fs.writeFileSync(paso.archivo, (await win.webContents.capturePage()).toPNG());
+        } catch (e) { fs.appendFileSync('/private/tmp/CAPTURAS-error.log', `${paso.archivo || paso.js}: ${e.message}\n`); }
+      }
+      app.quit();
+    }, 1800);
+  }
   const centinela = '/private/tmp/AUTOPRUEBA.json';
   if (process.env.ESCRIBA_AUTOPRUEBA === '1' && fs.existsSync(centinela)) {
     const cfg = JSON.parse(fs.readFileSync(centinela, 'utf8'));

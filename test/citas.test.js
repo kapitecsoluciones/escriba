@@ -86,3 +86,7 @@ test('ultima ignora una marca inválida al final y devuelve la válida anterior'
   assert.strictEqual(C.ultima('x [01:00] [01:99]'), 60);
   assert.strictEqual(C.ultima('x [01:00] [00:00:05]'), 60);
 });
+
+test('sinCitas no deja paréntesis vacíos', () => {
+  assert.strictEqual(C.sinCitas('Entregar fotos ([03:15]) el viernes'), 'Entregar fotos el viernes');
+});

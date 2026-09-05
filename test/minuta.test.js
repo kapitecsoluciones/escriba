@@ -255,3 +255,10 @@ test('un compromiso viejo con horas entre corchetes conserva su marca de cumplid
   assert.strictEqual(M.conEstado(viejo, dir)[0].hecho, true);
   assert.strictEqual(M.conEstado(viejo, dir)[0].texto, 'Revisar');
 });
+
+test('un título con la cita entre paréntesis también corta', () => {
+  const m = 'Acuerdo público.\n\n**Notas internas** ([00:25])\n\n- El proveedor es incompetente.\n';
+  const r = M.paraCliente(m);
+  assert.ok(r.ok);
+  assert.strictEqual(r.texto, 'Acuerdo público.');
+});

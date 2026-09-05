@@ -163,7 +163,8 @@ footer a{color:var(--soft)}
     <div class="tarjeta"><div class="et"></div><h4>El audio no sale de tu Mac</h4>
       <p>La transcripción corre en tu equipo con whisper.cpp. Nunca se sube una grabación a ningún lado.</p></div>
     <div class="tarjeta"><div class="et"></div><h4>Tú eliges quién redacta</h4>
-      <p>Claude Code, tu propia llave de API, o un modelo local con Ollama y sin internet.</p></div>
+      <p>Claude Code, Codex, tu propia llave de API, o un modelo local con Ollama y sin internet.
+      Si no tienes ninguno, Ajustes te ofrece instalar Ollama con un clic.</p></div>
     <div class="tarjeta"><div class="et"></div><h4>PDF con tu marca</h4>
       <p>La minuta sale lista para mandar por WhatsApp o correo, con tu logo y tus datos.</p></div>
     <div class="tarjeta"><div class="et"></div><h4>Expediente por cliente</h4>
@@ -173,7 +174,16 @@ footer a{color:var(--soft)}
 
 <section class="env linea">
   <h2>Cómo lo hace</h2>
-  <p class="sub">Dos decisiones técnicas que lo separan del resto.</p>
+  <p class="sub">Tres decisiones que lo separan del resto.</p>
+
+  <h3>Compruébalo con el audio</h3>
+  <p>Cada compromiso, cada punto de «Lo que quedó definido» y cada hallazgo de las notas internas
+  lleva la marca del momento del audio en que se dijo: un chip <code>mm:ss</code> que se oye con un
+  clic. Solo sobreviven las citas que coinciden con una marca real de la grabación; las que el
+  modelo se inventa se retiran antes de guardar, y se cuentan junto al motor que redactó.</p>
+  <p>Una cita señala <b>dónde</b> se dijo algo, para comprobarlo — no certifica que sea cierto.
+  Nunca salen en el PDF ni al copiar la minuta: la pestaña que recibe el cliente las mantiene
+  apagadas hasta que tú decides verlas.</p>
 
   <h3>Distingue las voces sin modelo de diarización</h3>
   <p>Escriba graba <b>dos pistas separadas</b>: tu micrófono y el audio del Mac. Para etiquetar cada
@@ -202,6 +212,7 @@ footer a{color:var(--soft)}
       <tr><td>Sabe quién dijo qué</td><td>sí</td><td>sí, en la nube</td><td>no</td></tr>
       <tr><td>Usa el historial del cliente</td><td>sí</td><td>en parte</td><td>no</td></tr>
       <tr class="destaca"><td>Te dice lo que NO se dijo</td><td><b>sí</b></td><td>no</td><td>no</td></tr>
+      <tr><td>Verifica una cita contra el audio</td><td>sí, cada compromiso enlaza al momento</td><td>no (Granola borra el audio)</td><td>no</td></tr>
       <tr><td>Español</td><td>de origen</td><td>traducido</td><td>solo transcribe</td></tr>
       <tr><td>Precio</td><td>gratis, MIT</td><td>$10–29 al mes</td><td>pago único</td></tr>
     </tbody>
@@ -235,9 +246,11 @@ footer a{color:var(--soft)}
 <div class="cierre">
   <div class="env-e">
     <h2>Pruébalo en tu próxima junta</h2>
-    <p class="sub">Descarga, arrastra a Aplicaciones y ábrela con <b>clic derecho &rarr; Abrir</b> la
-    primera vez: no está notarizada. Necesitas <b>Homebrew</b> y algo con qué redactar —la CLI de
-    Claude Code, tu propia llave de API u Ollama—. Lo demás lo instala Ajustes.</p>
+    <p class="sub">Descarga, arrastra a Aplicaciones y sigue el aviso de seguridad de macOS la primera
+    vez —no está notarizada; son cuatro pasos, con capturas, en el <a href="manual.html#primera" style="color:var(--ink);text-decoration:underline">manual</a>—.
+    Necesitas <b>Homebrew</b> y algo con qué redactar: Claude Code, Codex, tu propia llave de API, o
+    deja que Ajustes te instale Ollama con un clic. ¿No tienes nada grabado a la mano? <b>Ayuda ›
+    Probar con una reunión de ejemplo</b> te lo muestra todo en tres minutos, sin grabar nada.</p>
     <div class="botones">
       <a class="btn p" href="https://github.com/kapitecsoluciones/escriba/releases/latest">Descargar para Mac</a>
       <a class="btn claro" href="https://github.com/kapitecsoluciones/escriba">Ver el código</a>

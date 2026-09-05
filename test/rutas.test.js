@@ -66,3 +66,29 @@ test('guardarMetaReunion conserva el motor y añade las citas sin pisar lo demá
     fs.rmSync(base, { recursive: true, force: true });
   }
 });
+
+test('una redacción nueva sin citas borra el conteo de la versión anterior', () => {
+  const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'escriba-meta2-'));
+  const carpeta = path.join(base, 'reuniones', 'acme', '2026-01-15_1030');
+  fs.mkdirSync(carpeta, { recursive: true });
+  const previo = process.env.HOME;
+  try {
+    process.env.HOME = base;
+    fs.mkdirSync(path.join(base, '.config', 'escriba'), { recursive: true });
+    fs.writeFileSync(path.join(base, '.config', 'escriba', 'config.json'), JSON.stringify({ rutas: { reuniones: path.join(base, 'reuniones') } }));
+    delete require.cache[require.resolve('../lib/config')];
+    delete require.cache[require.resolve('../lib/rutas')];
+    const RR = require('../lib/rutas');
+    RR.guardarMotorReunion(carpeta, { id: 'api', nombre: 'API' }, { total: 5, descartadas: 0 });
+    RR.guardarMotorReunion(carpeta, { id: 'ollama', nombre: 'Ollama' }, null);
+    const meta = JSON.parse(fs.readFileSync(path.join(carpeta, '.reunion.json'), 'utf8'));
+    assert.strictEqual(meta.citas, undefined);
+    assert.strictEqual(meta.motor.id, 'ollama');
+  } finally {
+    process.env.HOME = previo;
+    delete require.cache[require.resolve('../lib/config')];
+    delete require.cache[require.resolve('../lib/rutas')];
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+});

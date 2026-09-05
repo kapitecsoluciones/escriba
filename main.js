@@ -22,6 +22,7 @@ const PREPARACION = require('./lib/preparacion');
 const { fechaDeCarpeta, ventana } = require('./lib/fechas');
 const CITAS = require('./lib/citas');
 const DIAGNOSTICO = require('./lib/diagnostico');
+const EJEMPLO = require('./lib/ejemplo');
 
 let win = null;
 // Versión del formato de dialogo.txt. Sube cuando cambia el criterio de
@@ -691,6 +692,20 @@ async function procesarInterno({ carpeta, slug, nombre, reemplazarMemoria = fals
   }
 }
 
+// La reunión de ejemplo: un cliente ficticio con una videollamada de dos voces
+// ya grabada (recurso empaquetado) y un expediente con pendientes. Solo instala
+// los archivos; el renderer la procesa por el MISMO camino que una reunión real
+// (handler `procesar`), así respeta la exclusión de trabajos y la cancelación.
+function recursosEjemplo() {
+  return app.isPackaged ? path.join(process.resourcesPath, 'ejemplo') : path.join(__dirname, 'build', 'ejemplo');
+}
+ipcMain.handle('ejemplo-instalar', seguro(() => {
+  if (trabajo) return { ok: false, error: 'Ya hay una reunión procesándose. Espera a que termine o cancélala.' };
+  if (captura) return { ok: false, error: 'Detén la grabación antes de probar el ejemplo.' };
+  const r = EJEMPLO.instalar({ recursos: recursosEjemplo(), base: R.BASE(), sello: sello() });
+  return { ok: true, ...r };
+}));
+
 ipcMain.handle('procesar', (_e, d) => {
   if (trabajo) return { ok: false, error: 'Ya hay una reunión procesándose. Espera a que termine o cancélala.' };
   trabajo = { hijos: new Set(), cancelado: false, ac: new AbortController(), carpeta: d && d.carpeta };
@@ -1055,6 +1070,8 @@ function construirMenu() {
     {
       label: 'Ayuda',
       submenu: [
+        { label: 'Probar con una reunión de ejemplo', click: alRenderer('ejemplo') },
+        { type: 'separator' },
         { label: 'Manual de Escriba', click: () => shell.openExternal('https://escriba.kapitec.pro/manual.html') },
         { label: 'Carpeta de reuniones', click: () => shell.openPath(R.BASE()) },
         { type: 'separator' },

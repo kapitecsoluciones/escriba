@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('api', {
   motorProbar:     (id)    => ipcRenderer.invoke('motor-probar', id),
   guardarLlave:    (d)     => ipcRenderer.invoke('guardar-llave', d),
   diagnostico:     ()      => ipcRenderer.invoke('diagnostico'),
+  ejemploInstalar: ()      => ipcRenderer.invoke('ejemplo-instalar'),
   diagnosticoTexto:()      => ipcRenderer.invoke('diagnostico-texto'),
   diagnosticoCopiar:(t)    => ipcRenderer.invoke('diagnostico-copiar', t),
 

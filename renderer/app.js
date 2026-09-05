@@ -1093,7 +1093,26 @@ $('#clientes').onkeydown = (e) => {
 };
 
 // El menú de la aplicación dispara las mismas acciones que los botones.
+// La reunión de ejemplo: instala un cliente ficticio con una videollamada de
+// dos voces y un expediente con pendientes, y la procesa como una real. Es la
+// forma de ver quién dijo qué, las citas y «lo que no se dijo» sin grabar nada.
+async function probarEjemplo(){
+  if(grabando){ aviso('Detén la grabación antes de probar el ejemplo.'); return; }
+  const r = await window.api.ejemploInstalar();
+  if(!r || r.ok===false){ estado('error','No se pudo preparar la reunión de ejemplo', r && r.error); return; }
+  await cargarClientes();
+  const c = CLIENTES.find(x=>x.slug===r.slug);
+  if(!c){ estado('error','No se pudo preparar la reunión de ejemplo','El cliente de ejemplo no aparece en la lista.'); return; }
+  await elegirCliente(c);
+  aviso('Reunión de ejemplo lista. Unos 3 minutos para transcribir, separar las voces y redactar.');
+  await procesar(r.carpeta);
+}
+document.addEventListener('click', (e) => {
+  if(e.target && e.target.id === 'btnEjemplo'){ e.preventDefault(); probarEjemplo(); }
+});
+
 window.api.onMenu(({accion})=>{
+  if(accion==='ejemplo')        return probarEjemplo();
   const pulsar = (id) => { const b=$(id); if(b && !b.disabled) b.click(); };
   if(accion==='ajustes')        return window.abrirAjustes && window.abrirAjustes();
   if(accion==='nuevo-cliente')  return crearClienteNuevo();

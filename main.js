@@ -10,6 +10,7 @@ const MD = require('./lib/md');
 const MINUTA = require('./lib/minuta');
 const VOCES = require('./lib/voces');
 const MOTORES = require('./lib/motores');
+const INSTALACION = require('./lib/motores/instalacion');
 const REDACCION = require('./lib/redaccion');
 const { quitarDelDossier } = require('./lib/dossier');
 const MEMORIA = require('./lib/memoria');
@@ -187,6 +188,30 @@ ipcMain.handle('soporta-microfono', () => ({ ok: true, si: soportaMicrofono(),
 ipcMain.handle('diagnostico', () => ({ faltantes: R.faltantes(), binarios: R.BIN(), configurado: CONFIG.configurado(),
                                         configRoto: CONFIG.corrupcion() }));
 
+// disponible() de un motor puede colgarse (Ollama arrancando, Claude Code sin
+// red): con esto un motor lento nunca deja pegada la pantalla de Ajustes.
+function conPlazo(motor, ms = 3000) {
+  return new Promise((resolve) => {
+    let listo = false;
+    const terminar = (v) => { if (listo) return; listo = true; clearTimeout(t); resolve(v); };
+    const t = setTimeout(() => terminar(false), ms);
+    Promise.resolve().then(() => motor.disponible()).then(v => terminar(!!v)).catch(() => terminar(false));
+  });
+}
+
+// Ajustes llama esto para saber si hay CON QUÉ redactar (aparte de si ya está
+// configurado): antes esa pregunta no se hacía nunca, y quien no tenía Claude
+// Code ni Codex llegaba hasta "Redactar" para enterarse ahí de que no había
+// ningún motor listo.
+ipcMain.handle('redaccion-falta', async () => {
+  const disponibles = await Promise.all(
+    MOTORES.TODOS.filter(m => m.id !== 'automatico').map(async (m) => ({ id: m.id, disponible: await conPlazo(m) }))
+  );
+  const falta = INSTALACION.queFaltaParaRedactar({ disponibles });
+  if (!falta) return null;
+  return { ...falta, aviso: INSTALACION.avisoTamano(CONFIG.leer().motor.modeloOllama) };
+});
+
 // Descarga del modelo de transcripción (1.5 GB) con progreso, sin terminal.
 ipcMain.handle('descargar-modelo', async () => {
   const destino = CONFIG.leer().rutas.modelo;
@@ -219,18 +244,85 @@ ipcMain.handle('descargar-modelo', async () => {
   } catch (e) { return { ok: false, error: e.message }; }
 });
 
+// Corre un binario y transmite su salida en vivo por 'instalando' (la misma
+// señal que ya usa "Instalar ahora"), línea a línea: brew separa con salto de
+// línea normal, pero `ollama pull` redibuja su barra de progreso con retorno
+// de carro (\r) — sin partir por ahí llegaba un chorro de caracteres pegados
+// en vez de un progreso legible.
+function correrConSalidaEnVivo(cmd, args, etiqueta) {
+  return new Promise((res) => {
+    const p = spawn(cmd, args);
+    let salida = '';
+    const pasar = (b) => {
+      const texto = b.toString();
+      salida += texto;
+      if (!win) return;
+      const partes = texto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(Boolean);
+      const linea = (partes[partes.length - 1] || texto.trim()).slice(-160);
+      if (linea) win.webContents.send('instalando', { formula: etiqueta, linea });
+    };
+    p.stdout.on('data', pasar); p.stderr.on('data', pasar);
+    p.on('error', (e) => res({ ok: false, salida: e.message }));
+    p.on('exit', (code) => res({ ok: code === 0, salida: salida.slice(-800) }));
+  });
+}
+
 // Instala una dependencia con Homebrew, mostrando la salida en la app.
 ipcMain.handle('instalar-dependencia', async (_e, formula) => {
   const brew = R.buscarBinario('brew');
   if (!brew) return { ok: false, error: 'No se encontró Homebrew. Instálalo desde brew.sh y vuelve a intentarlo.' };
-  return new Promise((res) => {
-    const p = spawn(brew, ['install', formula]);
-    let salida = '';
-    const pasar = (b) => { salida += b.toString(); if (win) win.webContents.send('instalando', { formula, linea: b.toString().trim().slice(-160) }); };
-    p.stdout.on('data', pasar); p.stderr.on('data', pasar);
-    p.on('exit', (code) => res({ ok: code === 0, salida: salida.slice(-800) }));
-  });
+  return correrConSalidaEnVivo(brew, ['install', formula], formula);
 });
+
+// El servidor de Ollama tarda un instante en abrir el puerto tras
+// "brew services start": sin esperar aquí, el primer intento de `ollama pull`
+// llegaba antes y fallaba con "no se pudo conectar" en equipos lentos.
+async function esperarOllamaListo(intentos = 15, esperaMs = 1000) {
+  const url = (process.env.OLLAMA_HOST || 'http://127.0.0.1:11434') + '/api/tags';
+  for (let i = 0; i < intentos; i++) {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(1000) });
+      if (r.ok) return true;
+    } catch {}
+    await new Promise((res) => setTimeout(res, esperaMs));
+  }
+  return false;
+}
+
+// Deja Ollama listo con el modelo configurado, paso a paso, reutilizando el
+// mismo mecanismo de salida en vivo y la misma detección de brew que
+// "Instalar ahora". No toca motor.tipo: el modo Automático ya prueba Ollama
+// dentro de su propia cadena, así que basta con dejarlo instalado.
+ipcMain.handle('instalar-ollama', async () => {
+  const brew = R.buscarBinario('brew');
+  const ollama = R.buscarBinario('ollama');
+  const modelo = CONFIG.leer().motor.modeloOllama;
+  const pasos = INSTALACION.pasosInstalarOllama({ modelo, brew, ollama });
+  for (const paso of pasos) {
+    if (!paso.cmd) return { ok: false, paso, error: paso.descripcion };
+    if (paso.args[0] === 'pull') {
+      const listo = await esperarOllamaListo();
+      if (!listo) return { ok: false, paso, error: 'El servicio de Ollama no respondió a tiempo. Espera unos segundos y vuelve a intentarlo.' };
+    }
+    // El primer paso puede instalar el binario que necesitan los siguientes:
+    // se vuelve a buscar en vez de confiar en la ruta calculada antes de que existiera.
+    const cmdReal = path.isAbsolute(paso.cmd) ? paso.cmd : (R.buscarBinario(paso.cmd) || paso.cmd);
+    const r = await correrConSalidaEnVivo(cmdReal, paso.args, `ollama:${paso.args[0]}`);
+    if (!r.ok) {
+      const motivo = (r.salida || '').trim().split('\n').filter(Boolean).slice(-4).join(' ').slice(-400);
+      return { ok: false, paso, error: motivo || `Falló: ${paso.descripcion}` };
+    }
+  }
+  return { ok: true };
+});
+
+// Abre un enlace externo en el navegador del sistema. Se limita a https:// a
+// propósito: no es un "abrir cualquier cosa" genérico.
+ipcMain.handle('abrir-externo', (_e, url) => {
+  if (/^https:\/\//.test(String(url || ''))) shell.openExternal(url);
+  return { ok: true };
+});
+
 ipcMain.handle('cliente-activo', (_e, c) => { clienteActivo = c; });
 ipcMain.handle('reuniones', (_e, slug) => INDICE.reuniones(slug));
 // "qué le debo a este cliente": existía para el prompt de Preparar y no se veía en ningún sitio

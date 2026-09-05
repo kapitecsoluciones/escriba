@@ -8,20 +8,32 @@
   const oscurecer = (hex) => '#' + [1, 3, 5].map(i => Math.round(parseInt(hex.slice(i, i + 2), 16) * 0.72).toString(16).padStart(2, '0')).join('');
 
   async function pintar() {
-    const cfg = await window.api.configLeer();
-    const motores = await window.api.motoresEstado();
-    const diag = await window.api.diagnostico();
-    const rm = await window.api.micros().catch(() => ({ ok: false }));
+    // Todo esto puede ir en paralelo: redaccionFalta() prueba disponible() de
+    // cada motor igual que motoresEstado(), y encadenarlas una tras otra
+    // duplicaba la espera al abrir Ajustes.
+    const [cfg, motores, diag, rm, faltaMotor] = await Promise.all([
+      window.api.configLeer(),
+      window.api.motoresEstado(),
+      window.api.diagnostico(),
+      window.api.micros().catch(() => ({ ok: false })),
+      window.api.redaccionFalta().catch(() => null),
+    ]);
     const micros = (rm && rm.ok && rm.micros) || [];
     const c = $$('#cuerpoAjustes');
 
-    const faltantes = diag.faltantes.length
+    // "Quién redacta la minuta" entra a la misma lista de qué falta: sin
+    // motor no hay minuta, igual que sin transcriptor no hay transcripción.
+    const listaFaltantes = [...diag.faltantes, ...(faltaMotor ? [faltaMotor] : [])];
+    const faltantes = listaFaltantes.length
       ? `<div class="et seccion">Falta por instalar</div>` +
-        diag.faltantes.map(f => {
+        listaFaltantes.map(f => {
           const brew = /brew install (\S+)/.exec(f.como);
           const boton = brew ? `<button class="btn" style="margin-top:7px" data-brew="${brew[1]}">Instalar ahora</button>` : '';
           const modelo = /modelo/.test(f.que) ? `<button class="btn" style="margin-top:7px" id="btnModelo">Descargar (1.5 GB)</button>` : '';
-          return `<div class="aviso atencion"><b>${esc(f.que)}</b> — ${esc(f.como)}${boton}${modelo}</div>`;
+          const ollama = f.accion === 'ollama'
+            ? `<button class="btn" style="margin-top:7px" id="btnOllama" data-aviso="${esc(f.aviso || '')}">Instalar Ollama</button>`
+            : '';
+          return `<div class="aviso atencion"><b>${esc(f.que)}</b> — ${esc(f.como)}${boton}${modelo}${ollama}</div>`;
         }).join('')
       : '';
 
@@ -240,6 +252,51 @@
       window.api.onDescarga(({ pct }) => { if (bm.disabled) bm.textContent = `Descargando… ${pct}%`; });
       return window.api.descargarModelo();
     });
+
+    // Instalar Ollama no usa conReintento: antes de tocar nada hay que avisar
+    // cuánto se va a bajar, y si el usuario cancela ahí no pasó nada — no es
+    // un fallo que amerite "Reintentar".
+    const bo = $$('#btnOllama');
+    if (bo) bo.onclick = async () => {
+      if (bo.disabled) return;
+      const aviso = bo.dataset.aviso || 'Se instalará Ollama y se descargará el modelo configurado.';
+      // confirmar() la define app.js (declaración de función, mismo ámbito
+      // global de scripts clásicos): para cuando se hace clic aquí, ya cargó.
+      const ok = await confirmar({ titulo: 'Instalar Ollama', texto: aviso, aceptar: 'Instalar' });
+      if (!ok) return;
+      bo.disabled = true;
+      bo.textContent = 'Instalando…';
+      const caja = bo.closest('.aviso');
+      // Igual que conReintento: el motivo del fallo cuelga como aviso propio
+      // dentro de la misma tarjeta, con los enlaces (brew.sh si falta Homebrew)
+      // convertidos en botones — un <a> normal no navega dentro de la app.
+      const marcarError = (texto) => {
+        if (!caja) return;
+        let m = caja.querySelector('.motivo');
+        if (!m) { m = document.createElement('div'); m.className = 'aviso error motivo'; caja.appendChild(m); }
+        m.innerHTML = '';
+        String(texto || 'No se pudo completar.').split(/(https?:\/\/\S+)/g).forEach(parte => {
+          if (/^https?:\/\//.test(parte)) {
+            const enlace = document.createElement('button');
+            enlace.type = 'button'; enlace.className = 'enlace-externo'; enlace.textContent = parte;
+            enlace.onclick = () => window.api.abrirExterno(parte);
+            m.appendChild(enlace);
+          } else if (parte) {
+            m.appendChild(document.createTextNode(parte));
+          }
+        });
+      };
+      window.api.onInstalando(({ formula, linea }) => {
+        if (bo.disabled && String(formula || '').startsWith('ollama:') && linea) bo.textContent = linea.slice(0, 44);
+      });
+      try {
+        const r = await window.api.instalarOllama();
+        if (r && r.ok) { bo.textContent = 'Listo'; setTimeout(pintar, 900); }
+        else { bo.disabled = false; bo.textContent = 'Reintentar'; marcarError(r && r.error); }
+      } catch (e) {
+        bo.disabled = false; bo.textContent = 'Reintentar'; marcarError(e && e.message);
+      }
+    };
 
     $$('#btnGuardar').onclick = () => guardar(true);
   }

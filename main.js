@@ -935,11 +935,13 @@ ipcMain.handle('compromisos', seguro((_e, { carpeta, minuta }) => {
   // `clienteConCitas` es el mismo texto con las marcas, para el interruptor.
   // El total se cuenta sobre el texto actual (editado incluido); solo las
   // descartadas vienen de la redacción, que es cuando se validaron.
-  const enTexto = (String(minuta || '').match(CITAS.RE_MARCA) || []).length;
+  const cuenta = (t) => (String(t || '').match(CITAS.RE_MARCA) || []).length;
+  const enTexto = cuenta(minuta), enCliente = cuenta(cliente);
   const meta = R.metaReunion(carpeta).citas || {};
   return { ok: true, lista: MINUTA.conEstado(minuta, carpeta), hallazgos: MINUTA.hallazgos(minuta),
            cliente: CITAS.sinCitas(cliente), clienteConCitas: cliente, internas, encontrado,
-           citas: enTexto || meta.descartadas ? { total: enTexto, descartadas: +meta.descartadas || 0 } : null };
+           // enCliente decide si el interruptor de la Minuta tiene algo que enseñar
+           citas: enTexto || meta.descartadas ? { total: enTexto, enCliente, descartadas: +meta.descartadas || 0 } : null };
 }));
 ipcMain.handle('compromiso-marcar', seguro((_e, { carpeta, texto, hecho }) => {
   MINUTA.marcar(carpeta, texto, hecho); return { ok: true };

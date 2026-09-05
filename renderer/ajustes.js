@@ -1,3 +1,9 @@
+// Un solo listener por canal de progreso: cada clic en Instalar/Reintentar
+// registraba otro con ipcRenderer.on y nunca se quitaban.
+let alDescargar = null, alInstalar = null;
+window.api.onDescarga((d) => { if (alDescargar) alDescargar(d); });
+window.api.onInstalando((d) => { if (alInstalar) alInstalar(d); });
+
 // Pantalla de Ajustes: quién eres, dónde vive todo, y con qué motor se redacta.
 (() => {
   const $$ = s => document.querySelector(s);
@@ -256,7 +262,7 @@
     const bm = $$('#btnModelo');
     if (bm) conReintento(bm, { ok: 'Listo' }, async () => {
       bm.textContent = 'Descargando… 0%';
-      window.api.onDescarga(({ pct }) => { if (bm.disabled) bm.textContent = `Descargando… ${pct}%`; });
+      alDescargar = ({ pct }) => { if (bm.disabled) bm.textContent = `Descargando… ${pct}%`; };
       return window.api.descargarModelo();
     });
 
@@ -293,9 +299,9 @@
           }
         });
       };
-      window.api.onInstalando(({ formula, linea }) => {
+      alInstalar = ({ formula, linea }) => {
         if (bo.disabled && String(formula || '').startsWith('ollama:') && linea) bo.textContent = linea.slice(0, 44);
-      });
+      };
       try {
         const r = await window.api.instalarOllama();
         if (r && r.ok) { bo.textContent = 'Listo'; setTimeout(pintar, 900); }

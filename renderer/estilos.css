@@ -267,7 +267,10 @@ kbd{font-family:inherit;font-size:var(--t-11);background:var(--tint2);border:1px
   padding:0 5px;border-radius:var(--r-1);background:var(--gold-soft);border:1px solid var(--gold);line-height:1.5;vertical-align:baseline;cursor:pointer}
 .salto.cita:hover{background:var(--gold);color:#fff}
 .comp-meta .salto.cita{margin-left:var(--e-2)}
-.ver-citas{margin-left:auto;font-size:var(--t-12);color:var(--muted);padding:var(--e-1) var(--e-2);border-radius:var(--r-1)}
+.comp-meta > .salto.cita:first-child{margin-left:0}
+.pestanas-fila{display:flex;align-items:flex-end;flex-wrap:wrap;gap:var(--e-2);border-bottom:1px solid var(--rule-fuerte);margin-bottom:var(--e-4)}
+.pestanas-fila .pestanas{border-bottom:0;margin-bottom:0;flex:1 1 auto;min-width:0}
+.ver-citas{margin-left:auto;white-space:nowrap;align-self:center;font-size:var(--t-12);color:var(--muted);padding:var(--e-1) var(--e-2);border-radius:var(--r-1)}
 .ver-citas:hover{color:var(--gold-texto);background:var(--tint)}
 .ver-citas[aria-pressed="true"]{color:var(--gold-texto);font-weight:600;background:var(--gold-soft)}
 

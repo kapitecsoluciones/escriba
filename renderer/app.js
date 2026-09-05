@@ -341,6 +341,7 @@ async function pintarPendientes(c){
   const v = $('#detalle .vacio'); if(v) v.insertAdjacentElement('beforebegin', caja);
 }
 async function verReunion(r, pestanaInicial){
+  if(reunionActual !== r) verCitas = false;   // el interruptor es por reunión, no global
   reunionActual = r; editando = false; borrador = null; pestana = pestanaInicial || 'minuta';
   pintarClientes(); pintarDetalle();
   if(r.minuta && !r.extras){
@@ -624,7 +625,8 @@ function pintarDetalle(){
   });
   // Las citas se ven en Compromisos e Interno siempre; en la Minuta solo si se
   // piden, porque esa pestaña es exactamente lo que recibe el cliente.
-  if(nCitas){
+  const fila = el('div','pestanas-fila'); fila.appendChild(tira);
+  if(x.citas && x.citas.enCliente){
     const v = el('button','ver-citas', 'Ver citas de audio');
     v.type = 'button'; v.setAttribute('aria-pressed', verCitas ? 'true' : 'false');
     v.title = 'Mostrar en la minuta el momento del audio de cada punto. No salen en el PDF ni al copiar.';
@@ -635,7 +637,7 @@ function pintarDetalle(){
     };
     v.onclick = () => { verCitas = !verCitas; pintar(); };
     if(verCitas) pintar();
-    tira.appendChild(v);
+    fila.appendChild(v);   // fuera del tablist: ahí solo van pestañas
   }
   // ← → entre pestañas, como en las preferencias del sistema
   tira.onkeydown = (e) => {
@@ -646,7 +648,7 @@ function pintarDetalle(){
     const b = tira.querySelector('[aria-selected="true"]'); if(b) b.focus();
     e.preventDefault();
   };
-  d.appendChild(tira);
+  d.appendChild(fila);
   panes.forEach(p => d.appendChild(p.nodo));
   mostrarPestana(pestana);
 }

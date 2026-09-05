@@ -5,7 +5,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { fechaDeCarpeta, ventana } = require('../lib/fechas');
 
-const RUTA = '/Users/x/Reuniones/fair-cup/2026-08-31_161813';
+const RUTA = '/Users/x/Reuniones/borealis/2026-08-31_161813';
 
 test('la fecha sale del nombre de la carpeta, no del día en que se procesa', () => {
   const d = fechaDeCarpeta(RUTA);
@@ -23,7 +23,7 @@ test('la hora del sello llega a la ventana', () => {
 // Las carpetas anteriores a los segundos en el sello se llaman _HHMM. Son
 // reuniones reales que se siguen reprocesando: no pueden perder la hora.
 test('el formato viejo de cuatro dígitos también trae hora', () => {
-  const v = ventana('/x/coller/2026-08-20_2229', 600);
+  const v = ventana('/x/acme/2026-08-20_2229', 600);
   assert.strictEqual(v.inicio, '22:29');
   assert.strictEqual(v.fin, '22:39');
 });

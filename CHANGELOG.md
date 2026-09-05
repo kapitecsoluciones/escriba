@@ -1,5 +1,59 @@
 # Changelog
 
+## 1.0.0 — 2026-09-05
+
+**Una minuta que se puede comprobar, no solo leer.** Cada compromiso, cada
+punto de «Lo que quedó definido» y cada hallazgo de las notas internas lleva
+ahora el momento exacto del audio donde se dijo, y se oye con un clic. Esta
+versión también cierra el hueco más común al probar la app por primera vez:
+qué hacer cuando macOS bloquea la apertura, qué instalar si no hay motor de
+redacción a mano, y qué pegar cuando algo falla.
+
+- **Citas de audio.** La transcripción que ve el motor lleva marcas `[mm:ss]`
+  cada ~25 s o al cambiar de voz; el prompt pide cerrar con ellas cada
+  compromiso, cada punto definido y cada hallazgo. Solo sobreviven las citas
+  que Escriba emitió — las que el modelo inventa se retiran antes de guardar
+  y se cuentan. Hacia el cliente nunca sale ninguna: la minuta, la memoria y
+  el historial pasan siempre por el filtro que las quita. Interfaz: chips en
+  **Compromisos** e **Interno**, interruptor **«Ver citas de audio»** en la
+  **Minuta** (apagado por defecto, porque esa pestaña es justo lo que recibe
+  el cliente), y el conteo junto al motor en la cabecera («Redactada con
+  Claude Code · 6 citas de audio»).
+- **Reunión de ejemplo.** Ayuda › «Probar con una reunión de ejemplo» instala
+  el cliente ficticio «Ejemplo · Acme», con una videollamada de ~2.5 minutos
+  en dos pistas y un expediente con pendientes, y la procesa por el mismo
+  camino que una grabación real. El guion nunca menciona el precio ni
+  confirma la fecha del logotipo; el expediente los tiene como pendientes,
+  así que «lo que no se dijo» funciona desde el primer minuto, sin permisos
+  de micrófono ni de pantalla.
+- **Ollama desde Ajustes.** Si al abrir Ajustes no se encontró Claude Code,
+  Codex ni Ollama, aparece un aviso con el botón **«Instalar Ollama»**:
+  instala el binario con Homebrew, arranca su servicio y descarga el modelo
+  configurado, con un clic y sin terminal. Sin Homebrew no hay automatismo
+  posible, y el aviso enlaza a brew.sh en su lugar.
+- **Diagnóstico y ayuda.** Ayuda › «Copiar diagnóstico» (también en Ajustes ›
+  Ayuda y diagnóstico) copia versión, macOS, binarios, modelo, motor y su
+  disponibilidad, permisos y carpetas — sin el nombre de usuario, que se
+  reemplaza por `~`. Ayuda › «Reportar un problema…» abre el formulario de
+  incidencias de GitHub, con plantillas ya en español.
+- **Instalación real en macOS 15+.** El flujo documentado (clic derecho →
+  Abrir) ya no existe desde Sequoia: el diálogo de Gatekeeper solo ofrece
+  «Mover a la papelera» y «Listo», y el permiso se concede en Ajustes del
+  Sistema › Privacidad y seguridad › Seguridad › «Abrir de todos modos».
+  Verificado en macOS 26.6 con la app en cuarentena; capturas reales en el
+  manual y el sitio.
+- **La ventana horaria de lo grabado llega al prompt.** El sello de carpeta
+  guarda la hora local además de la fecha, pero se tiraba al parsear: al
+  prompt solo llegaban el día y la duración, así que una minuta podía notar
+  que «la grabación se corta a media intervención» sin poder decir qué tramo
+  falta. Ahora el prompt recibe «de las 16:18 a las 17:30», con la zona
+  horaria del equipo que grabó. Las importaciones no reciben una ventana
+  inventada: si el nombre de la carpeta no trae hora, no hay ventana.
+- **El cierre de la frontera, con título anotado.** El encabezado que separa
+  las notas internas del resto se sigue reconociendo aunque lleve una cita de
+  audio pegada: sin ese ajuste, lo privado se habría colado en el documento
+  que recibe el cliente.
+
 ## 0.9.0 — 2026-08-26
 
 **La minuta ya no depende de un solo harness.** El modo Automático prueba

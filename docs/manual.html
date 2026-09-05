@@ -57,10 +57,12 @@ footer a{color:var(--soft)}
 <nav>
   <b>En esta página</b>
   <a href="#primera">La primera vez</a>
+  <a href="#ejemplo">Reunión de ejemplo</a>
   <a href="#permisos">Permisos de macOS</a>
   <a href="#grabar">Grabar una reunión</a>
   <a href="#presencial">Reuniones presenciales</a>
   <a href="#minuta">La minuta y las notas internas</a>
+  <a href="#citas">Citas de audio</a>
   <a href="#corregir">Corregir, rehacer y borrar</a>
   <a href="#expediente">Expedientes de cliente</a>
   <a href="#pendientes">Qué le debes a cada cliente</a>
@@ -74,12 +76,27 @@ footer a{color:var(--soft)}
 
 <h2 id="primera">La primera vez</h2>
 <p>Al abrir Escriba por primera vez, macOS se va a negar porque la app no está notarizada.
-No es un error: es el aviso normal para aplicaciones que no pasaron por la revisión de Apple.</p>
+No es un error: es el aviso normal para aplicaciones que no pasaron por la revisión de Apple. En
+macOS 15 y posteriores, el clásico <b>clic derecho → Abrir ya no existe</b>: esa opción desapareció
+del menú contextual. Esto es lo que vas a ver (las capturas están en inglés porque así estaba
+configurado el sistema donde se tomaron; los pasos van en español):</p>
+<p style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin:18px 0">
+  <img src="captura-gatekeeper-aviso.png" alt="Aviso de macOS: &quot;Escriba&quot; Not Opened, con Move to Trash y Done" style="width:280px;border-radius:10px;border:1px solid rgba(10,20,40,.1)">
+  <img src="captura-gatekeeper-ajustes.png" alt="Ajustes del Sistema: sección Security con el botón Open Anyway" style="width:280px;border-radius:10px;border:1px solid rgba(10,20,40,.1)">
+</p>
 <ol>
-  <li>Haz <b>clic derecho</b> sobre Escriba en la carpeta Aplicaciones.</li>
-  <li>Elige <b>Abrir</b>.</li>
-  <li>Confirma en el diálogo. Solo hay que hacerlo una vez.</li>
+  <li>macOS muestra <b>«No se ha abierto "Escriba"»</b> («"Escriba" Not Opened» en la imagen), con
+      dos botones: uno resaltado en azul («Move to Trash» / «Mover a la papelera») y otro junto a
+      él («Done» / «Listo»). Pulsa <b>«Listo»</b> — <b>no</b> el botón resaltado, que borra la
+      app.</li>
+  <li>Abre <b>Ajustes del Sistema › Privacidad y seguridad</b>, baja hasta la sección
+      <b>Seguridad</b>, y junto a «Se bloqueó "Escriba" para proteger tu Mac» pulsa
+      <b>«Abrir de todos modos»</b> («Open Anyway» en la imagen).</li>
+  <li>Confirma con tu contraseña o Touch ID.</li>
+  <li>Vuelve a abrir Escriba. Esto se hace una sola vez.</li>
 </ol>
+<div class="tip">¿Prefieres la terminal? <code>xattr -dr com.apple.quarantine /Applications/Escriba.app</code>
+hace lo mismo sin pasar por los diálogos.</div>
 <p>Después se abre directamente en Ajustes y te pide lo mínimo:</p>
 <ul>
   <li><b>Tu nombre.</b> Se usa para saber cuál voz eres tú en una videollamada.</li>
@@ -87,7 +104,22 @@ No es un error: es el aviso normal para aplicaciones que no pasaron por la revis
   <li><b>Carpeta de reuniones.</b> Dónde se guardan las grabaciones y los documentos.</li>
 </ul>
 <p>En esa misma pantalla, abajo, Escriba te dice qué falta por instalar y lo instala por ti:
-<code>ffmpeg</code>, <code>whisper-cpp</code> y el modelo de transcripción (1.5 GB, se descarga una sola vez).</p>
+<code>ffmpeg</code>, <code>whisper-cpp</code> y el modelo de transcripción (1.5 GB, se descarga una sola vez);
+y si no encuentra con qué redactar la minuta, te ofrece instalar Ollama con un clic (ver
+<a href="#motor" style="color:var(--ink)">Elegir quién redacta</a>).</p>
+
+<h2 id="ejemplo">Reunión de ejemplo</h2>
+<p>Antes de grabar nada, prueba <b>Ayuda › Probar con una reunión de ejemplo</b> (también hay un
+enlace en la pantalla inicial, cuando todavía no tienes ninguna reunión). Instala un cliente
+ficticio —<b>«Ejemplo · Acme»</b>— con una videollamada de alrededor de 2.5 minutos, grabada en dos
+pistas (dos voces), y un expediente con pendientes ya cargado.</p>
+<p>En unos tres minutos vas a ver la transcripción, quién dijo qué, la minuta con sus citas de
+audio y, en la pestaña <b>Interno</b>, qué pinta tiene «lo que no se dijo» con un expediente real
+detrás: en la llamada nunca se menciona el precio, y el expediente lo tenía como pendiente sin
+resolver.</p>
+<div class="tip">No pide permiso de micrófono ni de grabación de pantalla, así que funciona aunque
+todavía no hayas dado esos permisos. Sirve para ver toda la app antes de tu primera reunión de
+verdad.</div>
 
 <h2 id="permisos">Permisos de macOS</h2>
 <p>Escriba necesita dos permisos, y macOS los pide la primera vez que grabas:</p>
@@ -163,6 +195,22 @@ principal; si editas la minuta después, vuelve a serlo <b>Generar PDF</b>, porq
 corresponde. El PDF queda siempre archivado además dentro de la carpeta de la reunión, con las
 fuentes incrustadas: se ve igual con o sin conexión.</p>
 <p>Con <b>Editar</b> puedes corregir el texto antes de generarlo.</p>
+
+<h2 id="citas">Citas de audio</h2>
+<p>Cada compromiso, cada punto de «Lo que quedó definido» y cada hallazgo de las notas internas
+lleva la marca del momento del audio en que se dijo: un chip <code>mm:ss</code> que se oye con un
+clic, visible siempre en las pestañas <b>Compromisos</b> e <b>Interno</b>.</p>
+<p>En la pestaña <b>Minuta</b> las citas están <b>apagadas por defecto</b>, porque esa pestaña es
+exactamente lo que recibe el cliente. El interruptor <b>«Ver citas de audio»</b>, junto a las
+pestañas, las muestra solo para tu lectura. En ningún caso salen en el PDF, al copiar la minuta, ni
+en el historial del cliente.</p>
+<p>Escriba solo conserva las citas que coinciden con marcas reales de la grabación: las que el
+modelo se inventa se retiran antes de guardar, y se cuentan. Por eso la cabecera de la minuta dice,
+por ejemplo, «Redactada con Claude Code · 6 citas de audio».</p>
+<div class="tip"><b>Una cita señala dónde se dijo algo, para que lo compruebes — no certifica que
+la afirmación sea correcta.</b> Es una diferencia honesta: Granola, por ejemplo, borra el audio
+después de procesar la reunión, y a sus usuarios no les queda cómo verificar una cita. Escriba lo
+conserva y lo enlaza.</div>
 
 <h2 id="corregir">Corregir, rehacer y borrar</h2>
 <p>Al presionar <b>Editar</b> aparecen solo dos botones: <b>Guardar cambios</b> (o <kbd>⌘</kbd><kbd>S</kbd>)
@@ -243,12 +291,17 @@ texto «Para».</p>
     <tr><td>Claude Code</td><td>Versión 2.1.246 o posterior, con sesión</td><td>La transcripción, memoria y expediente, a Anthropic</td></tr>
     <tr><td>Codex</td><td>Versión 0.149.1 o posterior, con sesión</td><td>La transcripción, memoria y expediente, a OpenAI</td></tr>
     <tr><td>Llave propia</td><td>Una llave de Anthropic o de OpenAI</td><td>La transcripción, memoria y expediente, a ese proveedor</td></tr>
-    <tr><td>Ollama</td><td>Ollama y un modelo descargado</td><td>Nada</td></tr>
+    <tr><td>Ollama</td><td>Nada: si no hay ningún motor, Ajustes lo detecta y ofrece «Instalar Ollama» con un clic</td><td>Nada</td></tr>
   </tbody>
 </table>
 <p>Automático prueba Claude Code, Codex, Ollama y la llave propia, en ese orden. Si un motor no
 está instalado, no tiene sesión o falla antes de responder, continúa con el siguiente. Cancelar un
 trabajo no activa el fallback.</p>
+<p>Si al abrir Ajustes no se encontró Claude Code, Codex ni Ollama, aparece un aviso con el botón
+<b>«Instalar Ollama»</b>: instala el binario con Homebrew, arranca su servicio y descarga el modelo
+configurado (por defecto, unos 5 GB), todo con un clic y sin tocar la terminal. Es una sola vez;
+después redacta sin conexión a internet. Sin Homebrew no hay manera automática, y el aviso enlaza a
+<a href="https://brew.sh" style="color:var(--ink)">brew.sh</a> para instalarlo primero.</p>
 <p>Las llaves se guardan en el <b>Keychain de macOS</b>, nunca en un archivo. El botón
 <b>Probar el motor</b> confirma que responde antes de que dependas de él.</p>
 <div class="aviso"><b>Antes de grabar:</b> avisar a los demás que estás grabando es tu
@@ -289,6 +342,17 @@ transcripción ya está hecha, así que no pierdes la reunión.</p>
 <h3>El PDF sale sin logo</h3>
 <p>Pon un archivo <code>logo.png</code> en la carpeta del cliente, o indica el logo de tu empresa en
 Ajustes. Sin ninguno de los dos, el encabezado sale con el nombre en tipografía.</p>
+<h3>Copiar diagnóstico</h3>
+<p><b>Ayuda › Copiar diagnóstico</b> (o el mismo botón en <b>Ajustes › Ayuda y diagnóstico</b>) copia
+al portapapeles un texto con la versión de Escriba, la de macOS, los binarios encontrados
+(<code>ffmpeg</code>, <code>whisper-cli</code>, <code>claude</code>, <code>codex</code>,
+<code>ollama</code>), el modelo de transcripción, el motor elegido y la disponibilidad de cada uno,
+los permisos de micrófono y de grabación de pantalla, y las carpetas en uso — sin tu nombre de
+usuario, que se reemplaza por <code>~</code>. Es lo que hay que pegar donde vayas a pedir ayuda.</p>
+<h3>Reportar un problema</h3>
+<p><b>Ayuda › Reportar un problema…</b> abre el formulario de incidencias de GitHub, con plantillas
+ya en español: una para algo que falló (que te pide justo el diagnóstico de arriba) y otra para
+proponer algo que Escriba todavía no hace.</p>
 
 <footer>
   <a href="index.html">← Volver a la portada</a> · <a href="https://github.com/kapitecsoluciones/escriba">Código en GitHub</a> ·

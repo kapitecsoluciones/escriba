@@ -24,6 +24,17 @@
 
 ---
 
+## What you get in 5 minutes
+
+- **A minute ready to send.**
+- **Commitments you can play back** — every one links to the moment it was said.
+- **What was never said** — the open items nobody raised, checked against the client's file.
+
+The path there: install → Settings installs the rest → **Help › Try with a
+sample meeting** shows you all three before your first real call.
+
+---
+
 ## What was never said
 
 Every notetaker summarizes what happened. Escriba also reports **what should
@@ -41,6 +52,25 @@ read prior context; none flag the absences.
 
 If you already keep a folder with one Markdown file per client, Escriba loads
 the relevant one before writing. That is the whole setup.
+
+## Verify against the audio
+
+Every commitment in the checklist, every line under "What was settled," and
+every finding in the internal notes carries the moment of the recording where
+it was said: an `mm:ss` chip you click to hear it. The **Minute** tab — exactly
+what the client receives — hides them by default; a **View audio quotes**
+switch turns them on for your own reading. They never reach the PDF, the
+copied minute, or the client history.
+
+A quote tells you **where** something was said, so you can check it — it does
+not certify that the claim itself is correct. Escriba only keeps a citation
+that matches a real timestamp from the recording; anything the model invents
+is stripped before saving, and the header states the count: "Drafted with
+Claude Code · 6 audio citations."
+
+Granola deletes the audio once it processes a meeting, and people ask how to
+verify a quote after the fact. Escriba keeps the audio and links every quote
+back to it.
 
 ## And a couple of engineering notes
 
@@ -82,6 +112,7 @@ helper exists.
 | Knows who said what | yes, from two tracks | yes, cloud diarization | no |
 | Uses your client history | yes | partly | no |
 | **Flags what was _not_ said** | **yes** | **no** | **no** |
+| Verify a claim against the audio | yes, every commitment links to the moment | no (Granola deletes the audio) | no |
 | Spanish | first-class | translated | transcription only |
 | Price | free, MIT | $10–29 / user / month | one-off purchase |
 
@@ -97,19 +128,39 @@ and would rather their audio never reached a server in another country.
 Download the `.dmg` from [Releases](https://github.com/kapitecsoluciones/escriba/releases)
 and drag it to Applications.
 
-The app is **not notarized**, so the first launch needs right-click → *Open*.
-Once.
+**Requirements**
 
-**Requirements:** macOS 15+ for microphone capture (13+ works for imported
-audio), Apple Silicon, and [Homebrew](https://brew.sh) — install that first, it
-is the one thing the app cannot install for you. From there Settings installs
-`ffmpeg`, `whisper-cpp` and the 1.5 GB transcription model for you.
+- [ ] macOS 15 or newer, Apple Silicon
+- [ ] [Homebrew](https://brew.sh) — the one thing the app cannot install for
+      you. From there, Settings installs `ffmpeg`, `whisper-cpp` and the
+      1.5 GB transcription model
+- [ ] Something to write the minute with: if you already use the **Claude
+      Code CLI** (2.1.246+) or the **Codex CLI** (0.149.1+) with an active
+      session, you need nothing else. Otherwise, Settings detects the gap and
+      offers **Install Ollama** — free, local, about 5 GB of model — with one
+      click. An API key of your own also works, and the default Automatic
+      mode tries all of them in order, skipping whatever is unavailable.
 
-You also need something to write the minute with: the **Claude Code CLI**, the
-**Codex CLI**, **Ollama** running locally, or an API key of your own. The
-default Automatic mode tries them in that order, skipping anything unavailable.
-Settings also lets you choose one directly. The isolated CLI integrations
-require Claude Code 2.1.246 or newer and Codex 0.149.1 or newer.
+**First launch**
+
+The app is not notarized, and on macOS 15+ the old right-click → *Open* no
+longer exists. This is what you get instead:
+
+<p align="center">
+  <img src="docs/captura-gatekeeper-aviso.png" width="420" alt="macOS: &quot;Escriba&quot; Not Opened, with Move to Trash and Done">
+  <img src="docs/captura-gatekeeper-ajustes.png" width="420" alt="macOS Settings: Security section with Open Anyway">
+</p>
+
+1. macOS shows **"Escriba" Not Opened**, with **Move to Trash** highlighted
+   and **Done** beside it. Click **Done** — not the highlighted button.
+2. Open **System Settings › Privacy & Security**, scroll down to **Security**,
+   and click **Open Anyway** next to "Escriba was blocked to protect your
+   Mac."
+3. Confirm with your password or Touch ID.
+4. Open Escriba again. This is a one-time step.
+
+Prefer the terminal? `xattr -dr com.apple.quarantine /Applications/Escriba.app`
+clears the same quarantine flag without the dialogs.
 
 ## In-person meetings
 
@@ -143,6 +194,25 @@ Nothing you type is lost: saving keeps the previous version, re-drafting keeps
 the previous version, and leaving a half-edited minute asks first. Deleting a
 meeting moves it to the Trash and never touches anything outside the meetings
 folder.
+
+## Sample meeting
+
+**Help › Try with a sample meeting** installs a fictional client — "Ejemplo ·
+Acme" — with a ~2.5-minute two-track video call and a dossier that already
+carries open items. In about three minutes you get the transcript, who-said-
+what, a minute with audio citations and, under Internal, what "what was never
+said" looks like with a real dossier: the price is never brought up on the
+call, and the dossier had it as a pending item. No microphone or
+screen-recording permission needed. Use it to see the whole app before your
+first real meeting.
+
+## Diagnostics
+
+**Help › Copy diagnostics** (also under Settings › Help and diagnostics)
+copies a plain-text report — version, macOS, binaries, available engines,
+permissions, folders — with your username stripped out, ready to paste into
+wherever you're asking for help. **Help › Report a problem…** opens GitHub's
+issue form, with templates in Spanish.
 
 ## Tests
 

@@ -85,3 +85,41 @@ test('con hablantes, sí le pide atribuir los compromisos', () => {
   assert.match(p, /quién se comprometió a qué/i);
   assert.doesNotMatch(p, /No se sabe quién dijo cada cosa/i);
 });
+
+// --- la ventana de lo grabado ---
+// Escriba ya sabía notar "la grabación se corta en plena intervención" y ese
+// aviso no servía de nada: sin horas no se sabe qué tramo falta. La ventana es
+// lo que lo vuelve accionable.
+const HORARIO = { inicio: '16:18', fin: '17:30', zona: 'America/Hermosillo' };
+
+test('con ventana, el prompt lleva las horas, la zona y pide decir qué tramo falta', () => {
+  const p = PROMPT.construir({ ...BASE, horario: HORARIO });
+  assert.match(p, /16:18/);
+  assert.match(p, /17:30/);
+  assert.match(p, /America\/Hermosillo/);
+  assert.match(p, /tramo NO quedó grabado/i);
+  assert.match(p, /no necesariamente la reunión completa/i);
+});
+
+test('sin ventana no se inventa horario ni se pide el tramo faltante', () => {
+  const p = PROMPT.construir(BASE);
+  assert.doesNotMatch(p, /tramo NO quedó grabado/i);
+  assert.doesNotMatch(p, /hora local del equipo/i);
+});
+
+// Una duración desconocida deja el fin vacío. El prompt no puede quedar con un
+// "a las undefined" ni con una frase colgando.
+test('con inicio pero sin fin, la frase se sostiene sola', () => {
+  const p = PROMPT.construir({ ...BASE, horario: { inicio: '09:05', fin: null, zona: 'America/Mexico_City' } });
+  assert.match(p, /de las 09:05/);
+  assert.doesNotMatch(p, /undefined|null/);
+});
+
+test('con citas pide la marca copiada tal cual y prohíbe inventarla; sin citas no menciona marcas', () => {
+  const con = PROMPT.construir({ ...BASE, conCitas: true, transcripcion: '[00:00] Hola.\n[00:25] Seguimos.' });
+  assert.match(con, /## Citas de audio/);
+  assert.match(con, /nunca inventes, calcules ni redondees/);
+  assert.match(con, /celda Compromiso/);
+  const sin = PROMPT.construir({ ...BASE, conCitas: false });
+  assert.doesNotMatch(sin, /Citas de audio/);
+});

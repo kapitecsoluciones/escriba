@@ -10,10 +10,17 @@ contextBridge.exposeInMainWorld('api', {
   motorProbar:     (id)    => ipcRenderer.invoke('motor-probar', id),
   guardarLlave:    (d)     => ipcRenderer.invoke('guardar-llave', d),
   diagnostico:     ()      => ipcRenderer.invoke('diagnostico'),
+  ejemploInstalar: ()      => ipcRenderer.invoke('ejemplo-instalar'),
+  diagnosticoTexto:()      => ipcRenderer.invoke('diagnostico-texto'),
+  diagnosticoCopiar:(t)    => ipcRenderer.invoke('diagnostico-copiar', t),
+
+  redaccionFalta:  ()      => ipcRenderer.invoke('redaccion-falta'),
   micros:          ()      => ipcRenderer.invoke('micros'),
   soportaMicrofono:()      => ipcRenderer.invoke('soporta-microfono'),
   descargarModelo: ()      => ipcRenderer.invoke('descargar-modelo'),
   instalarDep:     (f)     => ipcRenderer.invoke('instalar-dependencia', f),
+  instalarOllama:  ()      => ipcRenderer.invoke('instalar-ollama'),
+  abrirExterno:    (u)     => ipcRenderer.invoke('abrir-externo', u),
   onDescarga:      (cb)    => ipcRenderer.on('descarga', (_e, d) => cb(d)),
   onInstalando:    (cb)    => ipcRenderer.on('instalando', (_e, d) => cb(d)),
   reuniones:       (slug)  => ipcRenderer.invoke('reuniones', slug),
@@ -53,4 +60,5 @@ contextBridge.exposeInMainWorld('api', {
   onAtajo:         (cb)    => ipcRenderer.on('atajo', (_e, d) => cb(d)),
   onMenu:          (cb)    => ipcRenderer.on('menu', (_e, d) => cb(d)),
   onAvisoArranque: (cb)    => ipcRenderer.on('aviso-arranque', (_e, d) => cb(d)),
+  onAvisoBreve:    (cb)    => ipcRenderer.on('aviso-breve', (_e, d) => cb(d)),
 });

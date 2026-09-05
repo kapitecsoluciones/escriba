@@ -1,6 +1,6 @@
-const { app, BrowserWindow, ipcMain, shell, dialog, globalShortcut, Notification, clipboard, Menu, nativeTheme, ShareMenu } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, globalShortcut, Notification, clipboard, Menu, nativeTheme, ShareMenu, systemPreferences } = require('electron');
 const path = require('path'), fs = require('fs'), os = require('os');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 const R = require('./lib/rutas');
 const BIN = R.BIN;
 const CONFIG = require('./lib/config');
@@ -10,6 +10,7 @@ const MD = require('./lib/md');
 const MINUTA = require('./lib/minuta');
 const VOCES = require('./lib/voces');
 const MOTORES = require('./lib/motores');
+const INSTALACION = require('./lib/motores/instalacion');
 const REDACCION = require('./lib/redaccion');
 const { quitarDelDossier } = require('./lib/dossier');
 const MEMORIA = require('./lib/memoria');
@@ -18,6 +19,10 @@ const MARCA = require('./lib/marca');
 const ATOMICO = require('./lib/atomico');
 const MIGRACION = require('./lib/migracion');
 const PREPARACION = require('./lib/preparacion');
+const { fechaDeCarpeta, ventana } = require('./lib/fechas');
+const CITAS = require('./lib/citas');
+const DIAGNOSTICO = require('./lib/diagnostico');
+const EJEMPLO = require('./lib/ejemplo');
 
 let win = null;
 // Versión del formato de dialogo.txt. Sube cuando cambia el criterio de
@@ -42,15 +47,6 @@ const notificar = (titulo, cuerpo) => {
 function sello() {
   const d = new Date(), z = n => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}_${z(d.getHours())}${z(d.getMinutes())}${z(d.getSeconds())}`;
-}
-
-// La fecha de la REUNIÓN, sacada del nombre de la carpeta. Antes se usaba
-// `new Date()` al procesar: redactar hoy la junta de ayer ponía la fecha de hoy
-// en la minuta mientras el PDF de expediente la fechaba bien.
-function fechaDeCarpeta(carpeta) {
-  const m = String(carpeta || '').match(/(\d{4})-(\d{2})-(\d{2})_/);
-  if (!m) return new Date();
-  return new Date(+m[1], +m[2] - 1, +m[3]);
 }
 
 function crearVentana() {
@@ -103,9 +99,17 @@ const avisar = (etapa, detalle = '', pct = null) => {
 
 // Un handler que lanza deja al renderer esperando para siempre. Todos devuelven
 // {ok:false,error} en vez de reventar.
+//
+// El último fallo real (no una cancelación) se guarda aquí para el diagnóstico:
+// solo el más reciente, porque a quien reporta un problema le sirve el de
+// ahorita, no un historial que tendría que leer para encontrarlo.
+let ultimoError = null;
+const registrarError = (e) => {
+  ultimoError = { mensaje: e.message || String(e), hora: new Date().toLocaleString('es-MX') };
+};
 const seguro = (fn) => async (...a) => {
   try { const r = await fn(...a); return (r && typeof r === 'object') ? r : { ok: true, valor: r }; }
-  catch (e) { return { ok: false, error: e.message || String(e) }; }
+  catch (e) { registrarError(e); return { ok: false, error: e.message || String(e) }; }
 };
 
 // ---------- trabajo en curso ----------
@@ -187,6 +191,104 @@ ipcMain.handle('soporta-microfono', () => ({ ok: true, si: soportaMicrofono(),
 ipcMain.handle('diagnostico', () => ({ faltantes: R.faltantes(), binarios: R.BIN(), configurado: CONFIG.configurado(),
                                         configRoto: CONFIG.corrupcion() }));
 
+// ---------- diagnóstico copiable ----------
+// Lo que alguien pega en un chat para reportar que algo falló. Cada pieza se
+// consigue por su lado y con tiempo límite: una app abierta desde el Finder no
+// tiene por qué tener ffmpeg o claude en el PATH, y su ausencia (o que el
+// comando se cuelgue) no puede dejar el resto del diagnóstico sin generarse.
+const EJEC_DIAG_MS = 2000;
+function leerTexto(cmd, args) {
+  return new Promise((res) => {
+    execFile(cmd, args, { timeout: EJEC_DIAG_MS }, (err, stdout) => {
+      res(err ? null : String(stdout || '').trim());
+    });
+  });
+}
+function leerVersion(bin, args, patron) {
+  if (!bin) return Promise.resolve(null);
+  return new Promise((res) => {
+    execFile(bin, args, { timeout: EJEC_DIAG_MS }, (err, stdout) => {
+      if (err) return res(null);
+      const m = patron.exec(String(stdout || ''));
+      res(m ? m[1] : null);
+    });
+  });
+}
+
+async function textoDiagnostico() {
+  const b = BIN();
+  // sw_vers y sysctl con ruta absoluta: una app lanzada desde el Finder hereda
+  // un PATH mínimo (ver lib/rutas.js) que puede no incluirlos.
+  const [buildMac, chipNombre, vFfmpeg, vClaude, vCodex, vOllama, motores] = await Promise.all([
+    leerTexto('/usr/bin/sw_vers', ['-buildVersion']),
+    leerTexto('/usr/sbin/sysctl', ['-n', 'machdep.cpu.brand_string']),
+    leerVersion(b.ffmpeg, ['-version'], /version\s+(\S+)/i),
+    leerVersion(b.claude, ['--version'], /(\d+\.\d+\.\d+\S*)/),
+    leerVersion(b.codex, ['--version'], /(\d+\.\d+\.\d+\S*)/),
+    leerVersion(b.ollama, ['--version'], /(\d+\.\d+\.\d+\S*)/),
+    MOTORES.estado(),
+  ]);
+  // whisper-cli no tiene una bandera de versión confiable: se reporta si
+  // se encontró el binario, sin intentar sacarle un número que puede no existir.
+  let macosVersion = null;
+  try { macosVersion = process.getSystemVersion(); } catch {}
+  let modeloPresente = false, tamanoModelo = null;
+  try {
+    modeloPresente = fs.existsSync(b.modelo);
+    if (modeloPresente) tamanoModelo = fs.statSync(b.modelo).size;
+  } catch {}
+  let permisoMic, permisoPantalla;
+  try { permisoMic = systemPreferences.getMediaAccessStatus('microphone'); } catch {}
+  try { permisoPantalla = systemPreferences.getMediaAccessStatus('screen'); } catch {}
+
+  const datos = {
+    version: app.getVersion(),
+    macos: { version: macosVersion || 'no se pudo leer', build: buildMac || 'no se pudo leer' },
+    chip: `${chipNombre || 'no se pudo leer'} (${process.arch})`,
+    binarios: {
+      ffmpeg: { encontrado: !!b.ffmpeg, version: vFfmpeg },
+      whisper: { encontrado: !!b.whisper, version: null },
+      claude: { encontrado: !!b.claude, version: vClaude },
+      codex: { encontrado: !!b.codex, version: vCodex },
+      ollama: { encontrado: !!b.ollama, version: vOllama },
+    },
+    modelo: { presente: modeloPresente, tamano: tamanoModelo },
+    motorTipo: CONFIG.leer().motor.tipo,
+    motores,
+    permisos: { microfono: permisoMic, pantalla: permisoPantalla },
+    rutas: { reuniones: R.BASE(), config: CONFIG.DIR },
+    ultimoError,
+  };
+  return DIAGNOSTICO.ocultarRutas(DIAGNOSTICO.formatear(datos), os.homedir());
+}
+
+ipcMain.handle('diagnostico-texto', seguro(async () => ({ ok: true, texto: await textoDiagnostico() })));
+ipcMain.handle('diagnostico-copiar', seguro((_e, texto) => { clipboard.writeText(String(texto || '')); return { ok: true }; }));
+
+// disponible() de un motor puede colgarse (Ollama arrancando, Claude Code sin
+// red): con esto un motor lento nunca deja pegada la pantalla de Ajustes.
+function conPlazo(motor, ms = 3000) {
+  return new Promise((resolve) => {
+    let listo = false;
+    const terminar = (v) => { if (listo) return; listo = true; clearTimeout(t); resolve(v); };
+    const t = setTimeout(() => terminar(false), ms);
+    Promise.resolve().then(() => motor.disponible()).then(v => terminar(!!v)).catch(() => terminar(false));
+  });
+}
+
+// Ajustes llama esto para saber si hay CON QUÉ redactar (aparte de si ya está
+// configurado): antes esa pregunta no se hacía nunca, y quien no tenía Claude
+// Code ni Codex llegaba hasta "Redactar" para enterarse ahí de que no había
+// ningún motor listo.
+ipcMain.handle('redaccion-falta', async () => {
+  const disponibles = await Promise.all(
+    MOTORES.TODOS.filter(m => m.id !== 'automatico').map(async (m) => ({ id: m.id, disponible: await conPlazo(m) }))
+  );
+  const falta = INSTALACION.queFaltaParaRedactar({ disponibles });
+  if (!falta) return null;
+  return { ...falta, aviso: INSTALACION.avisoTamano(CONFIG.leer().motor.modeloOllama) };
+});
+
 // Descarga del modelo de transcripción (1.5 GB) con progreso, sin terminal.
 ipcMain.handle('descargar-modelo', async () => {
   const destino = CONFIG.leer().rutas.modelo;
@@ -219,18 +321,85 @@ ipcMain.handle('descargar-modelo', async () => {
   } catch (e) { return { ok: false, error: e.message }; }
 });
 
+// Corre un binario y transmite su salida en vivo por 'instalando' (la misma
+// señal que ya usa "Instalar ahora"), línea a línea: brew separa con salto de
+// línea normal, pero `ollama pull` redibuja su barra de progreso con retorno
+// de carro (\r) — sin partir por ahí llegaba un chorro de caracteres pegados
+// en vez de un progreso legible.
+function correrConSalidaEnVivo(cmd, args, etiqueta) {
+  return new Promise((res) => {
+    const p = spawn(cmd, args);
+    let salida = '';
+    const pasar = (b) => {
+      const texto = b.toString();
+      salida += texto;
+      if (!win) return;
+      const partes = texto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(Boolean);
+      const linea = (partes[partes.length - 1] || texto.trim()).slice(-160);
+      if (linea) win.webContents.send('instalando', { formula: etiqueta, linea });
+    };
+    p.stdout.on('data', pasar); p.stderr.on('data', pasar);
+    p.on('error', (e) => res({ ok: false, salida: e.message }));
+    p.on('exit', (code) => res({ ok: code === 0, salida: salida.slice(-800) }));
+  });
+}
+
 // Instala una dependencia con Homebrew, mostrando la salida en la app.
 ipcMain.handle('instalar-dependencia', async (_e, formula) => {
   const brew = R.buscarBinario('brew');
   if (!brew) return { ok: false, error: 'No se encontró Homebrew. Instálalo desde brew.sh y vuelve a intentarlo.' };
-  return new Promise((res) => {
-    const p = spawn(brew, ['install', formula]);
-    let salida = '';
-    const pasar = (b) => { salida += b.toString(); if (win) win.webContents.send('instalando', { formula, linea: b.toString().trim().slice(-160) }); };
-    p.stdout.on('data', pasar); p.stderr.on('data', pasar);
-    p.on('exit', (code) => res({ ok: code === 0, salida: salida.slice(-800) }));
-  });
+  return correrConSalidaEnVivo(brew, ['install', formula], formula);
 });
+
+// El servidor de Ollama tarda un instante en abrir el puerto tras
+// "brew services start": sin esperar aquí, el primer intento de `ollama pull`
+// llegaba antes y fallaba con "no se pudo conectar" en equipos lentos.
+async function esperarOllamaListo(intentos = 15, esperaMs = 1000) {
+  const url = (process.env.OLLAMA_HOST || 'http://127.0.0.1:11434') + '/api/tags';
+  for (let i = 0; i < intentos; i++) {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(1000) });
+      if (r.ok) return true;
+    } catch {}
+    await new Promise((res) => setTimeout(res, esperaMs));
+  }
+  return false;
+}
+
+// Deja Ollama listo con el modelo configurado, paso a paso, reutilizando el
+// mismo mecanismo de salida en vivo y la misma detección de brew que
+// "Instalar ahora". No toca motor.tipo: el modo Automático ya prueba Ollama
+// dentro de su propia cadena, así que basta con dejarlo instalado.
+ipcMain.handle('instalar-ollama', async () => {
+  const brew = R.buscarBinario('brew');
+  const ollama = R.buscarBinario('ollama');
+  const modelo = CONFIG.leer().motor.modeloOllama;
+  const pasos = INSTALACION.pasosInstalarOllama({ modelo, brew, ollama });
+  for (const paso of pasos) {
+    if (!paso.cmd) return { ok: false, paso, error: paso.descripcion };
+    if (paso.args[0] === 'pull') {
+      const listo = await esperarOllamaListo();
+      if (!listo) return { ok: false, paso, error: 'El servicio de Ollama no respondió a tiempo. Espera unos segundos y vuelve a intentarlo.' };
+    }
+    // El primer paso puede instalar el binario que necesitan los siguientes:
+    // se vuelve a buscar en vez de confiar en la ruta calculada antes de que existiera.
+    const cmdReal = path.isAbsolute(paso.cmd) ? paso.cmd : (R.buscarBinario(paso.cmd) || paso.cmd);
+    const r = await correrConSalidaEnVivo(cmdReal, paso.args, `ollama:${paso.args[0]}`);
+    if (!r.ok) {
+      const motivo = (r.salida || '').trim().split('\n').filter(Boolean).slice(-4).join(' ').slice(-400);
+      return { ok: false, paso, error: motivo || `Falló: ${paso.descripcion}` };
+    }
+  }
+  return { ok: true };
+});
+
+// Abre un enlace externo en el navegador del sistema. Se limita a https:// a
+// propósito: no es un "abrir cualquier cosa" genérico.
+ipcMain.handle('abrir-externo', (_e, url) => {
+  if (/^https:\/\//.test(String(url || ''))) shell.openExternal(url);
+  return { ok: true };
+});
+
 ipcMain.handle('cliente-activo', (_e, c) => { clienteActivo = c; });
 ipcMain.handle('reuniones', (_e, slug) => INDICE.reuniones(slug));
 // "qué le debo a este cliente": existía para el prompt de Preparar y no se veía en ningún sitio
@@ -372,8 +541,9 @@ async function duracion(archivo) {
   try {
     const s = await correr(BIN().ffprobe, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', archivo]);
     const seg = parseFloat(s);
-    return `${Math.floor(seg / 60)} min ${String(Math.floor(seg % 60)).padStart(2, '0')} s`;
-  } catch { return 'desconocida'; }
+    if (!Number.isFinite(seg)) return { texto: 'desconocida', segundos: null };
+    return { texto: `${Math.floor(seg / 60)} min ${String(Math.floor(seg % 60)).padStart(2, '0')} s`, segundos: seg };
+  } catch { return { texto: 'desconocida', segundos: null }; }
 }
 
 async function procesarInterno({ carpeta, slug, nombre, reemplazarMemoria = false }) {
@@ -409,6 +579,7 @@ async function procesarInterno({ carpeta, slug, nombre, reemplazarMemoria = fals
     try { fs.unlinkSync(wav); } catch {}
     }
     let transcripcion = fs.readFileSync(base + '.txt', 'utf8');
+    const plano = transcripcion;
 
     // Sin esto, una grabación muda pasaba entera: mezclar() solo exige 1000 bytes
     // y una hora de silencio en AAC pesa megabytes, así que se le pedía la minuta
@@ -445,6 +616,23 @@ async function procesarInterno({ carpeta, slug, nombre, reemplazarMemoria = fals
       }
     } catch (e) { /* si falla, seguimos con la transcripción plana */ }
 
+    // Lo que ve el modelo lleva marcas [mm:ss] cada ~25 s (o al cambiar de voz):
+    // así cada compromiso puede citar el momento en que se dijo. El diálogo
+    // agrupa por turno y un turno dura minutos; mezcla.txt no trae tiempos.
+    // Sin SRT (importaciones viejas) se sigue con el texto plano y sin citas.
+    let marcas = new Set(), conCitas = false;
+    try {
+      const segs = VOCES.parsearSrt(fs.readFileSync(base + '.srt', 'utf8'));
+      const m = CITAS.marcar(segs, { turnos: atribuida ? CITAS.turnosDeDialogo(atribuida) : null });
+      // Un SRT truncado o ilegible daría al modelo menos texto del que pasó la
+      // guarda de arriba, en silencio: solo se usa si trae casi todas las palabras.
+      // Se comparan solo las palabras dichas: las marcas y los nombres de
+      // hablante que añade marcar() no cuentan, o inflaban el conteo.
+      const palabras = (t) => CITAS.sinCitas(t).replace(/^[^\n:]{1,40}:\s/gm, '').split(/\s+/).filter(Boolean).length;
+      if (m.texto.trim() && palabras(m.texto) >= 0.8 * palabras(plano)) { transcripcion = m.texto; marcas = m.marcas; conCitas = true; }
+      else { transcripcion = plano; atribuida = null; }   // el diálogo sale del mismo SRT: si está corto, también
+    } catch {}
+
     punto();
     avisar('redactando', `Escribiendo la minuta con ${MOTORES.activo().nombre}`);
     // por alias también: un cliente fusionado desde dos carpetas se quedaba sin
@@ -454,18 +642,29 @@ async function procesarInterno({ carpeta, slug, nombre, reemplazarMemoria = fals
     if (cli && cli.dossier) { try { dossier = fs.readFileSync(cli.dossier, 'utf8'); } catch {} }
     const dirMemoria = R.dirCanonica(slug);
     const memoria = MEMORIA.leer(dirMemoria);
-    let modoReunion = null;
-    try { modoReunion = JSON.parse(fs.readFileSync(path.join(carpeta, '.reunion.json'), 'utf8')).modo || null; } catch {}
+    let modoReunion = null, importada = false;
+    try {
+      const meta = JSON.parse(fs.readFileSync(path.join(carpeta, '.reunion.json'), 'utf8')) || {};
+      // La reunión de ejemplo tampoco tiene ventana real: su sello es la hora de instalarla
+      modoReunion = meta.modo || null; importada = !!(meta.importado || meta.ejemplo);
+    } catch {}
     const prompt = PROMPT.construir({
       cliente: nombre, modo: modoReunion,
       fecha: fechaDeCarpeta(carpeta).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }),
-      duracion: dur, transcripcion, dossier, memoria, conHablantes: !!atribuida
+      duracion: dur.texto, horario: importada ? null : ventana(carpeta, dur.segundos),
+      transcripcion, dossier, memoria, conHablantes: !!atribuida, conCitas
     });
     const { minuta } = await REDACCION.redactarYGuardar({
       motor: MOTORES.activo(), prompt, carpeta,
       senal: trabajo && trabajo.ac.signal,
       alIntentar: (m) => avisar('redactando', `Escribiendo la minuta con ${m.nombre}`),
       antesDeGuardar: punto,
+      // Solo sobreviven las citas que Escriba emitió; una inventada por el
+      // modelo se retira antes de guardar y se cuenta en .reunion.json.
+      transformar: (m) => {
+        const v = CITAS.validar(m, marcas);
+        return { minuta: v.texto, citas: conCitas || v.total ? { total: v.total - v.descartadas, descartadas: v.descartadas } : null };
+      },
     });
 
     avisar('guardando', 'Guardando lo acordado en la memoria del cliente');
@@ -477,14 +676,19 @@ async function procesarInterno({ carpeta, slug, nombre, reemplazarMemoria = fals
     });
 
     avisar('listo', '');
-    notificar('Minuta lista', `${nombre} · ${dur}. Ya puedes revisarla y exportar el PDF.`);
-    return { ok: true, minuta, transcripcion, duracion: dur, carpeta, dossier: res };
+    notificar('Minuta lista', `${nombre} · ${dur.texto}. Ya puedes revisarla y exportar el PDF.`);
+    return { ok: true, minuta, transcripcion, duracion: dur.texto, carpeta, dossier: res };
   } catch (e) {
     // cancelar es una decisión del usuario, no un fallo: no se le enseña un error rojo
     if (e.cancelado || (trabajo && trabajo.cancelado)) {
       avisar('cancelado', '');
       return { ok: false, cancelado: true };
     }
+    // procesar no pasa por seguro() (necesita devolver {cancelado:true} sin que
+    // se confunda con un error): sin esta línea, la falla más probable —
+    // ffmpeg, whisper o el motor tronando a mitad de una reunión— nunca
+    // llegaba al diagnóstico.
+    registrarError(e);
     avisar('error', e.message);
     notificar('No se pudo procesar', e.message);
     return { ok: false, error: e.message };
@@ -492,6 +696,20 @@ async function procesarInterno({ carpeta, slug, nombre, reemplazarMemoria = fals
     trabajo = null;
   }
 }
+
+// La reunión de ejemplo: un cliente ficticio con una videollamada de dos voces
+// ya grabada (recurso empaquetado) y un expediente con pendientes. Solo instala
+// los archivos; el renderer la procesa por el MISMO camino que una reunión real
+// (handler `procesar`), así respeta la exclusión de trabajos y la cancelación.
+function recursosEjemplo() {
+  return app.isPackaged ? path.join(process.resourcesPath, 'ejemplo') : path.join(__dirname, 'build', 'ejemplo');
+}
+ipcMain.handle('ejemplo-instalar', seguro(() => {
+  if (trabajo) return { ok: false, error: 'Ya hay una reunión procesándose. Espera a que termine o cancélala.' };
+  if (captura) return { ok: false, error: 'Detén la grabación antes de probar el ejemplo.' };
+  const r = EJEMPLO.instalar({ recursos: recursosEjemplo(), base: R.BASE(), sello: sello() });
+  return { ok: true, ...r };
+}));
 
 ipcMain.handle('procesar', (_e, d) => {
   if (trabajo) return { ok: false, error: 'Ya hay una reunión procesándose. Espera a que termine o cancélala.' };
@@ -717,11 +935,20 @@ ipcMain.handle('compromisos', seguro((_e, { carpeta, minuta }) => {
   // el corte lo hace lib/minuta.js, no el renderer: una sola definición de la
   // frontera para la vista, el PDF, el portapapeles y el expediente
   const { cliente, internas, encontrado } = MINUTA.separar(minuta);
+  // `cliente` va sin citas (es lo que ve la pestaña Minuta por defecto);
+  // `clienteConCitas` es el mismo texto con las marcas, para el interruptor.
+  // El total se cuenta sobre el texto actual (editado incluido); solo las
+  // descartadas vienen de la redacción, que es cuando se validaron.
+  const cuenta = (t) => (String(t || '').match(CITAS.RE_MARCA) || []).length;
+  const enTexto = cuenta(minuta), enCliente = cuenta(cliente);
+  const meta = R.metaReunion(carpeta).citas || {};
   return { ok: true, lista: MINUTA.conEstado(minuta, carpeta), hallazgos: MINUTA.hallazgos(minuta),
-           cliente, internas, encontrado };
+           cliente: CITAS.sinCitas(cliente), clienteConCitas: cliente, internas, encontrado,
+           // enCliente decide si el interruptor de la Minuta tiene algo que enseñar
+           citas: enTexto || meta.descartadas ? { total: enTexto, enCliente, descartadas: +meta.descartadas || 0 } : null };
 }));
-ipcMain.handle('compromiso-marcar', seguro((_e, { carpeta, texto, hecho }) => {
-  MINUTA.marcar(carpeta, texto, hecho); return { ok: true };
+ipcMain.handle('compromiso-marcar', seguro((_e, { carpeta, texto, hecho, clave }) => {
+  MINUTA.marcar(carpeta, texto, hecho, clave || null); return { ok: true };
 }));
 
 // Antes de la reunión: qué está pendiente, qué preguntar y qué llevar listo.
@@ -780,6 +1007,9 @@ ipcMain.handle('importar', async () => {
 ipcMain.handle('importar-a-carpeta', seguro(async (_e, { slug, archivo }) => {
   const carpeta = path.join(R.BASE(), R.exigirSlug(slug), sello());
   fs.mkdirSync(carpeta, { recursive: true });
+  // El sello es la hora de IMPORTAR, no la de la reunión: sin esta marca el
+  // prompt diría "lo grabado va de las 14:02 a las 14:47" de un audio de otro día.
+  ATOMICO.escribirAtomico(path.join(carpeta, '.reunion.json'), JSON.stringify({ importado: true }, null, 2));
   await correr(BIN().ffmpeg, ['-nostdin','-loglevel','error','-y','-i',archivo,'-c:a','aac','-b:a','96k', path.join(carpeta,'mezcla.m4a')]);
   return { carpeta };
 }));
@@ -847,8 +1077,25 @@ function construirMenu() {
     {
       label: 'Ayuda',
       submenu: [
+        { label: 'Probar con una reunión de ejemplo', click: alRenderer('ejemplo') },
+        { type: 'separator' },
         { label: 'Manual de Escriba', click: () => shell.openExternal('https://escriba.kapitec.pro/manual.html') },
         { label: 'Carpeta de reuniones', click: () => shell.openPath(R.BASE()) },
+        { type: 'separator' },
+        // Notificación Y aviso en la ventana: una app sin firmar puede perder
+        // la notificación del sistema en silencio, y quien está probando la
+        // app necesita saber que sí quedó copiado.
+        { label: 'Copiar diagnóstico', click: async () => {
+            try {
+              const texto = await textoDiagnostico();
+              clipboard.writeText(texto);
+              notificar('Diagnóstico copiado', 'Pégalo donde vayas a reportar el problema.');
+              if (win) { win.show(); win.webContents.send('aviso-breve', { texto: 'Diagnóstico copiado al portapapeles.' }); }
+            } catch (e) {
+              if (win) { win.show(); win.webContents.send('aviso-breve', { texto: 'No se pudo generar el diagnóstico: ' + (e.message || e) }); }
+            }
+          } },
+        { label: 'Reportar un problema…', click: () => shell.openExternal('https://github.com/kapitecsoluciones/escriba/issues/new/choose') },
       ],
     },
   ];
@@ -910,6 +1157,25 @@ app.whenReady().then(async () => {
   // Sirve para verificar que los subprocesos (whisper, claude) funcionan cuando la
   // app se abre desde el Finder y no desde la terminal.
   // Gancho de diagnóstico: solo activo con ESCRIBA_AUTOPRUEBA=1
+  // Capturas para la documentación: ESCRIBA_CAPTURAS apunta a un JSON con
+  // [{js, archivo, espera}]; cada paso corre `js` en la ventana, espera y
+  // guarda un PNG. Solo se activa con la variable puesta; con clientes ficticios.
+  if (process.env.ESCRIBA_CAPTURAS && fs.existsSync(process.env.ESCRIBA_CAPTURAS)) {
+    const pasos = JSON.parse(fs.readFileSync(process.env.ESCRIBA_CAPTURAS, 'utf8'));
+    const { nativeTheme } = require('electron');
+    nativeTheme.themeSource = process.env.ESCRIBA_CAPTURAS_TEMA || 'light';
+    win.setSize(+process.env.ESCRIBA_CAPTURAS_ANCHO || 1180, +process.env.ESCRIBA_CAPTURAS_ALTO || 820);
+    setTimeout(async () => {
+      for (const paso of pasos) {
+        try {
+          if (paso.js) await win.webContents.executeJavaScript(paso.js);
+          await new Promise(r => setTimeout(r, paso.espera || 800));
+          if (paso.archivo) fs.writeFileSync(paso.archivo, (await win.webContents.capturePage()).toPNG());
+        } catch (e) { fs.appendFileSync('/private/tmp/CAPTURAS-error.log', `${paso.archivo || paso.js}: ${e.message}\n`); }
+      }
+      app.quit();
+    }, 1800);
+  }
   const centinela = '/private/tmp/AUTOPRUEBA.json';
   if (process.env.ESCRIBA_AUTOPRUEBA === '1' && fs.existsSync(centinela)) {
     const cfg = JSON.parse(fs.readFileSync(centinela, 'utf8'));

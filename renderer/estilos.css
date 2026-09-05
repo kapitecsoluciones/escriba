@@ -115,6 +115,11 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
 .aviso .motivo{margin-top:var(--e-2)}
 .aviso + .aviso{margin-top:var(--e-2)}
 .aviso .btn{margin-top:var(--e-2)}
+/* un enlace dentro de un aviso: <a target=_blank> no navega en la app empaquetada,
+   así que un botón sin marco hace de enlace y abre con abrir-externo (shell.openExternal) */
+.enlace-externo{background:none;border:none;padding:0;margin:0;font:inherit;color:var(--azul);
+  text-decoration:underline;cursor:pointer}
+.enlace-externo:hover{opacity:.8}
 
 kbd{font-family:inherit;font-size:var(--t-11);background:var(--tint2);border:1px solid var(--rule-fuerte);
   border-bottom-width:2px;border-radius:var(--r-1);padding:1px 5px;margin:0 1px}
@@ -257,6 +262,17 @@ kbd{font-family:inherit;font-size:var(--t-11);background:var(--tint2);border:1px
   padding:1px 5px;border-radius:var(--r-1);background:var(--tint);border:1px solid var(--rule)}
 .minuta.dialogo .salto:hover{background:var(--gold-soft);border-color:var(--gold);color:var(--gold-texto)}
 .minuta.dialogo strong{color:var(--gold-texto)}
+/* citas de audio: la marca [mm:ss] hecha botón, en compromisos, interno y (a pedido) en la minuta */
+.salto.cita{font-family:var(--fuente-mono);font-size:var(--t-11);color:var(--gold-texto);margin-left:var(--e-1);
+  padding:0 5px;border-radius:var(--r-1);background:var(--gold-soft);border:1px solid var(--gold);line-height:1.5;vertical-align:baseline;cursor:pointer}
+.salto.cita:hover{background:var(--gold);color:#fff}
+.comp-meta .salto.cita{margin-left:var(--e-2)}
+.comp-meta > .salto.cita:first-child{margin-left:0}
+.pestanas-fila{display:flex;align-items:flex-end;flex-wrap:wrap;gap:var(--e-2);border-bottom:1px solid var(--rule-fuerte);margin-bottom:var(--e-4)}
+.pestanas-fila .pestanas{border-bottom:0;margin-bottom:0;flex:1 1 auto;min-width:0}
+.ver-citas{margin-left:auto;white-space:nowrap;align-self:center;font-size:var(--t-12);color:var(--muted);padding:var(--e-1) var(--e-2);border-radius:var(--r-1)}
+.ver-citas:hover{color:var(--gold-texto);background:var(--tint)}
+.ver-citas[aria-pressed="true"]{color:var(--gold-texto);font-weight:600;background:var(--gold-soft)}
 
 /* notas internas: lo que no se dijo, riesgos y oportunidades */
 .notas{background:var(--ambar-fondo);border:1px solid var(--ambar-borde);border-left:3px solid var(--gold);border-radius:var(--r-3);
@@ -398,6 +414,11 @@ textarea.editor:focus{border-color:var(--azul)}
 .motor-nombre{font-weight:600}
 .motor-desc{font-size:var(--t-12);color:var(--muted);margin-top:2px}
 .motor-priv{font-size:var(--t-11);color:var(--gold-texto);margin-top:var(--e-1);font-weight:600}
+
+/* Ayuda y diagnóstico: el texto que se copia y se pega al reportar un problema. */
+.diag-texto{background:var(--tint);border:1px solid var(--rule);border-radius:var(--r-2);
+  padding:var(--e-3);margin:var(--e-2) 0 var(--e-3);font-family:var(--fuente-mono);font-size:var(--t-12);
+  line-height:var(--lh-2);color:var(--ink);white-space:pre-wrap;word-break:break-word;max-height:280px;overflow-y:auto}
 
 /* vista previa del encabezado del PDF, en Ajustes: siempre clara, como el papel */
 .marca-vista{--acento:#B58A3E;--acento-texto:#846227;background:#fff;color:#0A1428;border:1px solid var(--rule-fuerte);border-radius:var(--r-2);padding:var(--e-3) var(--e-4) var(--e-4);color-scheme:light}

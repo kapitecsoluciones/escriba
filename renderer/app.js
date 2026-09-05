@@ -1,6 +1,6 @@
 let CLIENTES = [], EXPEDIENTES = [], REUNIONES = [], RESULTADOS = null;
 let actual = null, reunionActual = null, hayResultados = false;
-let grabando = false, t0 = 0, crono = null, editando = false, pestana = 'minuta';
+let grabando = false, t0 = 0, crono = null, editando = false, pestana = 'minuta', verCitas = false;
 let borrador = null;      // texto en edición sin guardar; null = no hay nada pendiente
 let modoGrabacion = 'llamada';   // 'llamada' | 'presencial'
 let procesando = false;
@@ -341,6 +341,7 @@ async function pintarPendientes(c){
   const v = $('#detalle .vacio'); if(v) v.insertAdjacentElement('beforebegin', caja);
 }
 async function verReunion(r, pestanaInicial){
+  if(reunionActual !== r) verCitas = false;   // el interruptor es por reunión, no global
   reunionActual = r; editando = false; borrador = null; pestana = pestanaInicial || 'minuta';
   pintarClientes(); pintarDetalle();
   if(r.minuta && !r.extras){
@@ -394,7 +395,7 @@ function bloqueCompromisos(r){
     chk.title = c.hecho ? 'Marcar como pendiente' : 'Marcar como cumplido';
     chk.onclick = async () => {
       const nuevo = !c.hecho;
-      const res = await window.api.marcarCompromiso({carpeta:r.carpeta, texto:c.texto, hecho:nuevo});
+      const res = await window.api.marcarCompromiso({carpeta:r.carpeta, texto:c.texto, hecho:nuevo, clave:c.clave});
       if(res && res.ok === false) return estado('error','No se pudo guardar', res.error);
       // sin repintar: repintar entero reconstruía el <audio> y la reproducción
       // volvía a cero justo cuando estabas verificando una cita
@@ -407,7 +408,12 @@ function bloqueCompromisos(r){
     const cuerpo = el('div','comp-cuerpo');
     cuerpo.appendChild(el('div','comp-texto', esc(c.texto)));
     const meta = [c.quien, c.cuando].filter(Boolean).join(' · ');
-    if(meta) cuerpo.appendChild(el('div','comp-meta', esc(meta)));
+    const conAudio = c.t != null && r.tieneAudio;   // un chip sin audio parecería roto
+    if(meta || conAudio){
+      const linea = el('div','comp-meta', esc(meta));
+      if(conAudio) linea.appendChild(chipCita(mmss(c.t)));
+      cuerpo.appendChild(linea);
+    }
     const cop = el('button','copiar','copiar');
     cop.title = 'Copiar este compromiso';
     cop.onclick = async () => {
@@ -420,6 +426,28 @@ function bloqueCompromisos(r){
   return caja;
 }
 
+// Citas de audio. Un [mm:ss] en compromisos, hallazgos o en la minuta se
+// vuelve un botón que salta a ese momento: verificar antes de enviar.
+function saltarA(t){
+  const a = document.getElementById('audioReunion'); if(!a) return;
+  const p = String(t).split(':').map(Number);
+  a.currentTime = p.length===3 ? p[0]*3600+p[1]*60+p[2] : p[0]*60+p[1];
+  a.play().catch(()=>{});
+}
+const mmss = s => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+function chipCita(t){
+  const b = el('button','salto cita', esc(t)); b.dataset.t = t; b.title = 'Oír este momento';
+  b.onclick = (e) => { e.preventDefault(); saltarA(t); };
+  return b;
+}
+// Sobre el HTML ya convertido: md.js escapa el texto y los corchetes se quedan
+// tal cual, así que la marca se reconoce sin tocar el conversor.
+const conChips = html => html.replace(/\[(\d{1,4}:\d{2})\]/g, (_,t)=>`<button class="salto cita" data-t="${t}" title="Oír este momento">${t}</button>`);
+const sinMarcas = t => String(t||'').replace(/ ?\[\d{1,4}:\d{2}\]/g, '');
+function activarSaltos(nodo){
+  nodo.querySelectorAll('.salto').forEach(b => { b.onclick = (e) => { e.preventDefault(); saltarA(b.dataset.t); }; });
+}
+
 // La conversación por voces. Cada marca de tiempo salta a ese momento del audio.
 function bloqueDialogo(r){
   const cont = el('div','minuta dialogo');
@@ -429,12 +457,7 @@ function bloqueDialogo(r){
     return `<p><button class="salto" data-t="${esc(m[1])}" title="Oír este momento">${esc(m[1])}</button>`+
            `<strong>${esc(m[2])}:</strong> ${esc(m[3])}</p>`;
   }).join('');
-  cont.querySelectorAll('.salto').forEach(b => { b.onclick = () => {
-    const a = document.getElementById('audioReunion'); if(!a) return;
-    const p = b.dataset.t.split(':').map(Number);
-    a.currentTime = p.length===3 ? p[0]*3600+p[1]*60+p[2] : p[0]*60+p[1];
-    a.play().catch(()=>{});
-  }; });
+  activarSaltos(cont);
   return cont;
 }
 
@@ -547,8 +570,11 @@ function pintarDetalle(){
   // para verificar una cita, no parte del documento.
   if(r.minuta && r.tieneAudio) barra.appendChild(reproductor(r));
   if(r.minuta && r.motor && r.motor.nombre){
-    const usado = el('div','motor-usado',`Redactada con ${esc(r.motor.nombre)}`);
-    usado.title = 'Motor que produjo esta versión de la minuta';
+    const c = r.extras && r.extras.citas;
+    const n = (c && c.total) || 0;
+    const usado = el('div','motor-usado',`Redactada con ${esc(r.motor.nombre)}` + (n ? ` · ${n} cita${n===1?'':'s'} de audio` : ''));
+    usado.title = 'Motor que produjo esta versión de la minuta' +
+      (c && c.descartadas ? `. Se retiraron ${c.descartadas} cita${c.descartadas===1?'':'s'} que no correspondían a la grabación.` : '');
     barra.appendChild(usado);
   }
   d.appendChild(barra);
@@ -574,16 +600,18 @@ function pintarDetalle(){
   // primera línea de la minuta en una ventana de 820: lo que revisas antes de
   // enviar no se veía sin scroll. Ahora cada cosa tiene su espacio entero y
   // la pestaña Minuta es exactamente lo que recibe el cliente.
+  const nCitas = (x.citas && x.citas.total) || 0;
+  const paneMinuta = el('div','minuta', md2html(cuerpo));
   const panes = [
-    { id:'minuta', rotulo:'Minuta', ayuda:'Exactamente lo que recibe el cliente',
-      nodo: el('div','minuta', md2html(cuerpo)) },
+    { id:'minuta', rotulo:'Minuta', ayuda:'Exactamente lo que recibe el cliente', nodo: paneMinuta },
   ];
   if(lista.length) panes.push({ id:'compromisos', rotulo:'Compromisos', num: pendientes || null,
     ayuda: pendientes ? `${pendientes} pendiente${pendientes===1?'':'s'} de ${lista.length}` : 'Todos cumplidos',
     nodo: bloqueCompromisos(r) });
   if(internas) panes.push({ id:'interno', rotulo:'Interno', priv:true,
     ayuda:'Lo que no se dijo, riesgos y oportunidades. No se envía al cliente.',
-    nodo: el('div','notas', `<div class="et">Solo para ti · no va en el PDF del cliente</div>${md2html(internas)}`) });
+    nodo: el('div','notas', `<div class="et">Solo para ti · no va en el PDF del cliente</div>${r.tieneAudio ? conChips(md2html(internas)) : md2html(sinMarcas(internas))}`) });
+  const paneInterno = panes.find(p=>p.id==='interno'); if(paneInterno) activarSaltos(paneInterno.nodo);
   if(r.dialogo) panes.push({ id:'dialogo', rotulo:'Quién dijo qué',
     ayuda:'La conversación por voces; cada marca de tiempo se puede oír',
     nodo: bloqueDialogo(r) });
@@ -597,6 +625,22 @@ function pintarDetalle(){
     tira.appendChild(b);
     p.nodo.classList.add('pestana-cuerpo'); p.nodo.dataset.pestana = p.id;
   });
+  // Las citas se ven en Compromisos e Interno siempre; en la Minuta solo si se
+  // piden, porque esa pestaña es exactamente lo que recibe el cliente.
+  const fila = el('div','pestanas-fila'); fila.appendChild(tira);
+  if(x.citas && x.citas.enCliente && r.tieneAudio){
+    const v = el('button','ver-citas', 'Ver citas de audio');
+    v.type = 'button'; v.setAttribute('aria-pressed', verCitas ? 'true' : 'false');
+    v.title = 'Mostrar en la minuta el momento del audio de cada punto. No salen en el PDF ni al copiar.';
+    const pintar = () => {
+      v.setAttribute('aria-pressed', verCitas ? 'true' : 'false');
+      paneMinuta.innerHTML = verCitas ? conChips(md2html(x.clienteConCitas || cuerpo)) : md2html(cuerpo);
+      if(verCitas) activarSaltos(paneMinuta);
+    };
+    v.onclick = () => { verCitas = !verCitas; pintar(); };
+    if(verCitas) pintar();
+    fila.appendChild(v);   // fuera del tablist: ahí solo van pestañas
+  }
   // ← → entre pestañas, como en las preferencias del sistema
   tira.onkeydown = (e) => {
     if(e.key!=='ArrowLeft' && e.key!=='ArrowRight') return;
@@ -606,7 +650,7 @@ function pintarDetalle(){
     const b = tira.querySelector('[aria-selected="true"]'); if(b) b.focus();
     e.preventDefault();
   };
-  d.appendChild(tira);
+  d.appendChild(fila);
   panes.forEach(p => d.appendChild(p.nodo));
   mostrarPestana(pestana);
 }
@@ -1053,7 +1097,30 @@ $('#clientes').onkeydown = (e) => {
 };
 
 // El menú de la aplicación dispara las mismas acciones que los botones.
+// La reunión de ejemplo: instala un cliente ficticio con una videollamada de
+// dos voces y un expediente con pendientes, y la procesa como una real. Es la
+// forma de ver quién dijo qué, las citas y «lo que no se dijo» sin grabar nada.
+async function probarEjemplo(){
+  if(grabando){ aviso('Detén la grabación antes de probar el ejemplo.'); return; }
+  if(!await permisoParaSalir()) return;   // un borrador sin guardar se perdería al cambiar de cliente
+  const r = await window.api.ejemploInstalar();
+  if(!r || r.ok===false){ estado('error','No se pudo preparar la reunión de ejemplo', r && r.error); return; }
+  await cargarClientes();
+  const c = CLIENTES.find(x=>x.slug===r.slug);
+  if(!c){ estado('error','No se pudo preparar la reunión de ejemplo','El cliente de ejemplo no aparece en la lista.'); return; }
+  await elegirCliente(c);
+  // Si entre medias empezó una grabación, elegirCliente se niega y `actual`
+  // sigue siendo el cliente real: procesar ahí anotaría la muestra en SU memoria.
+  if(grabando || !actual || actual.slug !== r.slug){ aviso('No se pudo cambiar al cliente de ejemplo. Detén la grabación e inténtalo de nuevo.'); return; }
+  aviso('Reunión de ejemplo lista. Unos 3 minutos para transcribir, separar las voces y redactar.');
+  await procesar(r.carpeta, { slug: r.slug, nombre: r.nombre });
+}
+document.addEventListener('click', (e) => {
+  if(e.target && e.target.id === 'btnEjemplo'){ e.preventDefault(); probarEjemplo(); }
+});
+
 window.api.onMenu(({accion})=>{
+  if(accion==='ejemplo')        return probarEjemplo();
   const pulsar = (id) => { const b=$(id); if(b && !b.disabled) b.click(); };
   if(accion==='ajustes')        return window.abrirAjustes && window.abrirAjustes();
   if(accion==='nuevo-cliente')  return crearClienteNuevo();
@@ -1099,5 +1166,8 @@ window.onbeforeunload = (e) => {
 };
 
 window.api.onAvisoArranque(({texto}) => { cargarClientes(); aviso(texto); });
+// Mensajes breves que no vienen de una acción del renderer (p. ej. el menú
+// Ayuda › Copiar diagnóstico, que corre en el proceso principal).
+window.api.onAvisoBreve(({texto}) => aviso(texto));
 window.recargarClientes = cargarClientes;
 cargarClientes();

@@ -160,3 +160,28 @@ test('si falla la metadata restaura la minuta anterior', async (t) => {
   assert.equal(fs.readFileSync(destino, 'utf8'), 'Versión anterior');
   assert.equal(fs.readFileSync(respaldo, 'utf8'), 'Versión más antigua');
 });
+
+test('transformar se aplica antes de guardar y las citas llegan al registro del motor', async (t) => {
+  const carpeta = fs.mkdtempSync(path.join(os.tmpdir(), 'escriba-redaccion-'));
+  t.after(() => fs.rmSync(carpeta, { recursive: true, force: true }));
+  let recibido = null;
+  const r = await redactarYGuardar({
+    motor: motor('api', 'API', { respuesta: 'Minuta [01:00] con cita [09:99]' }),
+    prompt: 'reunión', carpeta,
+    transformar: (m) => ({ minuta: m.replace(' [09:99]', ''), citas: { total: 2, descartadas: 1 } }),
+    guardarMotor: (_dir, usado, citas) => { recibido = { usado: usado.id, citas }; },
+  });
+  assert.equal(fs.readFileSync(path.join(carpeta, 'minuta.md'), 'utf8'), 'Minuta [01:00] con cita');
+  assert.equal(r.minuta, 'Minuta [01:00] con cita');
+  assert.deepEqual(recibido, { usado: 'api', citas: { total: 2, descartadas: 1 } });
+});
+
+test('un transformar que no devuelve texto detiene el guardado en vez de guardar sin validar', async (t) => {
+  const carpeta = fs.mkdtempSync(path.join(os.tmpdir(), 'escriba-redaccion-'));
+  t.after(() => fs.rmSync(carpeta, { recursive: true, force: true }));
+  await assert.rejects(() => redactarYGuardar({
+    motor: motor('api', 'API', { respuesta: 'Minuta' }), prompt: 'x', carpeta,
+    transformar: () => undefined, guardarMotor: () => {},
+  }), /validación/);
+  assert.equal(fs.existsSync(path.join(carpeta, 'minuta.md')), false);
+});

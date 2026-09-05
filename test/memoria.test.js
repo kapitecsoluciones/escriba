@@ -144,3 +144,25 @@ test('un id con --> no rompe el marcador', () => {
   MEM.anotar({ dirCliente: dir, id: 'x --> y', fecha: '1', minuta: MINUTA, carpeta: path.join(dir, 'x') });
   assert.doesNotMatch(MEM.leer(dir), /reunion:x --> y -->/);
 });
+
+test('las citas de audio no llegan a la memoria del cliente', () => {
+  const dir = clienteNuevo();
+  const conCitas = MINUTA.replace('Mandar la cotización |', 'Mandar la cotización [03:15] |')
+                         .replace('El precio nunca se mencionó.', 'El precio nunca se mencionó. [07:40]');
+  MEM.anotar({ dirCliente: dir, id: '2026-08-21_110000', fecha: '21 de agosto',
+               minuta: conCitas, carpeta: path.join(dir, '2026-08-21_110000') });
+  const m = MEM.leer(dir);
+  assert.doesNotMatch(m, /\[\d{1,3}:\d{2}\]/);
+  assert.match(m, /Mandar la cotización/);
+  assert.match(m, /El precio nunca se mencionó\./);
+});
+
+test('una cita en la prosa de los acuerdos tampoco llega a la memoria', () => {
+  const dir = clienteNuevo();
+  const conCita = MINUTA.replace('Se rediseña el catálogo', 'Se rediseña el catálogo [02:10]');
+  MEM.anotar({ dirCliente: dir, id: '2026-08-21_110000', fecha: '21 de agosto',
+               minuta: conCita, carpeta: path.join(dir, '2026-08-21_110000') });
+  const m = MEM.leer(dir);
+  assert.match(m, /Se rediseña el catálogo/);
+  assert.doesNotMatch(m, /\[02:10\]/);
+});

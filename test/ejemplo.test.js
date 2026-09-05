@@ -96,7 +96,7 @@ test('ejemplo: instalar copia las pistas y crea los metadatos y el expediente', 
   const cliente = path.join(opciones.base, 'ejemplo-acme');
   assert.deepEqual(resultado, { carpeta: path.join(cliente, sello), slug: 'ejemplo-acme', nombre: 'Ejemplo · Acme' });
   assert.deepEqual(leerJson(path.join(cliente, '.cliente.json')),
-    { nombre: 'Ejemplo · Acme', expediente: path.join(cliente, 'expediente.md') });
+    { nombre: 'Ejemplo · Acme', expediente: path.join(cliente, 'expediente.md'), ejemplo: true });
   assert.deepEqual(leerJson(path.join(resultado.carpeta, '.reunion.json')), { modo: 'llamada', ejemplo: true });
   for (const archivo of ['microfono.m4a', 'sistema.m4a']) {
     assert.deepEqual(fs.readFileSync(path.join(resultado.carpeta, archivo)), fs.readFileSync(path.join(opciones.recursos, archivo)));
@@ -113,7 +113,7 @@ test('ejemplo: otro sello crea otra reunión y conserva los cambios del cliente'
   const primera = instalar(opciones);
   const cliente = path.dirname(primera.carpeta);
   fs.writeFileSync(path.join(cliente, 'expediente.md'), 'Notas agregadas por quien prueba.');
-  const datos = { nombre: 'Ejemplo revisado', expediente: path.join(cliente, 'expediente.md') };
+  const datos = { nombre: 'Ejemplo revisado', expediente: path.join(cliente, 'expediente.md'), ejemplo: true };
   fs.writeFileSync(path.join(cliente, '.cliente.json'), JSON.stringify(datos));
   const segunda = instalar({ ...opciones, sello: '2026-09-05_120001' });
   assert.notEqual(primera.carpeta, segunda.carpeta);
@@ -195,4 +195,19 @@ test('ejemplo: guion sin asuntos económicos ni fecha del logotipo', () => {
       assert.doesNotMatch(respuesta, fecha);
     }
   }
+});
+
+test('no se instala encima de un cliente real que use el mismo slug', () => {
+  const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
+  const E = require('../lib/ejemplo');
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'escriba-ej-real-'));
+  const recursos = path.join(__dirname, '..', 'build', 'ejemplo');
+  fs.mkdirSync(path.join(base, 'ejemplo-acme'), { recursive: true });
+  fs.writeFileSync(path.join(base, 'ejemplo-acme', '.cliente.json'), JSON.stringify({ nombre: 'Ejemplo Acme (real)' }));
+  assert.throws(() => E.instalar({ recursos, base, sello: '2026-09-05_120000' }), /no es el de ejemplo/);
+  assert.ok(!fs.existsSync(path.join(base, 'ejemplo-acme', '2026-09-05_120000')));
+  // el nuestro sí se reutiliza
+  fs.writeFileSync(path.join(base, 'ejemplo-acme', '.cliente.json'), JSON.stringify({ nombre: 'Ejemplo · Acme', ejemplo: true }));
+  assert.ok(E.instalar({ recursos, base, sello: '2026-09-05_120000' }).carpeta);
+  fs.rmSync(base, { recursive: true, force: true });
 });

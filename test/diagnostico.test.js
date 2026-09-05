@@ -103,3 +103,13 @@ test('ocultarRutas con texto vacío o ausente no revienta', () => {
   assert.strictEqual(DIAGNOSTICO.ocultarRutas('', HOME_PRUEBA), '');
   assert.strictEqual(DIAGNOSTICO.ocultarRutas(undefined, HOME_PRUEBA), '');
 });
+
+test('el último error sale acotado, sin secretos y sin rutas de nadie', () => {
+  const D = require('../lib/diagnostico');
+  const largo = 'Falló: token=abc123secreto; sk-ABCDEFGH12345678 en /Users/otra-persona/privado\nsegunda línea con más detalle';
+  const t = D.acotarError(largo);
+  assert.doesNotMatch(t, /abc123secreto|sk-ABCDEFGH/);
+  assert.doesNotMatch(t, /segunda línea/);
+  assert.strictEqual(D.ocultarRutas(t, '/Users/yo'), t.replace('/Users/otra-persona', '~'));
+  assert.ok(D.acotarError('x'.repeat(500)).length <= 240);
+});

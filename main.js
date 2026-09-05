@@ -579,6 +579,7 @@ async function procesarInterno({ carpeta, slug, nombre, reemplazarMemoria = fals
     try { fs.unlinkSync(wav); } catch {}
     }
     let transcripcion = fs.readFileSync(base + '.txt', 'utf8');
+    const plano = transcripcion;
 
     // Sin esto, una grabación muda pasaba entera: mezclar() solo exige 1000 bytes
     // y una hora de silencio en AAC pesa megabytes, así que se le pedía la minuta
@@ -625,8 +626,11 @@ async function procesarInterno({ carpeta, slug, nombre, reemplazarMemoria = fals
       const m = CITAS.marcar(segs, { turnos: atribuida ? CITAS.turnosDeDialogo(atribuida) : null });
       // Un SRT truncado o ilegible daría al modelo menos texto del que pasó la
       // guarda de arriba, en silencio: solo se usa si trae casi todas las palabras.
-      const palabras = (t) => CITAS.sinCitas(t).split(/\s+/).filter(Boolean).length;
-      if (m.texto.trim() && palabras(m.texto) >= 0.8 * palabras(utiles)) { transcripcion = m.texto; marcas = m.marcas; conCitas = true; }
+      // Se comparan solo las palabras dichas: las marcas y los nombres de
+      // hablante que añade marcar() no cuentan, o inflaban el conteo.
+      const palabras = (t) => CITAS.sinCitas(t).replace(/^[^\n:]{1,40}:\s/gm, '').split(/\s+/).filter(Boolean).length;
+      if (m.texto.trim() && palabras(m.texto) >= 0.8 * palabras(plano)) { transcripcion = m.texto; marcas = m.marcas; conCitas = true; }
+      else { transcripcion = plano; atribuida = null; }   // el diálogo sale del mismo SRT: si está corto, también
     } catch {}
 
     punto();

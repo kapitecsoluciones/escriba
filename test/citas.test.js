@@ -90,3 +90,8 @@ test('ultima ignora una marca inválida al final y devuelve la válida anterior'
 test('sinCitas no deja paréntesis vacíos', () => {
   assert.strictEqual(C.sinCitas('Entregar fotos ([03:15]) el viernes'), 'Entregar fotos el viernes');
 });
+
+test('marcar: a los 25 segundos exactos ya toca marca nueva', () => {
+  const r = C.marcar([seg(0, 'a'), seg(25, 'b')], { cada: 25 });
+  assert.deepStrictEqual([...r.marcas], ['00:00', '00:25']);
+});

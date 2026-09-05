@@ -262,3 +262,14 @@ test('un título con la cita entre paréntesis también corta', () => {
   assert.ok(r.ok);
   assert.strictEqual(r.texto, 'Acuerdo público.');
 });
+
+test('la clave vieja se migra al leer: desmarcar la borra de verdad', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'escriba-clave2-'));
+  const viejo = '| Compromiso | Responsable | Fecha |\n|---|---|---|\n| Revisar [09:30] | Ana | lunes |\n';
+  fs.writeFileSync(path.join(dir, M.ARCHIVO), JSON.stringify({ 'revisar 09 30': true }));
+  assert.strictEqual(M.conEstado(viejo, dir)[0].hecho, true);
+  const migrado = JSON.parse(fs.readFileSync(path.join(dir, M.ARCHIVO), 'utf8'));
+  assert.deepStrictEqual(migrado, { revisar: true });
+  M.marcar(dir, 'Revisar', false);
+  assert.strictEqual(M.conEstado(viejo, dir)[0].hecho, false, 'antes volvía a salir cumplido por la clave vieja');
+});

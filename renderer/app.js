@@ -408,9 +408,10 @@ function bloqueCompromisos(r){
     const cuerpo = el('div','comp-cuerpo');
     cuerpo.appendChild(el('div','comp-texto', esc(c.texto)));
     const meta = [c.quien, c.cuando].filter(Boolean).join(' · ');
-    if(meta || c.t != null){
+    const conAudio = c.t != null && r.tieneAudio;   // un chip sin audio parecería roto
+    if(meta || conAudio){
       const linea = el('div','comp-meta', esc(meta));
-      if(c.t != null) linea.appendChild(chipCita(mmss(c.t)));
+      if(conAudio) linea.appendChild(chipCita(mmss(c.t)));
       cuerpo.appendChild(linea);
     }
     const cop = el('button','copiar','copiar');
@@ -441,7 +442,8 @@ function chipCita(t){
 }
 // Sobre el HTML ya convertido: md.js escapa el texto y los corchetes se quedan
 // tal cual, así que la marca se reconoce sin tocar el conversor.
-const conChips = html => html.replace(/\[(\d{1,3}:\d{2})\]/g, (_,t)=>`<button class="salto cita" data-t="${t}" title="Oír este momento">${t}</button>`);
+const conChips = html => html.replace(/\[(\d{1,4}:\d{2})\]/g, (_,t)=>`<button class="salto cita" data-t="${t}" title="Oír este momento">${t}</button>`);
+const sinMarcas = t => String(t||'').replace(/ ?\[\d{1,4}:\d{2}\]/g, '');
 function activarSaltos(nodo){
   nodo.querySelectorAll('.salto').forEach(b => { b.onclick = (e) => { e.preventDefault(); saltarA(b.dataset.t); }; });
 }
@@ -608,7 +610,7 @@ function pintarDetalle(){
     nodo: bloqueCompromisos(r) });
   if(internas) panes.push({ id:'interno', rotulo:'Interno', priv:true,
     ayuda:'Lo que no se dijo, riesgos y oportunidades. No se envía al cliente.',
-    nodo: el('div','notas', `<div class="et">Solo para ti · no va en el PDF del cliente</div>${conChips(md2html(internas))}`) });
+    nodo: el('div','notas', `<div class="et">Solo para ti · no va en el PDF del cliente</div>${r.tieneAudio ? conChips(md2html(internas)) : md2html(sinMarcas(internas))}`) });
   const paneInterno = panes.find(p=>p.id==='interno'); if(paneInterno) activarSaltos(paneInterno.nodo);
   if(r.dialogo) panes.push({ id:'dialogo', rotulo:'Quién dijo qué',
     ayuda:'La conversación por voces; cada marca de tiempo se puede oír',
@@ -626,7 +628,7 @@ function pintarDetalle(){
   // Las citas se ven en Compromisos e Interno siempre; en la Minuta solo si se
   // piden, porque esa pestaña es exactamente lo que recibe el cliente.
   const fila = el('div','pestanas-fila'); fila.appendChild(tira);
-  if(x.citas && x.citas.enCliente){
+  if(x.citas && x.citas.enCliente && r.tieneAudio){
     const v = el('button','ver-citas', 'Ver citas de audio');
     v.type = 'button'; v.setAttribute('aria-pressed', verCitas ? 'true' : 'false');
     v.title = 'Mostrar en la minuta el momento del audio de cada punto. No salen en el PDF ni al copiar.';
@@ -1100,14 +1102,18 @@ $('#clientes').onkeydown = (e) => {
 // forma de ver quién dijo qué, las citas y «lo que no se dijo» sin grabar nada.
 async function probarEjemplo(){
   if(grabando){ aviso('Detén la grabación antes de probar el ejemplo.'); return; }
+  if(!await permisoParaSalir()) return;   // un borrador sin guardar se perdería al cambiar de cliente
   const r = await window.api.ejemploInstalar();
   if(!r || r.ok===false){ estado('error','No se pudo preparar la reunión de ejemplo', r && r.error); return; }
   await cargarClientes();
   const c = CLIENTES.find(x=>x.slug===r.slug);
   if(!c){ estado('error','No se pudo preparar la reunión de ejemplo','El cliente de ejemplo no aparece en la lista.'); return; }
   await elegirCliente(c);
+  // Si entre medias empezó una grabación, elegirCliente se niega y `actual`
+  // sigue siendo el cliente real: procesar ahí anotaría la muestra en SU memoria.
+  if(grabando || !actual || actual.slug !== r.slug){ aviso('No se pudo cambiar al cliente de ejemplo. Detén la grabación e inténtalo de nuevo.'); return; }
   aviso('Reunión de ejemplo lista. Unos 3 minutos para transcribir, separar las voces y redactar.');
-  await procesar(r.carpeta);
+  await procesar(r.carpeta, { slug: r.slug, nombre: r.nombre });
 }
 document.addEventListener('click', (e) => {
   if(e.target && e.target.id === 'btnEjemplo'){ e.preventDefault(); probarEjemplo(); }

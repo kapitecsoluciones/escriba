@@ -1,0 +1,72 @@
+[
+  {
+    "quien": "tu",
+    "desde": 0,
+    "hasta": 7.822676
+  },
+  {
+    "quien": "cliente",
+    "desde": 8.622676,
+    "hasta": 22.133470000000003
+  },
+  {
+    "quien": "tu",
+    "desde": 23.03347,
+    "hasta": 31.872064
+  },
+  {
+    "quien": "cliente",
+    "desde": 32.572064000000005,
+    "hasta": 45.096372
+  },
+  {
+    "quien": "tu",
+    "desde": 46.096372,
+    "hasta": 52.845488
+  },
+  {
+    "quien": "cliente",
+    "desde": 53.645488,
+    "hasta": 68.24898
+  },
+  {
+    "quien": "tu",
+    "desde": 69.24898,
+    "hasta": 77.059365
+  },
+  {
+    "quien": "cliente",
+    "desde": 77.659365,
+    "hasta": 89.382358
+  },
+  {
+    "quien": "tu",
+    "desde": 90.282358,
+    "hasta": 97.278548
+  },
+  {
+    "quien": "cliente",
+    "desde": 98.078548,
+    "hasta": 109.987709
+  },
+  {
+    "quien": "tu",
+    "desde": 111.08770899999999,
+    "hasta": 119.570793
+  },
+  {
+    "quien": "cliente",
+    "desde": 120.270793,
+    "hasta": 133.00399
+  },
+  {
+    "quien": "tu",
+    "desde": 133.90399,
+    "hasta": 141.192153
+  },
+  {
+    "quien": "cliente",
+    "desde": 141.79215299999998,
+    "hasta": 154.80399
+  }
+]

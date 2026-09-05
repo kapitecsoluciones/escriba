@@ -38,3 +38,31 @@ test('un slug que se queda vacío devuelve cadena vacía', () => {
 test('no revienta con cadena vacía', () => {
   assert.strictEqual(titulo(''), '');
 });
+
+test('guardarMetaReunion conserva el motor y añade las citas sin pisar lo demás', () => {
+  const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'escriba-meta-'));
+  const cfgDir = path.join(base, 'cfg'); fs.mkdirSync(cfgDir);
+  const carpeta = path.join(base, 'reuniones', 'acme', '2026-01-15_1030');
+  fs.mkdirSync(carpeta, { recursive: true });
+  fs.writeFileSync(path.join(carpeta, '.reunion.json'), JSON.stringify({ modo: 'llamada' }));
+  const previo = process.env.HOME;
+  try {
+    // rutas lee la base desde la config; se la damos en un HOME temporal
+    process.env.HOME = base;
+    fs.mkdirSync(path.join(base, '.config', 'escriba'), { recursive: true });
+    fs.writeFileSync(path.join(base, '.config', 'escriba', 'config.json'), JSON.stringify({ rutas: { reuniones: path.join(base, 'reuniones') } }));
+    delete require.cache[require.resolve('../lib/config')];
+    delete require.cache[require.resolve('../lib/rutas')];
+    const RR = require('../lib/rutas');
+    RR.guardarMetaReunion(carpeta, { motor: { id: 'api', nombre: 'API' }, citas: { total: 3, descartadas: '1' } });
+    const meta = JSON.parse(fs.readFileSync(path.join(carpeta, '.reunion.json'), 'utf8'));
+    assert.deepStrictEqual(meta, { modo: 'llamada', motor: { id: 'api', nombre: 'API' }, citas: { total: 3, descartadas: 1 } });
+    assert.throws(() => RR.guardarMetaReunion(path.join(base, 'fuera'), { citas: { total: 1 } }), /fuera de la carpeta/);
+  } finally {
+    process.env.HOME = previo;
+    delete require.cache[require.resolve('../lib/config')];
+    delete require.cache[require.resolve('../lib/rutas')];
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+});

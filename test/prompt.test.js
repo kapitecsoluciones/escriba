@@ -114,3 +114,12 @@ test('con inicio pero sin fin, la frase se sostiene sola', () => {
   assert.match(p, /de las 09:05/);
   assert.doesNotMatch(p, /undefined|null/);
 });
+
+test('con citas pide la marca copiada tal cual y prohíbe inventarla; sin citas no menciona marcas', () => {
+  const con = PROMPT.construir({ ...BASE, conCitas: true, transcripcion: '[00:00] Hola.\n[00:25] Seguimos.' });
+  assert.match(con, /## Citas de audio/);
+  assert.match(con, /nunca inventes, calcules ni redondees/);
+  assert.match(con, /celda Compromiso/);
+  const sin = PROMPT.construir({ ...BASE, conCitas: false });
+  assert.doesNotMatch(sin, /Citas de audio/);
+});

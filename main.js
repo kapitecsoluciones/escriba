@@ -19,6 +19,7 @@ const ATOMICO = require('./lib/atomico');
 const MIGRACION = require('./lib/migracion');
 const PREPARACION = require('./lib/preparacion');
 const { fechaDeCarpeta, ventana } = require('./lib/fechas');
+const CITAS = require('./lib/citas');
 
 let win = null;
 // Versión del formato de dialogo.txt. Sube cuando cambia el criterio de
@@ -438,6 +439,20 @@ async function procesarInterno({ carpeta, slug, nombre, reemplazarMemoria = fals
       }
     } catch (e) { /* si falla, seguimos con la transcripción plana */ }
 
+    // Lo que ve el modelo lleva marcas [mm:ss] cada ~25 s (o al cambiar de voz):
+    // así cada compromiso puede citar el momento en que se dijo. El diálogo
+    // agrupa por turno y un turno dura minutos; mezcla.txt no trae tiempos.
+    // Sin SRT (importaciones viejas) se sigue con el texto plano y sin citas.
+    let marcas = new Set(), conCitas = false;
+    try {
+      const segs = VOCES.parsearSrt(fs.readFileSync(base + '.srt', 'utf8'));
+      const m = CITAS.marcar(segs, { turnos: atribuida ? CITAS.turnosDeDialogo(atribuida) : null });
+      // Un SRT truncado o ilegible daría al modelo menos texto del que pasó la
+      // guarda de arriba, en silencio: solo se usa si trae casi todas las palabras.
+      const palabras = (t) => CITAS.sinCitas(t).split(/\s+/).filter(Boolean).length;
+      if (m.texto.trim() && palabras(m.texto) >= 0.8 * palabras(utiles)) { transcripcion = m.texto; marcas = m.marcas; conCitas = true; }
+    } catch {}
+
     punto();
     avisar('redactando', `Escribiendo la minuta con ${MOTORES.activo().nombre}`);
     // por alias también: un cliente fusionado desde dos carpetas se quedaba sin
@@ -447,19 +462,28 @@ async function procesarInterno({ carpeta, slug, nombre, reemplazarMemoria = fals
     if (cli && cli.dossier) { try { dossier = fs.readFileSync(cli.dossier, 'utf8'); } catch {} }
     const dirMemoria = R.dirCanonica(slug);
     const memoria = MEMORIA.leer(dirMemoria);
-    let modoReunion = null;
-    try { modoReunion = JSON.parse(fs.readFileSync(path.join(carpeta, '.reunion.json'), 'utf8')).modo || null; } catch {}
+    let modoReunion = null, importada = false;
+    try {
+      const meta = JSON.parse(fs.readFileSync(path.join(carpeta, '.reunion.json'), 'utf8')) || {};
+      modoReunion = meta.modo || null; importada = !!meta.importado;
+    } catch {}
     const prompt = PROMPT.construir({
       cliente: nombre, modo: modoReunion,
       fecha: fechaDeCarpeta(carpeta).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }),
-      duracion: dur.texto, horario: ventana(carpeta, dur.segundos),
-      transcripcion, dossier, memoria, conHablantes: !!atribuida
+      duracion: dur.texto, horario: importada ? null : ventana(carpeta, dur.segundos),
+      transcripcion, dossier, memoria, conHablantes: !!atribuida, conCitas
     });
     const { minuta } = await REDACCION.redactarYGuardar({
       motor: MOTORES.activo(), prompt, carpeta,
       senal: trabajo && trabajo.ac.signal,
       alIntentar: (m) => avisar('redactando', `Escribiendo la minuta con ${m.nombre}`),
       antesDeGuardar: punto,
+      // Solo sobreviven las citas que Escriba emitió; una inventada por el
+      // modelo se retira antes de guardar y se cuenta en .reunion.json.
+      transformar: (m) => {
+        const v = CITAS.validar(m, marcas);
+        return { minuta: v.texto, citas: conCitas || v.total ? { total: v.total - v.descartadas, descartadas: v.descartadas } : null };
+      },
     });
 
     avisar('guardando', 'Guardando lo acordado en la memoria del cliente');
@@ -711,8 +735,11 @@ ipcMain.handle('compromisos', seguro((_e, { carpeta, minuta }) => {
   // el corte lo hace lib/minuta.js, no el renderer: una sola definición de la
   // frontera para la vista, el PDF, el portapapeles y el expediente
   const { cliente, internas, encontrado } = MINUTA.separar(minuta);
+  // `cliente` va sin citas (es lo que ve la pestaña Minuta por defecto);
+  // `clienteConCitas` es el mismo texto con las marcas, para el interruptor.
   return { ok: true, lista: MINUTA.conEstado(minuta, carpeta), hallazgos: MINUTA.hallazgos(minuta),
-           cliente, internas, encontrado };
+           cliente: CITAS.sinCitas(cliente), clienteConCitas: cliente, internas, encontrado,
+           citas: R.metaReunion(carpeta).citas || null };
 }));
 ipcMain.handle('compromiso-marcar', seguro((_e, { carpeta, texto, hecho }) => {
   MINUTA.marcar(carpeta, texto, hecho); return { ok: true };
@@ -774,6 +801,9 @@ ipcMain.handle('importar', async () => {
 ipcMain.handle('importar-a-carpeta', seguro(async (_e, { slug, archivo }) => {
   const carpeta = path.join(R.BASE(), R.exigirSlug(slug), sello());
   fs.mkdirSync(carpeta, { recursive: true });
+  // El sello es la hora de IMPORTAR, no la de la reunión: sin esta marca el
+  // prompt diría "lo grabado va de las 14:02 a las 14:47" de un audio de otro día.
+  ATOMICO.escribirAtomico(path.join(carpeta, '.reunion.json'), JSON.stringify({ importado: true }, null, 2));
   await correr(BIN().ffmpeg, ['-nostdin','-loglevel','error','-y','-i',archivo,'-c:a','aac','-b:a','96k', path.join(carpeta,'mezcla.m4a')]);
   return { carpeta };
 }));

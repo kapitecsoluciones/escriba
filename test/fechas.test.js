@@ -60,3 +60,10 @@ test('una ruta sin fecha no revienta', () => {
 test('la ventana dice en qué zona están esas horas', () => {
   assert.strictEqual(ventana(RUTA, 4315).zona, Intl.DateTimeFormat().resolvedOptions().timeZone);
 });
+
+test('la fecha sale del nombre de la carpeta, no de una fecha más arriba en la ruta', () => {
+  const F = require('../lib/fechas');
+  const d = F.fechaDeCarpeta('/archivo/2020-01-01/acme/2026-08-20_120000');
+  assert.strictEqual(d.getFullYear(), 2026);
+  assert.strictEqual(d.getHours(), 12);
+});

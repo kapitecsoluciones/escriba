@@ -257,6 +257,14 @@ kbd{font-family:inherit;font-size:var(--t-11);background:var(--tint2);border:1px
   padding:1px 5px;border-radius:var(--r-1);background:var(--tint);border:1px solid var(--rule)}
 .minuta.dialogo .salto:hover{background:var(--gold-soft);border-color:var(--gold);color:var(--gold-texto)}
 .minuta.dialogo strong{color:var(--gold-texto)}
+/* citas de audio: la marca [mm:ss] hecha botón, en compromisos, interno y (a pedido) en la minuta */
+.salto.cita{font-family:var(--fuente-mono);font-size:var(--t-11);color:var(--gold-texto);margin-left:var(--e-1);
+  padding:0 5px;border-radius:var(--r-1);background:var(--gold-soft);border:1px solid var(--gold);line-height:1.5;vertical-align:baseline;cursor:pointer}
+.salto.cita:hover{background:var(--gold);color:#fff}
+.comp-meta .salto.cita{margin-left:var(--e-2)}
+.ver-citas{margin-left:auto;font-size:var(--t-12);color:var(--muted);padding:var(--e-1) var(--e-2);border-radius:var(--r-1)}
+.ver-citas:hover{color:var(--gold-texto);background:var(--tint)}
+.ver-citas[aria-pressed="true"]{color:var(--gold-texto);font-weight:600;background:var(--gold-soft)}
 
 /* notas internas: lo que no se dijo, riesgos y oportunidades */
 .notas{background:var(--ambar-fondo);border:1px solid var(--ambar-borde);border-left:3px solid var(--gold);border-radius:var(--r-3);

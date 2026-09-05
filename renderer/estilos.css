@@ -115,6 +115,11 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
 .aviso .motivo{margin-top:var(--e-2)}
 .aviso + .aviso{margin-top:var(--e-2)}
 .aviso .btn{margin-top:var(--e-2)}
+/* un enlace dentro de un aviso: <a target=_blank> no navega en la app empaquetada,
+   así que un botón sin marco hace de enlace y abre con abrir-externo (shell.openExternal) */
+.enlace-externo{background:none;border:none;padding:0;margin:0;font:inherit;color:var(--azul);
+  text-decoration:underline;cursor:pointer}
+.enlace-externo:hover{opacity:.8}
 
 kbd{font-family:inherit;font-size:var(--t-11);background:var(--tint2);border:1px solid var(--rule-fuerte);
   border-bottom-width:2px;border-radius:var(--r-1);padding:1px 5px;margin:0 1px}

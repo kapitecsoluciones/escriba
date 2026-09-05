@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('api', {
   motorProbar:     (id)    => ipcRenderer.invoke('motor-probar', id),
   guardarLlave:    (d)     => ipcRenderer.invoke('guardar-llave', d),
   diagnostico:     ()      => ipcRenderer.invoke('diagnostico'),
+  diagnosticoTexto:()      => ipcRenderer.invoke('diagnostico-texto'),
+  diagnosticoCopiar:(t)    => ipcRenderer.invoke('diagnostico-copiar', t),
   micros:          ()      => ipcRenderer.invoke('micros'),
   soportaMicrofono:()      => ipcRenderer.invoke('soporta-microfono'),
   descargarModelo: ()      => ipcRenderer.invoke('descargar-modelo'),
@@ -53,4 +55,5 @@ contextBridge.exposeInMainWorld('api', {
   onAtajo:         (cb)    => ipcRenderer.on('atajo', (_e, d) => cb(d)),
   onMenu:          (cb)    => ipcRenderer.on('menu', (_e, d) => cb(d)),
   onAvisoArranque: (cb)    => ipcRenderer.on('aviso-arranque', (_e, d) => cb(d)),
+  onAvisoBreve:    (cb)    => ipcRenderer.on('aviso-breve', (_e, d) => cb(d)),
 });

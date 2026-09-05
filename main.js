@@ -1,6 +1,6 @@
-const { app, BrowserWindow, ipcMain, shell, dialog, globalShortcut, Notification, clipboard, Menu, nativeTheme, ShareMenu } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, globalShortcut, Notification, clipboard, Menu, nativeTheme, ShareMenu, systemPreferences } = require('electron');
 const path = require('path'), fs = require('fs'), os = require('os');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 const R = require('./lib/rutas');
 const BIN = R.BIN;
 const CONFIG = require('./lib/config');
@@ -18,6 +18,7 @@ const MARCA = require('./lib/marca');
 const ATOMICO = require('./lib/atomico');
 const MIGRACION = require('./lib/migracion');
 const PREPARACION = require('./lib/preparacion');
+const DIAGNOSTICO = require('./lib/diagnostico');
 
 let win = null;
 // Versión del formato de dialogo.txt. Sube cuando cambia el criterio de
@@ -103,9 +104,17 @@ const avisar = (etapa, detalle = '', pct = null) => {
 
 // Un handler que lanza deja al renderer esperando para siempre. Todos devuelven
 // {ok:false,error} en vez de reventar.
+//
+// El último fallo real (no una cancelación) se guarda aquí para el diagnóstico:
+// solo el más reciente, porque a quien reporta un problema le sirve el de
+// ahorita, no un historial que tendría que leer para encontrarlo.
+let ultimoError = null;
+const registrarError = (e) => {
+  ultimoError = { mensaje: e.message || String(e), hora: new Date().toLocaleString('es-MX') };
+};
 const seguro = (fn) => async (...a) => {
   try { const r = await fn(...a); return (r && typeof r === 'object') ? r : { ok: true, valor: r }; }
-  catch (e) { return { ok: false, error: e.message || String(e) }; }
+  catch (e) { registrarError(e); return { ok: false, error: e.message || String(e) }; }
 };
 
 // ---------- trabajo en curso ----------
@@ -186,6 +195,80 @@ ipcMain.handle('soporta-microfono', () => ({ ok: true, si: soportaMicrofono(),
 
 ipcMain.handle('diagnostico', () => ({ faltantes: R.faltantes(), binarios: R.BIN(), configurado: CONFIG.configurado(),
                                         configRoto: CONFIG.corrupcion() }));
+
+// ---------- diagnóstico copiable ----------
+// Lo que alguien pega en un chat para reportar que algo falló. Cada pieza se
+// consigue por su lado y con tiempo límite: una app abierta desde el Finder no
+// tiene por qué tener ffmpeg o claude en el PATH, y su ausencia (o que el
+// comando se cuelgue) no puede dejar el resto del diagnóstico sin generarse.
+const EJEC_DIAG_MS = 2000;
+function leerTexto(cmd, args) {
+  return new Promise((res) => {
+    execFile(cmd, args, { timeout: EJEC_DIAG_MS }, (err, stdout) => {
+      res(err ? null : String(stdout || '').trim());
+    });
+  });
+}
+function leerVersion(bin, args, patron) {
+  if (!bin) return Promise.resolve(null);
+  return new Promise((res) => {
+    execFile(bin, args, { timeout: EJEC_DIAG_MS }, (err, stdout) => {
+      if (err) return res(null);
+      const m = patron.exec(String(stdout || ''));
+      res(m ? m[1] : null);
+    });
+  });
+}
+
+async function textoDiagnostico() {
+  const b = BIN();
+  // sw_vers y sysctl con ruta absoluta: una app lanzada desde el Finder hereda
+  // un PATH mínimo (ver lib/rutas.js) que puede no incluirlos.
+  const [buildMac, chipNombre, vFfmpeg, vClaude, vCodex, vOllama, motores] = await Promise.all([
+    leerTexto('/usr/bin/sw_vers', ['-buildVersion']),
+    leerTexto('/usr/sbin/sysctl', ['-n', 'machdep.cpu.brand_string']),
+    leerVersion(b.ffmpeg, ['-version'], /version\s+(\S+)/i),
+    leerVersion(b.claude, ['--version'], /(\d+\.\d+\.\d+\S*)/),
+    leerVersion(b.codex, ['--version'], /(\d+\.\d+\.\d+\S*)/),
+    leerVersion(b.ollama, ['--version'], /(\d+\.\d+\.\d+\S*)/),
+    MOTORES.estado(),
+  ]);
+  // whisper-cli no tiene una bandera de versión confiable: se reporta si
+  // se encontró el binario, sin intentar sacarle un número que puede no existir.
+  let macosVersion = null;
+  try { macosVersion = process.getSystemVersion(); } catch {}
+  let modeloPresente = false, tamanoModelo = null;
+  try {
+    modeloPresente = fs.existsSync(b.modelo);
+    if (modeloPresente) tamanoModelo = fs.statSync(b.modelo).size;
+  } catch {}
+  let permisoMic, permisoPantalla;
+  try { permisoMic = systemPreferences.getMediaAccessStatus('microphone'); } catch {}
+  try { permisoPantalla = systemPreferences.getMediaAccessStatus('screen'); } catch {}
+
+  const datos = {
+    version: app.getVersion(),
+    macos: { version: macosVersion || 'no se pudo leer', build: buildMac || 'no se pudo leer' },
+    chip: `${chipNombre || 'no se pudo leer'} (${process.arch})`,
+    binarios: {
+      ffmpeg: { encontrado: !!b.ffmpeg, version: vFfmpeg },
+      whisper: { encontrado: !!b.whisper, version: null },
+      claude: { encontrado: !!b.claude, version: vClaude },
+      codex: { encontrado: !!b.codex, version: vCodex },
+      ollama: { encontrado: !!b.ollama, version: vOllama },
+    },
+    modelo: { presente: modeloPresente, tamano: tamanoModelo },
+    motorTipo: CONFIG.leer().motor.tipo,
+    motores,
+    permisos: { microfono: permisoMic, pantalla: permisoPantalla },
+    rutas: { reuniones: R.BASE(), config: CONFIG.DIR },
+    ultimoError,
+  };
+  return DIAGNOSTICO.ocultarRutas(DIAGNOSTICO.formatear(datos), os.homedir());
+}
+
+ipcMain.handle('diagnostico-texto', seguro(async () => ({ ok: true, texto: await textoDiagnostico() })));
+ipcMain.handle('diagnostico-copiar', seguro((_e, texto) => { clipboard.writeText(String(texto || '')); return { ok: true }; }));
 
 // Descarga del modelo de transcripción (1.5 GB) con progreso, sin terminal.
 ipcMain.handle('descargar-modelo', async () => {
@@ -485,6 +568,11 @@ async function procesarInterno({ carpeta, slug, nombre, reemplazarMemoria = fals
       avisar('cancelado', '');
       return { ok: false, cancelado: true };
     }
+    // procesar no pasa por seguro() (necesita devolver {cancelado:true} sin que
+    // se confunda con un error): sin esta línea, la falla más probable —
+    // ffmpeg, whisper o el motor tronando a mitad de una reunión— nunca
+    // llegaba al diagnóstico.
+    registrarError(e);
     avisar('error', e.message);
     notificar('No se pudo procesar', e.message);
     return { ok: false, error: e.message };
@@ -849,6 +937,21 @@ function construirMenu() {
       submenu: [
         { label: 'Manual de Escriba', click: () => shell.openExternal('https://escriba.kapitec.pro/manual.html') },
         { label: 'Carpeta de reuniones', click: () => shell.openPath(R.BASE()) },
+        { type: 'separator' },
+        // Notificación Y aviso en la ventana: una app sin firmar puede perder
+        // la notificación del sistema en silencio, y quien está probando la
+        // app necesita saber que sí quedó copiado.
+        { label: 'Copiar diagnóstico', click: async () => {
+            try {
+              const texto = await textoDiagnostico();
+              clipboard.writeText(texto);
+              notificar('Diagnóstico copiado', 'Pégalo donde vayas a reportar el problema.');
+              if (win) { win.show(); win.webContents.send('aviso-breve', { texto: 'Diagnóstico copiado al portapapeles.' }); }
+            } catch (e) {
+              if (win) { win.show(); win.webContents.send('aviso-breve', { texto: 'No se pudo generar el diagnóstico: ' + (e.message || e) }); }
+            }
+          } },
+        { label: 'Reportar un problema…', click: () => shell.openExternal('https://github.com/kapitecsoluciones/escriba/issues/new/choose') },
       ],
     },
   ];

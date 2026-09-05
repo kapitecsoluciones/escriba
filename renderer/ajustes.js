@@ -134,6 +134,13 @@
       ${faltantes}
       <div style="display:flex;gap:8px;margin-top:22px">
         <button class="btn primario" id="btnGuardar">Guardar</button>
+      </div>
+
+      <div class="et seccion">Ayuda y diagnóstico</div>
+      <div class="campo">
+        <div class="ayuda">Si algo no funcionó, copia este diagnóstico y pégalo donde vayas a reportar el problema.</div>
+        <pre class="diag-texto" id="diagTexto">Reuniendo datos…</pre>
+        <button class="btn" id="btnCopiarDiagnostico" disabled>Copiar diagnóstico</button>
       </div>`;
 
     // La vista previa dibuja lo mismo que lib/pdf.js: el logo propio (o el
@@ -242,6 +249,27 @@
     });
 
     $$('#btnGuardar').onclick = () => guardar(true);
+
+    // El diagnóstico se pide una vez al abrir Ajustes (pintar() no corre en
+    // cada tecla), no cada vez que alguien mira esta sección. El botón queda
+    // deshabilitado hasta que llega: si no, un clic rápido copiaría el
+    // "Reuniendo datos…" en vez del diagnóstico real.
+    let diagnosticoActual = '';
+    const preDiag = $$('#diagTexto'), btnDiag = $$('#btnCopiarDiagnostico');
+    window.api.diagnosticoTexto()
+      .then(r => (r && r.ok !== false && r.texto) || 'No se pudo generar el diagnóstico.')
+      .catch(() => 'No se pudo generar el diagnóstico.')
+      .then(texto => {
+        diagnosticoActual = texto;
+        if (preDiag) preDiag.textContent = texto;
+        if (btnDiag) btnDiag.disabled = false;
+      });
+    if (btnDiag) btnDiag.onclick = async () => {
+      await window.api.diagnosticoCopiar(diagnosticoActual);
+      const previo = btnDiag.textContent;
+      btnDiag.textContent = 'Copiado';
+      setTimeout(() => { if (document.contains(btnDiag)) btnDiag.textContent = previo; }, 1500);
+    };
   }
 
   async function guardar(cerrar) {

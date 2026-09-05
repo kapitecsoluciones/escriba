@@ -1,0 +1,72 @@
+[
+  {
+    "quien": "tu",
+    "texto": "Hola, Laura. Vamos a cerrar los pendientes del sitio de Acme Distribuciones. El jueves te mando la primera versión navegable para que la revises en tu celular.",
+    "pausaDespues": 0.8
+  },
+  {
+    "quien": "cliente",
+    "texto": "Va, me sirve. Queremos que la página principal explique que surtimos productos de limpieza para negocios. Yo te envío los textos definitivos el miércoles, con el mensaje de bienvenida y los datos de contacto.",
+    "pausaDespues": 0.9
+  },
+  {
+    "quien": "tu",
+    "texto": "Perfecto. Yo incorporo esos textos el jueves. Pondremos primero qué ofrecen, después las categorías y al final el formulario. ¿Cómo van las fotos de producto?",
+    "pausaDespues": 0.7
+  },
+  {
+    "quien": "cliente",
+    "texto": "Ya seleccionamos seis productos para arrancar. El viernes te entrego sus fotos con fondo blanco y los nombres correctos. Las estoy revisando una por una porque había dos etiquetas que ya no usamos.",
+    "pausaDespues": 1.0
+  },
+  {
+    "quien": "tu",
+    "texto": "Con esas seis está bien para el lanzamiento. El lunes de la próxima semana te entrego la galería lista. ¿Ya quedó aprobado el logotipo?",
+    "pausaDespues": 0.8
+  },
+  {
+    "quien": "cliente",
+    "texto": "No, dirección todavía no lo aprueba. Sigue en revisión. Oye, pasando a otra cosa, en el formulario necesitamos que nos digan el tipo de negocio y cuántas sucursales tienen. Así podemos canalizar cada solicitud.",
+    "pausaDespues": 1.0
+  },
+  {
+    "quien": "tu",
+    "texto": "Anotado. El martes de la próxima semana te envío una prueba del formulario con esos campos. También voy a revisar que se pueda completar desde el celular.",
+    "pausaDespues": 0.6
+  },
+  {
+    "quien": "cliente",
+    "texto": "Gracias. Yo hago la prueba completa ese mismo martes y te mando mis comentarios antes de terminar la tarde. Voy a revisar que el aviso llegue al equipo de atención y que los datos se entiendan.",
+    "pausaDespues": 0.9
+  },
+  {
+    "quien": "tu",
+    "texto": "Nos falta definir quién publica el anuncio en redes. Desde la agencia podemos dejarte la imagen del sitio y un texto breve para acompañarla.",
+    "pausaDespues": 0.8
+  },
+  {
+    "quien": "cliente",
+    "texto": "Eso lo publico yo desde las cuentas de Acme. El miércoles de la próxima semana preparo las publicaciones y se las paso a dirección para revisión. Quiero que todas lleven al catálogo del sitio.",
+    "pausaDespues": 1.1
+  },
+  {
+    "quien": "tu",
+    "texto": "Entonces el martes te mando la imagen y el texto para redes. Dejamos el lanzamiento del sitio para el jueves de la próxima semana, después de revisar el formulario.",
+    "pausaDespues": 0.7
+  },
+  {
+    "quien": "cliente",
+    "texto": "De acuerdo, el jueves de la próxima semana publico el anuncio cuando me confirmes que el sitio está disponible. Prefiero abrirlo primero en mi teléfono y comprobar que el enlace funciona antes de compartirlo.",
+    "pausaDespues": 0.9
+  },
+  {
+    "quien": "tu",
+    "texto": "Va, yo te aviso en cuanto esté publicado y te paso el enlace final. Con eso tenemos responsables para los textos, las fotos y las redes.",
+    "pausaDespues": 0.6
+  },
+  {
+    "quien": "cliente",
+    "texto": "Sí, ya me queda claro qué enviarles. Voy a reunir los materiales con el equipo para que no te lleguen versiones distintas. Gracias por dejar los acuerdos por escrito; así todos revisamos la misma lista.",
+    "pausaDespues": 0.8
+  }
+]

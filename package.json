@@ -43,6 +43,18 @@
       {
         "from": "build/marca/icono-512.png",
         "to": "icono-512.png"
+      },
+      {
+        "from": "build/ejemplo/microfono.m4a",
+        "to": "ejemplo/microfono.m4a"
+      },
+      {
+        "from": "build/ejemplo/sistema.m4a",
+        "to": "ejemplo/sistema.m4a"
+      },
+      {
+        "from": "build/ejemplo/expediente.md",
+        "to": "ejemplo/expediente.md"
       }
     ],
     "mac": {

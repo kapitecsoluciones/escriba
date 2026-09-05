@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.1 — 2026-09-05
+
+- **El título de la reunión en la barra lateral ya no es tu línea de contacto.**
+  Cuando la minuta no traía encabezado ni una negrita propia, el primer texto en
+  negrita era la firma que cierra la parte del cliente («**Nombre · Empresa** ·
+  correo · teléfono») y la reunión aparecía titulada con el nombre del propio
+  usuario. Ahora esa línea se reconoce (por el « · », por el correo o teléfono
+  que la sigue, y por la firma configurada en Ajustes) y, si no hay título
+  mejor, se usa la primera línea de «Lo que quedó definido» recortada a una
+  frase y sin la cita de audio. Hallazgo de la primera prueba externa de 1.0.
+
 ## 1.0.0 — 2026-09-05
 
 **Una minuta que se puede comprobar, no solo leer.** Cada compromiso, cada

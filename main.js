@@ -947,8 +947,8 @@ ipcMain.handle('compromisos', seguro((_e, { carpeta, minuta }) => {
            // enCliente decide si el interruptor de la Minuta tiene algo que enseñar
            citas: enTexto || meta.descartadas ? { total: enTexto, enCliente, descartadas: +meta.descartadas || 0 } : null };
 }));
-ipcMain.handle('compromiso-marcar', seguro((_e, { carpeta, texto, hecho }) => {
-  MINUTA.marcar(carpeta, texto, hecho); return { ok: true };
+ipcMain.handle('compromiso-marcar', seguro((_e, { carpeta, texto, hecho, clave }) => {
+  MINUTA.marcar(carpeta, texto, hecho, clave || null); return { ok: true };
 }));
 
 // Antes de la reunión: qué está pendiente, qué preguntar y qué llevar listo.

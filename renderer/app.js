@@ -395,7 +395,7 @@ function bloqueCompromisos(r){
     chk.title = c.hecho ? 'Marcar como pendiente' : 'Marcar como cumplido';
     chk.onclick = async () => {
       const nuevo = !c.hecho;
-      const res = await window.api.marcarCompromiso({carpeta:r.carpeta, texto:c.texto, hecho:nuevo});
+      const res = await window.api.marcarCompromiso({carpeta:r.carpeta, texto:c.texto, hecho:nuevo, clave:c.clave});
       if(res && res.ok === false) return estado('error','No se pudo guardar', res.error);
       // sin repintar: repintar entero reconstruía el <audio> y la reproducción
       // volvía a cero justo cuando estabas verificando una cita

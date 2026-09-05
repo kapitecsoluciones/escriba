@@ -19,3 +19,6 @@ Ve a **Ajustes › Ayuda y diagnóstico** (o al menú **Ayuda › Copiar diagnó
 ```
 pega aquí el diagnóstico de Ayuda › Copiar diagnóstico
 ```
+
+
+> Antes de pegar el diagnóstico, revisa que la línea «Último error» no traiga nada privado: el texto sale tal cual lo devolvió el programa que falló.

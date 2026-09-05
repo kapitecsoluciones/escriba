@@ -273,3 +273,15 @@ test('la clave vieja se migra al leer: desmarcar la borra de verdad', () => {
   M.marcar(dir, 'Revisar', false);
   assert.strictEqual(M.conEstado(viejo, dir)[0].hecho, false, 'antes volvía a salir cumplido por la clave vieja');
 });
+
+test('dos filas viejas que solo se distinguen por la hora no comparten estado', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'escriba-clave3-'));
+  const viejo = '| Compromiso | Responsable | Fecha |\n|---|---|---|\n| Revisar [09:30] | Ana | lunes |\n| Revisar [10:30] | Ana | lunes |\n';
+  fs.writeFileSync(path.join(dir, M.ARCHIVO), JSON.stringify({ 'revisar 09 30': true }));
+  const l = M.conEstado(viejo, dir);
+  assert.deepStrictEqual(l.map(c => c.hecho), [true, false]);
+  assert.notStrictEqual(l[0].clave, l[1].clave);
+  M.marcar(dir, l[1].texto, true, l[1].clave);
+  M.marcar(dir, l[0].texto, false, l[0].clave);
+  assert.deepStrictEqual(M.conEstado(viejo, dir).map(c => c.hecho), [false, true]);
+});

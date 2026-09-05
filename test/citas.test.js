@@ -95,3 +95,8 @@ test('marcar: a los 25 segundos exactos ya toca marca nueva', () => {
   const r = C.marcar([seg(0, 'a'), seg(25, 'b')], { cada: 25 });
   assert.deepStrictEqual([...r.marcas], ['00:00', '00:25']);
 });
+
+test('sinCitas respeta las casillas "- [ ]" de una lista de tareas', () => {
+  assert.strictEqual(C.sinCitas('- [ ] Entregar contrato [01:00]'), '- [ ] Entregar contrato');
+  assert.strictEqual(C.sinCitas('- [x] Hecho'), '- [x] Hecho');
+});

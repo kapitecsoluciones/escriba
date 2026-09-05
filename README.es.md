@@ -155,6 +155,10 @@ citas están apagadas por defecto; el interruptor **«Ver citas de audio»** las
 muestra solo para tu lectura. Nunca salen en el PDF, ni al copiar la minuta,
 ni en el historial del cliente.
 
+<p align="center">
+  <img src="docs/captura-citas.png" width="860" alt="La pestaña Minuta con las citas de audio encendidas: cada punto termina en un chip mm:ss">
+</p>
+
 Solo se conservan las citas que coinciden con marcas reales de la grabación:
 las que el modelo se inventa se retiran antes de guardar, y se cuentan. La
 cabecera de la minuta lo dice sin rodeos: «Redactada con Claude Code · 6 citas

@@ -62,6 +62,10 @@ what the client receives — hides them by default; a **View audio quotes**
 switch turns them on for your own reading. They never reach the PDF, the
 copied minute, or the client history.
 
+<p align="center">
+  <img src="docs/captura-citas.png" width="860" alt="The Minute tab with audio citations turned on: every settled point ends in an mm:ss chip">
+</p>
+
 A quote tells you **where** something was said, so you can check it — it does
 not certify that the claim itself is correct. Escriba only keeps a citation
 that matches a real timestamp from the recording; anything the model invents

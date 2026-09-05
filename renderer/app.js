@@ -1139,5 +1139,8 @@ window.onbeforeunload = (e) => {
 };
 
 window.api.onAvisoArranque(({texto}) => { cargarClientes(); aviso(texto); });
+// Mensajes breves que no vienen de una acción del renderer (p. ej. el menú
+// Ayuda › Copiar diagnóstico, que corre en el proceso principal).
+window.api.onAvisoBreve(({texto}) => aviso(texto));
 window.recargarClientes = cargarClientes;
 cargarClientes();

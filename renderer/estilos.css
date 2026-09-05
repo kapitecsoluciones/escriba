@@ -407,6 +407,11 @@ textarea.editor:focus{border-color:var(--azul)}
 .motor-desc{font-size:var(--t-12);color:var(--muted);margin-top:2px}
 .motor-priv{font-size:var(--t-11);color:var(--gold-texto);margin-top:var(--e-1);font-weight:600}
 
+/* Ayuda y diagnóstico: el texto que se copia y se pega al reportar un problema. */
+.diag-texto{background:var(--tint);border:1px solid var(--rule);border-radius:var(--r-2);
+  padding:var(--e-3);margin:var(--e-2) 0 var(--e-3);font-family:var(--fuente-mono);font-size:var(--t-12);
+  line-height:var(--lh-2);color:var(--ink);white-space:pre-wrap;word-break:break-word;max-height:280px;overflow-y:auto}
+
 /* vista previa del encabezado del PDF, en Ajustes: siempre clara, como el papel */
 .marca-vista{--acento:#B58A3E;--acento-texto:#846227;background:#fff;color:#0A1428;border:1px solid var(--rule-fuerte);border-radius:var(--r-2);padding:var(--e-3) var(--e-4) var(--e-4);color-scheme:light}
 .marca-vista-cab{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--e-4);padding-bottom:var(--e-2);border-bottom:1px solid rgba(10,20,40,.1);margin-bottom:var(--e-3)}

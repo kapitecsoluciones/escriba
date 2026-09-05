@@ -46,7 +46,7 @@ test('el título: el primer encabezado propio; si no, la primera negrita que no 
   assert.strictEqual(INDICE.tituloReunion('# Renovación del contrato anual\n\n**Borealis · 1 de febrero · 30 minutos**'), 'Renovación del contrato anual');
   // un encabezado genérico no es título
   assert.strictEqual(INDICE.tituloReunion('# Minuta\n\n**Acme · 10 de marzo de 2026 · 52 minutos**\n\n**Acordamos el piloto.**'), 'Acordamos el piloto');
-  assert.strictEqual(INDICE.tituloReunion('**Acme · 10 de marzo de 2026 · 52 minutos**\n\nSolo texto.'), null);
+  assert.strictEqual(INDICE.tituloReunion('**Acme · 10 de marzo de 2026 · 52 minutos**\n\nSolo texto.'), 'Solo texto');
   assert.strictEqual(INDICE.tituloReunion(null), null);
 });
 
@@ -136,8 +136,34 @@ test('con 100 reuniones largas, una tecla tarda menos de 50 ms una vez construid
   assert.strictEqual(INDICE.buscar('girasol100').total, 1);   // 'girasol7' también casa con girasol70…79: es subcadena a propósito
 });
 
+test('el título nunca es la línea de contacto que cierra la minuta', () => {
+  const firma = 'Sofía Ruiz · Borealis · sofia@borealis.example · +52 33 1234 5678';
+  // con la firma fuera, el título cae al contenido de la sección ('Párrafo'), nunca al nombre
+  const meta = '**Acme · 5 de septiembre de 2026 · 2 min 35 s**\n\n## Lo que quedó definido\n\n';
+  // el " · " dentro de la negrita basta, aunque no haya firma configurada ni nada detrás
+  assert.strictEqual(INDICE.tituloReunion(meta + 'Párrafo.\n\n**Sofía Ruiz · Borealis**\n', { firma: '' }), 'Párrafo');
+  assert.strictEqual(INDICE.tituloReunion(meta + 'Párrafo.\n\n**Sofía Ruiz · Borealis** · sofia@borealis.example · +52 33 1234 5678\n', { firma: '' }), 'Párrafo');
+  // un correo o teléfono después de la negrita también la descarta
+  assert.strictEqual(INDICE.tituloReunion(meta + 'Párrafo.\n\n**Sofía Ruiz** · sofia@borealis.example\n', { firma: '' }), 'Párrafo');
+  assert.strictEqual(INDICE.tituloReunion(meta + 'Párrafo.\n\n**Sofía Ruiz** +52 33 1234 5678\n', { firma: '' }), 'Párrafo');
+  // y la firma configurada en Ajustes, aunque venga sola y en negrita
+  assert.strictEqual(INDICE.tituloReunion(meta + 'Párrafo.\n\n**Sofía Ruiz**\n', { firma }), 'Párrafo');
+  // una negrita normal con fecha detrás sigue siendo título
+  assert.strictEqual(INDICE.tituloReunion(meta + '**Se firma el piloto.** Entrega el 2026-03-10 a las 10:30.\n', { firma }), 'Se firma el piloto');
+});
+
+test('sin encabezado ni negrita, el título es la primera línea de la primera sección, en una frase y sin cita', () => {
+  const m = '**Acme · 5 de septiembre de 2026 · 2 min 35 s**\n\n## Lo que quedó definido\n\n- La página principal explicará qué ofrece Acme. El orden será: qué ofrecen y luego el formulario. [00:23]\n- El catálogo arranca con seis productos. [00:46]\n\n**Sofía Ruiz · Borealis** · sofia@borealis.example\n';
+  assert.strictEqual(INDICE.tituloReunion(m, { firma: '' }), 'La página principal explicará qué ofrece Acme');
+  const parrafos = '**Acme · 5 de septiembre de 2026 · 2 min 35 s**\n\nPreámbulo que no cuenta.\n\n## Lo que quedó definido\n\nLa sesión se planteó como un taller de conceptos. No hubo recorrido. [00:10]\n\n## Compromisos\n\n| Compromiso | Responsable | Fecha |\n|---|---|---|\n| Enviar el material | Nosotros | Lunes |\n\n**Sofía Ruiz · Borealis** · sofia@borealis.example\n';
+  assert.strictEqual(INDICE.tituloReunion(parrafos, { firma: '' }), 'La sesión se planteó como un taller de conceptos');
+  const largo = '**Acme · 5 de septiembre de 2026 · 2 min 35 s**\n\n- ' + 'palabra '.repeat(30).trim() + ' [01:00]\n';
+  const t = INDICE.tituloReunion(largo, { firma: '' });
+  assert.ok(t.length <= 82 && t.endsWith('…') && !/\[\d/.test(t), t);
+});
+
 test('el título nunca sale de las notas internas', () => {
   const m = '**Acme · 5 de septiembre de 2026 · 2 min 35 s**\n\n## Lo que quedó definido\n\nPárrafo sin negritas.\n\n## Notas internas (no enviar)\n\n**Lo que NO se dijo**\n\n- Nadie habló del precio.\n';
   assert.notStrictEqual(INDICE.tituloReunion(m), 'Lo que NO se dijo');
-  assert.strictEqual(INDICE.tituloReunion(m), null);
+  assert.strictEqual(INDICE.tituloReunion(m), 'Párrafo sin negritas');
 });
